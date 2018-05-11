@@ -11,23 +11,20 @@ def cost_volume(c1, c2, search_range=4):
     :param c1: Input tensor, with shape (batch, width, height, features).
     :param c2: Input tensor with the exact same shape as c1.
     :param search_range: The search square's side length = 2 * search_range + 1.
-    :return: A tensor with shape (batch, width, height, s * s), where s is each search square's side length.
+    :return: A tensor with shape (batch, width, height, s, s), where s is each search square's side length.
     """
     square_len = 2 * search_range + 1
+
+    # cv is cost volume, not OpenCV.
     square_area = square_len ** 2
     cv_shape = tf.shape(c1)[:-1]
     cv_shape = tf.concat([cv_shape, [square_area]], axis=0)
-
-    # cv = tf.Variable(tf.zeros(cv_shape))
     cv = tf.zeros(cv_shape)
 
     # Form an index matrix to help us update sparsely later on.
     cv_height, cv_width = cv_shape[1], cv_shape[2]
     x_1d, y_1d = tf.range(0, cv_width), tf.range(0, cv_height)
     x_2d, y_2d = tf.meshgrid(x_1d, y_1d)
-
-    #indices = tf.range(0, cv_width * cv_height)
-    #indices = tf.reshape(indices, (cv_height, cv_width))
 
     # This is pretty smart.
     for i in range(-search_range, search_range + 1):
@@ -49,34 +46,24 @@ def cost_volume(c1, c2, search_range=4):
                 slice_w, slice_w_r = slice(None), slice(None)
 
             costs = tf.reduce_mean(c1[:, slice_h, slice_w, :] * c2[:, slice_h_r, slice_w_r, :], axis=-1)
-            k = square_len * i + j
+            k = square_len * (i + search_range) + j + search_range
 
-            # Get the coordinates for scatter update, where each element is an (y, x, k) coordinate.
-            cur_x_2d = x_2d[slice_h, slice_w]
+            # Get the coordinates for scatter update, where each element is an (y, x, z) coordinate.
             cur_y_2d = y_2d[slice_h, slice_w]
-            cur_z_2d = tf.cast(k * tf.ones(tf.shape(cur_x_2d)), tf.int32)
+            cur_x_2d = x_2d[slice_h, slice_w]
+            cur_z_2d = tf.cast(k * tf.ones(tf.shape(cur_y_2d)), tf.int32)
             cur_indices = tf.stack([cur_y_2d, cur_x_2d, cur_z_2d], axis=-1)
             cur_indices = tf.reshape(cur_indices, (-1, 3))
-
-            # cur_indices = indices[slice_h, slice_w]
-            # cur_indices = tf.concat([cur_indices, k], axis=-1)
-
-            # cur_indices = tf.expand_dims(cur_indices, axis=0)
-            print(cur_indices.get_shape().as_list())
-
-            # cur_indices = tf.reshape(cur_indices, (cv_width * cv_height))
-            # cur_indices += k * cv_width * cv_height
-            # cur_indices = tf.expand_dims
 
             # The batch dimension needs to be moved to the end to make slicing work correctly.
             costs = tf.reshape(costs, (tf.shape(costs)[0], -1))
             costs = tf.transpose(costs, [1, 0])
-            target_shape = tf.shape(tf.transpose(cv, [1, 2, 3, 0]))
+            # target_shape = tf.shape(tf.transpose(expanded_cv_shape, [1, 2, 3, 0]))
+            batch_dim = tf.shape(c1)[0]
+            target_shape = [cv_width, cv_height, square_area, batch_dim]
             cv_to_add = tf.scatter_nd(cur_indices, costs, target_shape)
             cv_to_add = tf.transpose(cv_to_add, [3, 0, 1, 2])
             cv += cv_to_add
 
-            # cv +=
-            # cv[:, slice_h, slice_w, k].assign(cv[:, slice_h, slice_w, k] + costs)
-
+    cv = tf.reverse(cv, axis=[-1])
     return cv
