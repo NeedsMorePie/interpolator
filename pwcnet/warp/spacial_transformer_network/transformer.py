@@ -4,7 +4,7 @@
 import tensorflow as tf
 
 
-def spatial_transformer_network(input_fmap, theta, per_pixel=False, out_dims=None, **kwargs):
+def spatial_transformer_network(input_fmap, theta, per_pixel=False, out_dims=None, bilinear_sample=False, **kwargs):
     """
     Spatial Transformer Network layer implementation as described in [1].
     The layer is composed of 3 elements:
@@ -52,15 +52,15 @@ def spatial_transformer_network(input_fmap, theta, per_pixel=False, out_dims=Non
     if out_dims:
         out_H = out_dims[0]
         out_W = out_dims[1]
-        batch_grids = affine_grid_generator(out_H, out_W, theta, per_pixel=per_pixel)
+        x_s, y_s = affine_grid_generator(out_H, out_W, theta, per_pixel=per_pixel)
     else:
-        batch_grids = affine_grid_generator(H, W, theta, per_pixel=per_pixel)
-
-    x_s = batch_grids[:, 0, :, :]
-    y_s = batch_grids[:, 1, :, :]
+        x_s, y_s = affine_grid_generator(H, W, theta, per_pixel=per_pixel)
 
     # sample input with grid to get output
-    out_fmap = bilinear_sampler(input_fmap, x_s, y_s)
+    if bilinear_sample:
+        out_fmap = bilinear_sampler(input_fmap, x_s, y_s)
+    else:
+        out_fmap = simple_sampler(input_fmap, x_s, y_s)
 
     return out_fmap
 
@@ -112,10 +112,7 @@ def affine_grid_generator(height, width, theta, per_pixel=False):
                  if False, then a single theta transform used.
     Returns
     -------
-    - normalized gird (-1, 1) of shape (num_batch, 2, H, W).
-      The 2nd dimension has 2 components: (x, y) which are the
-      sampling points of the original image for each point in the
-      target image.
+    - normalized grid (-1, 1) in the form of Xs and Yx each with shape (num-batch, H, W).
     Note
     ----
     [1]: the affine transformation allows cropping, translation,
@@ -153,18 +150,28 @@ def affine_grid_generator(height, width, theta, per_pixel=False):
         # sampling_grid is currently [num_batch, H*W, 3]. Expand dims to get [num_batch, H*W, 3, 1] for batch-matmul.
         sampling_grid = tf.expand_dims(sampling_grid, axis=-1)
         batch_grids = tf.matmul(theta, sampling_grid)
-        # Undo the previous expand dim and transpose into the expected shape.
-        batch_grids = tf.transpose(tf.squeeze(batch_grids, axis=-1), [0, 2, 1])
+        # Undo the previous expand dim.
+        batch_grids = tf.squeeze(batch_grids, axis=-1)
+
+        # batch grid has shape (num_batch, H*W, 2)
+        # reshape to (num_batch, H, W, 2)
+        batch_grids = tf.reshape(batch_grids, [num_batch, height, width, 2])
+
+        x_s = batch_grids[:, :, :, 0]
+        y_s = batch_grids[:, :, :, 1]
+        return x_s, y_s
     else:
         # transform the sampling grid - batch multiply
         # sampling_grid is currently [num_batch, 3, H*W].
         batch_grids = tf.matmul(theta, sampling_grid)
 
-    # batch grid has shape (num_batch, 2, H*W)
-    # reshape to (num_batch, 2, H, W)
-    batch_grids = tf.reshape(batch_grids, [num_batch, 2, height, width])
+        # batch grid has shape (num_batch, 2, H*W)
+        # reshape to (num_batch, 2, H, W)
+        batch_grids = tf.reshape(batch_grids, [num_batch, 2, height, width])
 
-    return batch_grids
+        x_s = batch_grids[:, 0, :, :]
+        y_s = batch_grids[:, 1, :, :]
+        return x_s, y_s
 
 
 def bilinear_sampler(img, x, y):
@@ -242,3 +249,38 @@ def bilinear_sampler(img, x, y):
     out = tf.add_n([wa * Ia, wb * Ib, wc * Ic, wd * Id])
 
     return out
+
+
+def simple_sampler(img, x, y):
+    """
+    Grabs the nearest pixel.
+    """
+    # Prepare useful params.
+    B = tf.shape(img)[0]
+    H = tf.shape(img)[1]
+    W = tf.shape(img)[2]
+    C = tf.shape(img)[3]
+
+    max_y = tf.cast(H, dtype=tf.int32)
+    max_x = tf.cast(W, dtype=tf.int32)
+
+    # Cast indices as float32 (for rescaling).
+    x = tf.cast(x, dtype=tf.float32)
+    y = tf.cast(y, dtype=tf.float32)
+
+    # Rescale x and y to [0, W/H].
+    x = 0.5 * ((x + 1.0) * tf.cast(W, dtype=tf.float32))
+    y = 0.5 * ((y + 1.0) * tf.cast(H, dtype=tf.float32))
+
+    # Grab nearest points for each (x_i, y_i).
+    x0 = tf.cast(tf.floor(x), dtype=tf.int32)
+    y0 = tf.cast(tf.floor(y), dtype=tf.int32)
+
+    # Clip to range [-1, H/W] to allow violation so that we can return 0 when violated.
+    x0 = tf.clip_by_value(x0, -1, max_x)
+    y0 = tf.clip_by_value(y0, -1, max_y)
+
+    # Get pixel value at coordinate.
+    padded = tf.image.resize_image_with_crop_or_pad(img, H + 2, W + 2)
+    sampled = get_pixel_value(padded, x0 + 1, y0 + 1)
+    return tf.image.resize_image_with_crop_or_pad(sampled, H, W)
