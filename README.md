@@ -6,4 +6,5 @@
 
 *   Anaconda3
     *   tensorflow or tensorflow-gpu
+    *   opencv-python
 
