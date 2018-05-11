@@ -18,8 +18,8 @@ def optical_flow_to_transforms(optical_flows):
     x_trans = optical_flows[..., 0]
     y_trans = optical_flows[..., 1]
     # Note that the * 2.0 is because the normalized coordinates are bound between [-1, 1] and not [0, 1].
-    optical_transforms = tf.stack([ones, zeros, -x_trans / tf.cast(W, dtype=tf.float32) * 2.0,
-                                   zeros, ones, -y_trans / tf.cast(H, dtype=tf.float32) * 2.0], axis=-1)
+    optical_transforms = tf.stack([ones, zeros, x_trans / tf.cast(W, dtype=tf.float32) * 2.0,
+                                   zeros, ones, y_trans / tf.cast(H, dtype=tf.float32) * 2.0], axis=-1)
 
     return optical_transforms
 
@@ -38,6 +38,8 @@ def optical_flow_to_transforms_immediate(optical_flows, session):
 
 def warp_via_flow(images, optical_flows):
     """
+    Given a flow at image A that flows from B to A,
+    warp image B to image A.
     :param images: Tensor of shape (Batch, Height, Width, Channels).
     :param optical_flows: Tensor of shape (Batch, Height, Width, 2).
     :return: Warped images -- tensors of shape (Batch, Height, Width, Channels).
