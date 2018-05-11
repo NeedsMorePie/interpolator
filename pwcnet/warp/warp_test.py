@@ -129,7 +129,7 @@ class TestSpacialTransformTranslate(unittest.TestCase):
         self.assertLess(error_ab, 0.016)
         self.assertLess(error_cd, 0.016)
 
-        if SHOW_WARPED_IMAGES or True:
+        if SHOW_WARPED_IMAGES:
             show_image(warped_image[0])
             show_image(warped_image[1])
             show_image(error_ab_img)
