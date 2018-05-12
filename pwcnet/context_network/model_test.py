@@ -56,7 +56,7 @@ class TestContextNetwork(unittest.TestCase):
 
         # Test regularization losses.
         # 7 conv layers x2 (bias and kernels).
-        reg_losses = tf.losses.get_regularization_losses()
+        reg_losses = tf.losses.get_regularization_losses(scope='context_network')
         self.assertEqual(len(reg_losses), 14)
         # Make sure the reg losses aren't 0.
         reg_loss_sum_tensor = tf.add_n(reg_losses)
