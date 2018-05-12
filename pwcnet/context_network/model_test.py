@@ -70,6 +70,11 @@ class TestContextNetwork(unittest.TestCase):
         self.assertEqual(len(trainable_vars), 14)
         self.assertEqual(trainable_vars[2].name, 'context_network/conv_1/kernel:0')
 
+        # Test that the output is indeed a sum of the delta and the input optical flow.
+        delta_flow = results[7]
+        reconstructed_input_flow = final_flow_result - delta_flow
+        self.assertTrue(np.allclose(input_flow, reconstructed_input_flow))
+
 
 if __name__ == '__main__':
     unittest.main()
