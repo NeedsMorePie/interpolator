@@ -11,7 +11,7 @@ def cost_volume(c1, c2, search_range=4):
     :param c1: Input tensor, with shape (batch, width, height, features).
     :param c2: Input tensor with the exact same shape as c1.
     :param search_range: The search square's side length = 2 * search_range + 1.
-    :return: A tensor with shape (batch, width, height, s * s), where s is each search square's side length.
+    :return: A tensor with shape (batch, height, width, s * s), where s is each search square's side length.
     """
     square_len = 2 * search_range + 1
 
@@ -59,7 +59,7 @@ def cost_volume(c1, c2, search_range=4):
             costs = tf.reshape(costs, (tf.shape(costs)[0], -1))
             costs = tf.transpose(costs, [1, 0])
             batch_dim = tf.shape(c1)[0]
-            target_shape = [cv_width, cv_height, square_area, batch_dim]
+            target_shape = [cv_height, cv_width, square_area, batch_dim]
             cv_to_add = tf.scatter_nd(cur_indices, costs, target_shape)
             cv_to_add = tf.transpose(cv_to_add, [3, 0, 1, 2])
             cv += cv_to_add
