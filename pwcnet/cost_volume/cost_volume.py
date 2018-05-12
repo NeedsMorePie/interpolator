@@ -58,7 +58,6 @@ def cost_volume(c1, c2, search_range=4):
             # The batch dimension needs to be moved to the end to make slicing work correctly.
             costs = tf.reshape(costs, (tf.shape(costs)[0], -1))
             costs = tf.transpose(costs, [1, 0])
-            # target_shape = tf.shape(tf.transpose(expanded_cv_shape, [1, 2, 3, 0]))
             batch_dim = tf.shape(c1)[0]
             target_shape = [cv_width, cv_height, square_area, batch_dim]
             cv_to_add = tf.scatter_nd(cur_indices, costs, target_shape)
