@@ -3,14 +3,28 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def show_image(img):
+SINTEL_FLOW_CHANNELS = 2
+SINTEL_TAG_FLOAT = 202021.25
+
+
+def read_flow_file(file_name):
     """
-    Opens a window displaying the image.
-    :param img: Numpy array of shape (Height, Width, Channels)
-    :return: Nothing.
+    :param file_name: str.
+    :return: Numpy array of shape (height, width, SINTEL_FLOW_CHANNELS).
+        Returns None if the tag in the file header was invalid.
     """
-    plt.imshow(img)
-    plt.show()
+    with open(file_name, 'rb') as f:
+        tag = np.fromfile(f, dtype=np.float32, count=1)[0]
+        if tag != SINTEL_TAG_FLOAT:
+            return None
+        width = np.fromfile(f, dtype=np.int32, count=1)[0]
+        height = np.fromfile(f, dtype=np.int32, count=1)[0]
+
+        num_image_floats = width * height * SINTEL_FLOW_CHANNELS
+        image = np.fromfile(f, dtype=np.float32, count=num_image_floats)
+        image = image.reshape((height, width, SINTEL_FLOW_CHANNELS))
+
+        return image
 
 
 def show_flow_image(flow_img):
@@ -48,17 +62,3 @@ def show_flow_image(flow_img):
 
     plt.imshow(rgb_image)
     plt.show()
-
-
-def read_image(img_path, as_float=False):
-    """
-    :param img_path: Str.
-    :param as_float: Bool. If true, then return the image as floats between [0, 1] instead of uint8s between [0, 255].
-    :return:
-    """
-    img = cv2.imread(img_path)
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    if as_float:
-        return img.astype(dtype=np.float32) / 255.0
-    else:
-        return img

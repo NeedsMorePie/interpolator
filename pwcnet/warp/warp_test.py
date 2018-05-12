@@ -1,10 +1,10 @@
-import numpy as np
 import unittest
-from pwcnet.warp.warp import *
-from pwcnet.warp.spacial_transformer_network.transformer import spatial_transformer_network
-from utils.sintel.flow import read_flow_file
-from utils.img_utils import read_image, show_image
 
+import numpy as np
+
+from pwcnet.warp.warp import *
+from utils.flow import read_flow_file
+from utils.img import read_image, show_image
 
 SHOW_WARPED_IMAGES = False
 

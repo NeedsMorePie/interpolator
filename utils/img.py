@@ -1,0 +1,27 @@
+import cv2
+import matplotlib.pyplot as plt
+import numpy as np
+
+
+def show_image(img):
+    """
+    Opens a window displaying the image.
+    :param img: Numpy array of shape (Height, Width, Channels)
+    :return: Nothing.
+    """
+    plt.imshow(img)
+    plt.show()
+
+
+def read_image(img_path, as_float=False):
+    """
+    :param img_path: Str.
+    :param as_float: Bool. If true, then return the image as floats between [0, 1] instead of uint8s between [0, 255].
+    :return:
+    """
+    img = cv2.imread(img_path)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    if as_float:
+        return img.astype(dtype=np.float32) / 255.0
+    else:
+        return img
