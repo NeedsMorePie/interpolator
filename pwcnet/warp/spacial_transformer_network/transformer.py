@@ -4,7 +4,7 @@
 import tensorflow as tf
 
 
-def spatial_transformer_network(input_fmap, theta, per_pixel=False, out_dims=None, bilinear_sample=False, **kwargs):
+def spatial_transformer_network(input_fmap, theta, per_pixel=False, out_dims=None, bilinear_sample=True, **kwargs):
     """
     Spatial Transformer Network layer implementation as described in [1].
     The layer is composed of 3 elements:
@@ -21,10 +21,10 @@ def spatial_transformer_network(input_fmap, theta, per_pixel=False, out_dims=Non
     - input_fmap: output of the previous layer. Can be input if spatial
       transformer layer is at the beginning of architecture. Should be
       a tensor of shape (B, H, W, C).
-    - theta: affine transform tensor of shape (B, 6). Permits cropping,
+    - theta: affine transform tensor of shape (B, 2). Permits cropping,
       translation and isotropic scaling. Initialize to identity matrix.
       It is the output of the localization network.
-    - per_pixel: if True, then theta must have a shape of (B, H, W, 6).
+    - per_pixel: if True, then theta must have a shape of (B, H, W, 2).
                  One transform per pixel in row/height major order.
                  if False, then a single theta transform is applied to the entire input_fmap.
     Returns
@@ -42,19 +42,19 @@ def spatial_transformer_network(input_fmap, theta, per_pixel=False, out_dims=Non
     C = tf.shape(input_fmap)[3]
 
     if per_pixel:
-        # reshape theta to (B, H*W, 2, 3)
-        theta = tf.reshape(theta, [B, H*W, 2, 3])
+        # reshape theta to (B, H*W, 2)
+        theta = tf.reshape(theta, [B, H*W, 2])
     else:
-        # reshape theta to (B, 2, 3)
-        theta = tf.reshape(theta, [B, 2, 3])
+        # reshape theta to (B, 1, 2)
+        theta = tf.reshape(theta, [B, 1, 2])
 
     # generate grids of same size or upsample/downsample if specified
     if out_dims:
         out_H = out_dims[0]
         out_W = out_dims[1]
-        x_s, y_s = affine_grid_generator(out_H, out_W, theta, per_pixel=per_pixel)
+        x_s, y_s = affine_grid_generator(out_H, out_W, theta)
     else:
-        x_s, y_s = affine_grid_generator(H, W, theta, per_pixel=per_pixel)
+        x_s, y_s = affine_grid_generator(H, W, theta)
 
     # sample input with grid to get output
     if bilinear_sample:
@@ -92,7 +92,7 @@ def get_pixel_value(img, x, y):
     return tf.gather_nd(img, indices)
 
 
-def affine_grid_generator(height, width, theta, per_pixel=False):
+def affine_grid_generator(height, width, theta):
     """
     This function returns a sampling grid, which when
     used with the bilinear sampler on the input feature
@@ -104,12 +104,9 @@ def affine_grid_generator(height, width, theta, per_pixel=False):
       to downsample or upsample.
     - width: desired width of grid/output. Used
       to downsample or upsample.
-    - theta: affine transform matrices of shape (num_batch, 2, 3).
+    - theta: affine transform matrices of shape (num_batch, 1, 2) or (num_batch, H*W, 2).
       For each image in the batch, we have 6 theta parameters of
       the form (2x3) that define the affine transformation T.
-    - per_pixel: if True, then theta must have a shape of (B, H*W, 2, 3).
-                 One transform per pixel in row/height major order.
-                 if False, then a single theta transform used.
     Returns
     -------
     - normalized grid (-1, 1) in the form of Xs and Yx each with shape (num-batch, H, W).
@@ -130,12 +127,8 @@ def affine_grid_generator(height, width, theta, per_pixel=False):
     x_t_flat = tf.reshape(x_t, [-1])
     y_t_flat = tf.reshape(y_t, [-1])
 
-    # reshape to [x_t, y_t , 1] - (homogeneous form)
-    ones = tf.ones_like(x_t_flat)
-    if per_pixel:
-        sampling_grid = tf.stack([x_t_flat, y_t_flat, ones], axis=-1)
-    else:
-        sampling_grid = tf.stack([x_t_flat, y_t_flat, ones])
+    # Shape to [..., 2].
+    sampling_grid = tf.stack([x_t_flat, y_t_flat], axis=-1)
 
     # repeat grid num_batch times
     sampling_grid = tf.expand_dims(sampling_grid, axis=0)
@@ -145,33 +138,18 @@ def affine_grid_generator(height, width, theta, per_pixel=False):
     theta = tf.cast(theta, 'float32')
     sampling_grid = tf.cast(sampling_grid, 'float32')
 
-    if per_pixel:
-        # transform the sampling grid - batch multiply
-        # sampling_grid is currently [num_batch, H*W, 3]. Expand dims to get [num_batch, H*W, 3, 1] for batch-matmul.
-        sampling_grid = tf.expand_dims(sampling_grid, axis=-1)
-        batch_grids = tf.matmul(theta, sampling_grid)
-        # Undo the previous expand dim.
-        batch_grids = tf.squeeze(batch_grids, axis=-1)
+    # transform the sampling grid - batch multiply
+    # sampling_grid is currently [num_batch, H*W, 2].
+    # Theta is either [num_batch, 1, 2] or [num_batch, H*W, 2].
+    batch_grids = sampling_grid + theta
 
-        # batch grid has shape (num_batch, H*W, 2)
-        # reshape to (num_batch, H, W, 2)
-        batch_grids = tf.reshape(batch_grids, [num_batch, height, width, 2])
+    # batch grid has shape (num_batch, H*W, 2)
+    # reshape to (num_batch, H, W, 2)
+    batch_grids = tf.reshape(batch_grids, [num_batch, height, width, 2])
 
-        x_s = batch_grids[:, :, :, 0]
-        y_s = batch_grids[:, :, :, 1]
-        return x_s, y_s
-    else:
-        # transform the sampling grid - batch multiply
-        # sampling_grid is currently [num_batch, 3, H*W].
-        batch_grids = tf.matmul(theta, sampling_grid)
-
-        # batch grid has shape (num_batch, 2, H*W)
-        # reshape to (num_batch, 2, H, W)
-        batch_grids = tf.reshape(batch_grids, [num_batch, 2, height, width])
-
-        x_s = batch_grids[:, 0, :, :]
-        y_s = batch_grids[:, 1, :, :]
-        return x_s, y_s
+    x_s = batch_grids[:, :, :, 0]
+    y_s = batch_grids[:, :, :, 1]
+    return x_s, y_s
 
 
 def bilinear_sampler(img, x, y):

@@ -57,7 +57,7 @@ class TestSpacialTransformTranslate(unittest.TestCase):
 
         # Create the graph and run it to get the actual output.
         input = tf.placeholder(shape=[None] + image_shape, dtype=tf.float32)
-        theta = tf.placeholder(shape=[None, 6], dtype=tf.float32)
+        theta = tf.placeholder(shape=[None, 2], dtype=tf.float32)
         transformed = spatial_transformer_network(input, theta)
         # Run with batch size of 2.
         transformed_image = self.sess.run(transformed, feed_dict={input: [translated_box_image, translated_box_image],
@@ -80,14 +80,19 @@ class TestSpacialTransformTranslate(unittest.TestCase):
         Tests that we can take an optical flow image and convert it into flat 2D transform matrices.
         """
         flow = np.asarray([[[1, 1], [2, 2]],
-                           [[3, 3], [4, 4]]], dtype=np.float32)
+                           [[3, 3], [4, 4]],
+                           [[5, 5], [6, 6]]], dtype=np.float32)
         flow = np.stack([flow, flow])  # Create a batch size of 2.
         flow_holder = tf.placeholder(shape=flow.shape, dtype=tf.float32)
         transforms_tensor = optical_flow_to_transforms(flow_holder)
         transforms = self.sess.run(transforms_tensor, feed_dict={flow_holder: flow})
 
-        expected_transforms = np.asarray([[[1, 0, 1, 0, 1, 1], [1, 0, 2, 0, 1, 2]],
-                                          [[1, 0, 3, 0, 1, 3], [1, 0, 4, 0, 1, 4]]], dtype=np.float32)
+        height_scale = 2.0 / float(flow.shape[1])
+        width_scale = 2.0 / float(flow.shape[2])
+        expected_transforms = np.asarray([[[1 * width_scale, 1 * height_scale], [2 * width_scale, 2 * height_scale]],
+                                          [[3 * width_scale, 3 * height_scale], [4 * width_scale, 4 * height_scale]],
+                                          [[5 * width_scale, 5 * height_scale], [6 * width_scale, 6 * height_scale]]],
+                                         dtype=np.float32)
         expected_transforms = np.stack([expected_transforms, expected_transforms])
         self.assertTrue(np.allclose(transforms, expected_transforms))
 
