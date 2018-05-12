@@ -1,16 +1,18 @@
 import tensorflow as tf
-
+_default = object()
 
 class ConvNetwork:
     def __init__(self, layer_specs=None,
                  activation_fn=tf.nn.leaky_relu,
+                 last_activation_fn=_default,
                  regularizer=None, padding='SAME'):
         """
         Generic conv-net
         :param name: Str. For variable scoping.
-        :param layer_specs: Array of shape [num_layers, 3].
+        :param layer_specs: Array of shape [num_layers, 4].
                             The second dimension consists of [kernel_size, num_output_features, dilation, stride].
         :param activation_fn: Tensorflow activation function.
+        :param last_activation_fn: Tensorflow activation function. Defaults to the value of activation_fn.
         :param regularizer: Tf regularizer such as tf.contrib.layers.l2_regularizer.
         :param padding: Str. Either 'SAME' or 'VALID' case insensitive.
         """
@@ -18,6 +20,9 @@ class ConvNetwork:
         self.activation_fn = activation_fn
         self.regularizer = regularizer
         self.padding = padding
+
+        if last_activation_fn == _default:
+            self.last_activation_fn = self.activation_fn
 
     def _get_conv_tower(self, features):
         """
