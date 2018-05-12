@@ -42,7 +42,7 @@ class TestContextNetwork(unittest.TestCase):
                                                   input_features2_tensor: input_features2,
                                                   input_flow_tensor: input_flow})
 
-        self.assertEqual(len(results), 8)
+        self.assertEqual(len(results), 9)
 
         '''
         final_flow_result = results[0]
