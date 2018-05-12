@@ -27,28 +27,27 @@ def read_flow_file(file_name):
         return image
 
 
-def show_flow_image(flow_img):
+def get_flow_visualization(flow):
     """
-    Opens a window displaying an optical flow image.
     Uses the HSV color wheel for the visualization.
-    It appears that red means movement to the right, blue means movement to the left, yellow means movement downward,
+    Red means movement to the right, blue means movement to the left, yellow means movement downward,
     purple means movement upward.
-    :param flow_img: Numpy array of shape (Height, Width, 2).
-    :return: Nothing.
+    :param flow: Numpy array of shape (Height, Width, 2).
+    :return: Rgb uint8 image.
     """
-    abs_image = np.abs(flow_img)
+    abs_image = np.abs(flow)
     flow_mean = np.mean(abs_image)
     flow_std = np.std(abs_image)
 
     # Apply some kind of normalization. Divide by the perceived maximum (mean + std)
-    flow_img = flow_img / (flow_mean + flow_std + 1e-10)
+    flow = flow / (flow_mean + flow_std + 1e-10)
 
     # Get the angle and radius.
     # sqrt(x^2 + y^2).
-    radius = np.sqrt(np.square(flow_img[..., 0]) + np.square(flow_img[..., 1]))
+    radius = np.sqrt(np.square(flow[..., 0]) + np.square(flow[..., 1]))
     radius_clipped = np.clip(radius, 0.0, 1)
     # Arctan2(-y, -x) / pi so that it's between [-1, 1].
-    angle = np.arctan2(-flow_img[..., 1], -flow_img[..., 0]) / np.pi
+    angle = np.arctan2(-flow[..., 1], -flow[..., 0]) / np.pi
 
     # Hue is between [0, 1] but scaled by (179.0 / 255.0) because hue is usually between [0, 179].
     hue = np.clip((angle + 1.0) / 2.0, 0.0, 1.0) * (179.0 / 255.0)
@@ -58,7 +57,14 @@ def show_flow_image(flow_img):
     value = radius_clipped
 
     hsv_img = (np.clip(np.stack([hue, saturation, value], axis=-1) * 255, 0, 255)).astype(dtype=np.uint8)
-    rgb_image = cv2.cvtColor(hsv_img, cv2.COLOR_HSV2RGB)
+    return cv2.cvtColor(hsv_img, cv2.COLOR_HSV2RGB)
 
-    plt.imshow(rgb_image)
+
+def show_flow_image(flow):
+    """
+    Opens a window displaying an optical flow visualization.
+    :param flow: Numpy array of shape (Height, Width, 2).
+    :return: Nothing.
+    """
+    plt.imshow(get_flow_visualization(flow))
     plt.show()

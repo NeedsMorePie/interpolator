@@ -3,7 +3,7 @@ import numpy as np
 from utils.flow import read_flow_file, show_flow_image
 
 
-SHOW_SINTEL_TEST_IMAGES = True
+SHOW_SINTEL_TEST_IMAGES = False
 
 
 class TestSintelFlowReader(unittest.TestCase):
