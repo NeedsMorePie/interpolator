@@ -6,7 +6,7 @@ from utils.sintel.flow import read_flow_file
 from utils.img_utils import read_image, show_image
 
 
-SHOW_WARPED_IMAGES = False
+SHOW_WARPED_IMAGES = True
 
 
 class TestSpacialTransformTranslate(unittest.TestCase):
@@ -57,7 +57,7 @@ class TestSpacialTransformTranslate(unittest.TestCase):
 
         # Create the graph and run it to get the actual output.
         input = tf.placeholder(shape=[None] + image_shape, dtype=tf.float32)
-        theta = tf.placeholder(shape=[None, 6], dtype=tf.float32)
+        theta = tf.placeholder(shape=[None, 2], dtype=tf.float32)
         transformed = spatial_transformer_network(input, theta)
         # Run with batch size of 2.
         transformed_image = self.sess.run(transformed, feed_dict={input: [translated_box_image, translated_box_image],
@@ -86,8 +86,8 @@ class TestSpacialTransformTranslate(unittest.TestCase):
         transforms_tensor = optical_flow_to_transforms(flow_holder)
         transforms = self.sess.run(transforms_tensor, feed_dict={flow_holder: flow})
 
-        expected_transforms = np.asarray([[[1, 0, 1, 0, 1, 1], [1, 0, 2, 0, 1, 2]],
-                                          [[1, 0, 3, 0, 1, 3], [1, 0, 4, 0, 1, 4]]], dtype=np.float32)
+        expected_transforms = np.asarray([[[1, 1], [2, 2]],
+                                          [[3, 3], [4, 4]]], dtype=np.float32)
         expected_transforms = np.stack([expected_transforms, expected_transforms])
         self.assertTrue(np.allclose(transforms, expected_transforms))
 
