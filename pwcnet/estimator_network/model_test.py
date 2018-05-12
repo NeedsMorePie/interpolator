@@ -44,43 +44,35 @@ class TestContextNetwork(unittest.TestCase):
 
         self.assertEqual(len(results), 9)
 
-        '''
         final_flow_result = results[0]
         self.assertTrue(np.allclose(final_flow_result.shape, np.asarray([batch_size, height, width, 2])))
 
         # Test that the default values are working.
-        self.assertTrue(np.allclose(results[1].shape, np.asarray([batch_size, height, width, 128])))
-        self.assertTrue(np.allclose(results[2].shape, np.asarray([batch_size, height, width, 128])))
+        self.assertTrue(np.allclose(results[1].shape, np.asarray([batch_size, height, width, 32])))
+        self.assertTrue(np.allclose(results[2].shape, np.asarray([batch_size, height, width, 81])))
         self.assertTrue(np.allclose(results[3].shape, np.asarray([batch_size, height, width, 128])))
-        self.assertTrue(np.allclose(results[4].shape, np.asarray([batch_size, height, width, 96])))
-        self.assertTrue(np.allclose(results[5].shape, np.asarray([batch_size, height, width, 64])))
-        self.assertTrue(np.allclose(results[6].shape, np.asarray([batch_size, height, width, 32])))
-        self.assertTrue(np.allclose(results[7].shape, np.asarray([batch_size, height, width, 2])))
+        self.assertTrue(np.allclose(results[4].shape, np.asarray([batch_size, height, width, 128])))
+        self.assertTrue(np.allclose(results[5].shape, np.asarray([batch_size, height, width, 96])))
+        self.assertTrue(np.allclose(results[6].shape, np.asarray([batch_size, height, width, 64])))
+        self.assertTrue(np.allclose(results[7].shape, np.asarray([batch_size, height, width, 32])))
+        self.assertTrue(np.allclose(results[8].shape, np.asarray([batch_size, height, width, 2])))
 
-        for i in range(1, 8):
+        for i in range(1, 9):
             self.assertNotEqual(np.sum(results[i]), 0.0)
 
         # Test regularization losses.
-        # 7 conv layers x2 (bias and kernels).
+        # 6 conv layers x2 (bias and kernels).
         reg_losses = tf.losses.get_regularization_losses()
-        self.assertEqual(len(reg_losses), 14)
+        self.assertEqual(len(reg_losses), 12)
         # Make sure the reg losses aren't 0.
         reg_loss_sum_tensor = tf.add_n(reg_losses)
         reg_loss_sum = self.sess.run(reg_loss_sum_tensor)
         self.assertNotEqual(reg_loss_sum, 0.0)
 
-        self.assertEqual(reg_losses[0].name, 'context_network/conv_0/kernel/Regularizer/l2_regularizer:0')
-
         # Test that we have all the trainable variables.
-        trainable_vars = tf.trainable_variables(scope='context_network')
-        self.assertEqual(len(trainable_vars), 14)
-        self.assertEqual(trainable_vars[2].name, 'context_network/conv_1/kernel:0')
-
-        # Test that the output is indeed a sum of the delta and the input optical flow.
-        delta_flow = results[7]
-        reconstructed_input_flow = final_flow_result - delta_flow
-        self.assertTrue(np.allclose(input_flow, reconstructed_input_flow))
-        '''
+        trainable_vars = tf.trainable_variables(scope='estimator_network')
+        self.assertEqual(len(trainable_vars), 12)
+        self.assertEqual(trainable_vars[2].name, 'estimator_network/conv_1/kernel:0')
 
 
 if __name__ == '__main__':
