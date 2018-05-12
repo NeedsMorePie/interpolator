@@ -1,3 +1,10 @@
+# To resolve some issues with MacOS and matplotlib:
+# https://stackoverflow.com/questions/2512225/matplotlib-plots-not-showing-up-in-mac-osx
+import platform
+if platform.system() == 'Darwin':
+    import matplotlib
+    matplotlib.use('TkAgg')
+
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
