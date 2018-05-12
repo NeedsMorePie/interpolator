@@ -42,7 +42,7 @@ class EstimatorNetwork(ConvNetwork):
                   \           |
                    -------[LAYER 0]
                              ...
-                          [LAYER N]
+                         [LAYER N-1]
                               |
                         [Output layer]
                               |
@@ -75,7 +75,7 @@ class EstimatorNetwork(ConvNetwork):
                                                activation=None,
                                                kernel_regularizer=self.regularizer,
                                                bias_regularizer=self.regularizer,
-                                               name='delta_flow_conv')
+                                               name='optical_flow_estimate')
             layer_outputs.append(previous_output)
 
             # Prepend the warp and cv outputs.
