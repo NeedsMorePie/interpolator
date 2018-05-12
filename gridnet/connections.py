@@ -7,7 +7,7 @@ def get_dropped_out_one(dropout_rate):
     return tf.layers.dropout(one, rate=dropout_rate)
 
 
-class LateralBlock(ConvNetwork):
+class LateralConnection(ConvNetwork):
     def __init__(self, name, layer_specs,
                  activation_fn=tf.nn.leaky_relu,
                  use_batch_norm=False,
@@ -49,7 +49,7 @@ class LateralBlock(ConvNetwork):
             return dropped_out + features
 
 
-class DownSamplingBlock(ConvNetwork):
+class DownSamplingConnection(ConvNetwork):
     def __init__(self, name, layer_specs,
                  activation_fn=tf.nn.leaky_relu,
                  use_batch_norm=False,
@@ -90,7 +90,7 @@ class DownSamplingBlock(ConvNetwork):
             return final_output * get_dropped_out_one(self.total_dropout_rate)
 
 
-class UpSamplingBlock(ConvNetwork):
+class UpSamplingConnection(ConvNetwork):
     def __init__(self, name, layer_specs,
                  activation_fn=tf.nn.leaky_relu,
                  use_batch_norm=False,
