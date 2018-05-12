@@ -7,7 +7,9 @@ from pwcnet.cost_volume.cost_volume import cost_volume
 class TestCostVolume(unittest.TestCase):
 
     def setUp(self):
-        self.sess = tf.Session()
+        config = tf.ConfigProto()
+        config.gpu_options.allow_growth = True
+        self.sess = tf.Session(config=config)
 
     def testTinyImageSearch0(self):
         image_shape = (1, 2, 2, 1)
