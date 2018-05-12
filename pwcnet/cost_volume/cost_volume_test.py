@@ -1,8 +1,8 @@
 import numpy as np
 import tensorflow as tf
 import unittest
-from pwcnet.warp.spacial_transformer_network.transformer import spatial_transformer_network
 from pwcnet.cost_volume.cost_volume import cost_volume
+
 
 class TestCostVolume(unittest.TestCase):
 
@@ -57,7 +57,49 @@ class TestCostVolume(unittest.TestCase):
             [[0, 2, 6, 0, 8, 10, 0, 0, 0], [3, 9, 0, 12, 15, 0, 0, 0, 0]]
         ]).astype(np.float32)
         expected = np.expand_dims(expected, axis=0)
-        expected = np.concatenate([expected, expected], axis=0)
+        expected = np.repeat(expected, 2, axis=0)
+        input1 = tf.placeholder(shape=image_shape, dtype=tf.float32)
+        input2 = tf.placeholder(shape=image_shape, dtype=tf.float32)
+        cv = cost_volume(input1, input2, 1)
+        cv = self.sess.run(cv, feed_dict={input1: c1, input2: c2})
+        self.assertEqual(np.squeeze(cv).tolist(), expected.tolist())
+
+    def testTinyImageSearch1BatchOnes(self):
+        image_shape = (2, 2, 2, 1)
+        c1 = [[1, 2], [2, 3]]
+        c2 = [[1, 3], [4, 5]]
+        c1 = np.expand_dims(np.repeat(np.expand_dims(c1, axis=0), 2, axis=0), axis=-1)
+        c2 = np.expand_dims(np.repeat(np.expand_dims(c2, axis=0), 2, axis=0), axis=-1)
+        expected = np.array([
+            [[0, 0, 0, 0, 1, 3, 0, 4, 5], [0, 0, 0, 2, 6, 0, 8, 10, 0]],
+            [[0, 2, 6, 0, 8, 10, 0, 0, 0], [3, 9, 0, 12, 15, 0, 0, 0, 0]]
+        ]).astype(np.float32)
+        expected = np.expand_dims(expected, axis=0)
+        expected = np.repeat(expected, 2, axis=0)
+        input1 = tf.placeholder(shape=image_shape, dtype=tf.float32)
+        input2 = tf.placeholder(shape=image_shape, dtype=tf.float32)
+        cv = cost_volume(input1, input2, 1)
+        cv = self.sess.run(cv, feed_dict={input1: c1, input2: c2})
+        self.assertEqual(np.squeeze(cv).tolist(), expected.tolist())
+
+    def testSmallImageSearch1Batch(self):
+        image_shape = (1, 3, 3, 2)
+        c1 = [
+            [[0, 0], [2, 3], [5, 3]],
+            [[3, 0], [0, 0], [7, 4]],
+            [[0, 6], [1, 0], [5, 8]]
+        ]
+        c2 = [
+            [[4, 2], [2, 0], [6, 2]],
+            [[-3, 5], [3, 1], [0, 2]],
+            [[0, 1], [1, 0], [0, 0]]
+        ]
+        c1, c2 = np.expand_dims(c1, axis=0), np.expand_dims(c2, axis=0)
+        expected = np.array([
+            [[0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 7, 2, 9, 4.5, 4.5, 3], [0, 0, 0, 5, 18, 0, 9, 3, 0]],
+            [[0, 6, 3, 0, -4.5, 4.5, 0, 0, 1.5], [0, 0, 0, 0, 0, 0, 0, 0, 0], [7, 25, 0, 12.5, 4, 0, 3.5, 0, 0]],
+            [[0, 15, 3, 0, 3, 0, 0, 0, 0], [-1.5, 1.5, 0, 0, 0.5, 0, 0, 0, 0], [11.5, 8, 0, 2.5, 0, 0, 0, 0, 0]]
+        ]).astype(np.float32)
         input1 = tf.placeholder(shape=image_shape, dtype=tf.float32)
         input2 = tf.placeholder(shape=image_shape, dtype=tf.float32)
         cv = cost_volume(input1, input2, 1)
