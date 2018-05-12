@@ -75,15 +75,20 @@ class TestCostVolume(unittest.TestCase):
         ones1 = np.ones(ones_shape)
         ones2 = np.ones(ones_shape)
 
-        c1 = np.concatenate([c1, ones1])
-        c2 = np.concatenate([c2, ones2])
+        c1 = np.stack([c1, ones1])
+        c2 = np.stack([c2, ones2])
 
         expected = np.array([
-            [[0, 0, 0, 0, 1, 3, 0, 4, 5], [0, 0, 0, 2, 6, 0, 8, 10, 0]],
-            [[0, 2, 6, 0, 8, 10, 0, 0, 0], [3, 9, 0, 12, 15, 0, 0, 0, 0]]
+            [
+                [[0, 0, 0, 0, 1, 3, 0, 4, 5], [0, 0, 0, 2, 6, 0, 8, 10, 0]],
+                [[0, 2, 6, 0, 8, 10, 0, 0, 0], [3, 9, 0, 12, 15, 0, 0, 0, 0]],
+            ],
+            [
+                [[0, 0, 0, 0, 1, 1, 0, 1, 1], [0, 0, 0, 1, 1, 0, 1, 1, 0]],
+                [[0, 1, 1, 0, 1, 1, 0, 0, 0], [1, 1, 0, 1, 1, 0, 0, 0, 0]]
+            ]
         ]).astype(np.float32)
-        expected_ones = np.ones(np.shape(expected))
-        expected = np.concatenate([expected, expected_ones])
+
         input1 = tf.placeholder(shape=image_shape, dtype=tf.float32)
         input2 = tf.placeholder(shape=image_shape, dtype=tf.float32)
         cv = cost_volume(input1, input2, 1)
