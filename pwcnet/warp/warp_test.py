@@ -6,7 +6,7 @@ from utils.sintel.flow import read_flow_file
 from utils.img_utils import read_image, show_image
 
 
-SHOW_WARPED_IMAGES = True
+SHOW_WARPED_IMAGES = False
 
 
 class TestSpacialTransformTranslate(unittest.TestCase):
@@ -80,14 +80,19 @@ class TestSpacialTransformTranslate(unittest.TestCase):
         Tests that we can take an optical flow image and convert it into flat 2D transform matrices.
         """
         flow = np.asarray([[[1, 1], [2, 2]],
-                           [[3, 3], [4, 4]]], dtype=np.float32)
+                           [[3, 3], [4, 4]],
+                           [[5, 5], [6, 6]]], dtype=np.float32)
         flow = np.stack([flow, flow])  # Create a batch size of 2.
         flow_holder = tf.placeholder(shape=flow.shape, dtype=tf.float32)
         transforms_tensor = optical_flow_to_transforms(flow_holder)
         transforms = self.sess.run(transforms_tensor, feed_dict={flow_holder: flow})
 
-        expected_transforms = np.asarray([[[1, 1], [2, 2]],
-                                          [[3, 3], [4, 4]]], dtype=np.float32)
+        height_scale = 2.0 / float(flow.shape[1])
+        width_scale = 2.0 / float(flow.shape[2])
+        expected_transforms = np.asarray([[[1 * width_scale, 1 * height_scale], [2 * width_scale, 2 * height_scale]],
+                                          [[3 * width_scale, 3 * height_scale], [4 * width_scale, 4 * height_scale]],
+                                          [[5 * width_scale, 5 * height_scale], [6 * width_scale, 6 * height_scale]]],
+                                         dtype=np.float32)
         expected_transforms = np.stack([expected_transforms, expected_transforms])
         self.assertTrue(np.allclose(transforms, expected_transforms))
 

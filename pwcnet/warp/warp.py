@@ -38,6 +38,7 @@ def warp_via_flow(images, optical_flows, bilinear_sample=False):
     warp image B to image A.
     :param images: Tensor of shape (Batch, Height, Width, Channels).
     :param optical_flows: Tensor of shape (Batch, Height, Width, 2).
+    :param bilinear_sample: Whether to use bilinear interpolation sampling or just nearest-pixel sampling.
     :return: Warped images -- tensors of shape (Batch, Height, Width, Channels).
     """
     transforms = optical_flow_to_transforms(optical_flows)
