@@ -11,7 +11,7 @@ def cost_volume(c1, c2, search_range=4):
     :param c1: Input tensor, with shape (batch, width, height, features).
     :param c2: Input tensor with the exact same shape as c1.
     :param search_range: The search square's side length = 2 * search_range + 1.
-    :return: A tensor with shape (batch, width, height, s, s), where s is each search square's side length.
+    :return: A tensor with shape (batch, width, height, s * s), where s is each search square's side length.
     """
     square_len = 2 * search_range + 1
 
