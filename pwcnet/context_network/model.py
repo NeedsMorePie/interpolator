@@ -35,7 +35,7 @@ class ContextNetwork(ConvNetwork):
             \           /  \
               [LAYER 0]    |
                  ...       |
-              [LAYER N]    |
+             [LAYER N-1]   |
                   |        |
             [Output layer] |
                   |        |
