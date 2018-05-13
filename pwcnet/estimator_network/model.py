@@ -31,7 +31,7 @@ class EstimatorNetwork(ConvNetwork):
 
         self.search_range = search_range
 
-    def get_forward(self, features1, features2, optical_flow, reuse_variables=False):
+    def get_forward(self, features1, features2, optical_flow, reuse_variables=tf.AUTO_REUSE):
         """
         features1   features2  optical_flow
               \         \           /
@@ -49,7 +49,7 @@ class EstimatorNetwork(ConvNetwork):
         :param features1: Tensor. Feature map of shape [batch_size, H, W, num_features]. Time = 0.
         :param features2: Tensor. Feature map of shape [batch_size, H, W, num_features]. Time = 1.
         :param optical_flow: Tensor. Optical flow of shape [batch_size, H, W, 2].
-        :param reuse_variables: Bool. Whether to reuse the variables.
+        :param reuse_variables: tf reuse option. i.e. tf.AUTO_REUSE.
         :return: final_flow: optical flow of shape [batch_size, H, W, 2].
                  layer_outputs: array of layer intermediate conv outputs. Length is len(layer_specs) + 1.
         """

@@ -30,7 +30,7 @@ class ContextNetwork(ConvNetwork):
         else:
             self.layer_specs = layer_specs
 
-    def get_forward(self, features, optical_flow, reuse_variables=False):
+    def get_forward(self, features, optical_flow, reuse_variables=tf.AUTO_REUSE):
         """
         features  optical_flow
             \           /  \
@@ -47,7 +47,7 @@ class ContextNetwork(ConvNetwork):
              final_output
         :param features: Tensor. Feature map of shape [batch_size, H, W, num_features].
         :param optical_flow: Tensor. Optical flow of shape [batch_size, H, W, 2].
-        :param reuse_variables: Bool. Whether to reuse the variables.
+        :param reuse_variables: tf reuse option. i.e. tf.AUTO_REUSE.
         :return: final_flow: optical flow of shape [batch_size, H, W, 2].
                  layer_outputs: array of layer intermediate conv outputs. Length is len(layer_specs) + 1.
         """

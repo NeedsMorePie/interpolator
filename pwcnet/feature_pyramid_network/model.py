@@ -34,7 +34,7 @@ class FeaturePyramidNetwork(ConvNetwork):
         else:
             self.layer_specs = layer_specs
 
-    def get_forward(self, image, reuse_variables=False):
+    def get_forward(self, image, reuse_variables=tf.AUTO_REUSE):
         """
            input
              |
@@ -44,7 +44,7 @@ class FeaturePyramidNetwork(ConvNetwork):
              |
         final_features
         :param image: Tensor. Shape [batch_size, H, W, 3].
-        :param reuse_variables: Bool. Whether to reuse the variables.
+        :param reuse_variables: tf reuse option. i.e. tf.AUTO_REUSE.
         :return: final_features: features of shape [batch_size, H, W, 192].
                  layer_outputs: array of layer intermediate conv outputs. Length is len(layer_specs) + 1.
         """
