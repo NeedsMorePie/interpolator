@@ -11,15 +11,20 @@ class TestGridNet(unittest.TestCase):
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
         self.sess = tf.Session(config=config)
+
+        # Note that test might fail if you change one of these parameters without modifying the expected values.
         self.num_input_channels = 8
         self.num_channels = [self.num_input_channels, 16, 32]
         self.grid_height = len(self.num_channels)
         self.grid_width = 4
+        self.num_lateral_convs_per_connection = 1
+        self.num_downsampling_convs_per_connection = 3
+        self.num_upsampling_convs_per_connection = 3
         self.gridnet = GridNet(self.num_channels,
                                self.grid_width,
-                               num_lateral_convs=1,
-                               num_downsample_convs=3,
-                               num_upsample_convs=3,
+                               num_lateral_convs=self.num_lateral_convs_per_connection,
+                               num_downsampling_convs=self.num_downsampling_convs_per_connection,
+                               num_upsample_convs=self.num_upsampling_convs_per_connection,
                                regularizer=l2_regularizer(1e-4))
 
     def test_network(self):
@@ -44,13 +49,14 @@ class TestGridNet(unittest.TestCase):
         query = [final_outputs, grid_outputs]
         final_output_np, grid_outputs_np = self.sess.run(query, feed_dict={input_features_tensor: input_features})
 
-        # Check output shape.
+        # Check final output shape.
         self.assertTrue(np.allclose(final_output_np.shape, np.asarray([batch_size, height, width, self.num_input_channels])))
 
-        # Check grid outputs.
+        # Check the number of grid outputs.
         num_grid_nodes = len(grid_outputs_np) * len(grid_outputs_np[0])
         self.assertEqual(num_grid_nodes, self.grid_width * self.grid_height)
 
+        # Check grid output shapes.
         for i in range(self.grid_height):
             for j in range(self.grid_width):
                 sample_factor = np.power(2.0, -i)
@@ -58,20 +64,27 @@ class TestGridNet(unittest.TestCase):
                 expected_shape = np.asarray([batch_size, height * sample_factor, width * sample_factor, row_num_channels])
                 self.assertTrue(np.allclose(grid_outputs_np[i][j].shape, expected_shape))
 
-        # for i in range(len(grid_outputs_np)):
-        #     for j in range(len(grid_outputs_np[i])):
-        #         self.assertNotEqual(np.sum(grid_outputs_np[i][j]), 0.0)
-        #
-        # # Test regularization losses.
-        # # 6 conv layers x2 (bias and kernels).
-        # reg_losses = tf.losses.get_regularization_losses(scope='estimator_network')
-        # self.assertEqual(len(reg_losses), 12)
+        # Check grid output values.
+        for i in range(len(grid_outputs_np)):
+            for j in range(len(grid_outputs_np[i])):
+                self.assertNotEqual(np.sum(grid_outputs_np[i][j]), 0.0)
+
+        # Test regularization losses. The magic numbers here have to do with grid net width and height.
+        num_total_convs = 0
+        num_total_convs += self.num_upsampling_convs_per_connection * 4
+        num_total_convs += self.num_downsampling_convs_per_connection * 4
+        num_total_convs += self.num_lateral_convs_per_connection * 11
+
+        # Num conv layers x2 (bias and kernels).
+        reg_losses = tf.losses.get_regularization_losses(scope='gridnet')
+        self.assertEqual(len(reg_losses), num_total_convs * 2)
+
         # # Make sure the reg losses aren't 0.
-        # reg_loss_sum_tensor = tf.add_n(reg_losses)
-        # reg_loss_sum = self.sess.run(reg_loss_sum_tensor)
-        # self.assertNotEqual(reg_loss_sum, 0.0)
-        #
-        # # Test that we have all the trainable variables.
-        # trainable_vars = tf.trainable_variables(scope='estimator_network')
-        # self.assertEqual(len(trainable_vars), 12)
-        # self.assertEqual(trainable_vars[2].name, 'estimator_network/conv_1/kernel:0')
+        reg_loss_sum_tensor = tf.add_n(reg_losses)
+        reg_loss_sum = self.sess.run(reg_loss_sum_tensor)
+        self.assertNotEqual(reg_loss_sum, 0.0)
+
+        # Test that we have all the trainable variables.
+        trainable_vars = tf.trainable_variables(scope='gridnet')
+        self.assertEqual(len(trainable_vars), num_total_convs * 2)
+        self.assertEqual(trainable_vars[1].name, 'gridnet/right_00/conv_0/bias:0')

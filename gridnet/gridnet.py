@@ -8,7 +8,7 @@ class GridNet:
                  name='gridnet',
                  num_lateral_convs=2,
                  num_upsample_convs=2,
-                 num_downsample_convs=2,
+                 num_downsampling_convs=2,
                  use_batch_norm=False,
                  connection_dropout_rate=0.0,
                  regularizer=None):
@@ -19,7 +19,7 @@ class GridNet:
         :param name: Str. For variable scoping.
         :param num_lateral_convs: Number of convolutions in each lateral connection.
         :param num_upsample_convs: Number of convolutions in each up-sampling connection.
-        :param num_downsample_convs: Number of convolutions in each down-sampling connection.
+        :param num_downsampling_convs: Number of convolutions in each down-sampling connection.
         :param use_batch_norm: Whether to use batch normalization.
         :param connection_dropout_rate: E.g if 0.5, drops out each connection (not individual neurons) with 50% chance.
 
@@ -41,7 +41,7 @@ class GridNet:
         self.channel_sizes = channel_sizes
         self.name = name
         self.num_lateral_convs = num_lateral_convs
-        self.num_downsample_convs = num_downsample_convs
+        self.num_downsampling_convs = num_downsampling_convs
         self.num_upsample_convs = num_upsample_convs
         self.use_batch_norm = use_batch_norm
         self.connection_dropout_rate = connection_dropout_rate
@@ -63,7 +63,7 @@ class GridNet:
             row_lateral_specs = [common_spec for j in range(self.num_lateral_convs)]
 
             if i > 0:
-                row_downsample_specs = [common_spec for j in range(self.num_downsample_convs)]
+                row_downsample_specs = [common_spec for j in range(self.num_downsampling_convs)]
 
             if i < self.height - 1:
                 row_upsample_specs = [common_spec for j in range(self.num_upsample_convs)]
