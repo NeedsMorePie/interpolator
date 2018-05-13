@@ -1,11 +1,6 @@
 import tensorflow as tf
 from common.models import ConvNetwork
-
-
-def get_dropped_out_one(dropout_rate, training):
-    one = tf.constant(1.0)
-    return tf.layers.dropout(one, rate=dropout_rate, training=training)
-
+from utils.misc import tf_coin_flip
 
 class LateralConnection(ConvNetwork):
     def __init__(self, name, layer_specs,
@@ -45,8 +40,15 @@ class LateralConnection(ConvNetwork):
             # Pass through resolution preserving convolutions, with skip connection at the end.
             previous_output = self.activation_fn(features)
             previous_output, layer_outputs = self._get_conv_tower(previous_output)
-            dropped_out = previous_output * get_dropped_out_one(self.total_dropout_rate, training=training)
-            return dropped_out + features
+            previous_output += features
+
+            # Total dropout.
+            if training:
+                dropped_out = previous_output * tf_coin_flip(1.0 - self.total_dropout_rate)
+            else:
+                dropped_out = previous_output / (1.0 - self.total_dropout_rate)
+
+            return dropped_out
 
 
 class DownSamplingConnection(ConvNetwork):

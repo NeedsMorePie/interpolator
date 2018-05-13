@@ -19,7 +19,7 @@ class TestConnections(unittest.TestCase):
         width = 16
         num_features = 32
         batch_size = 3
-        num_output_features = 32
+        num_output_features = 32  # Must be the same as num_features as it has a skip connection
 
         specs = [
             [8, 1],
@@ -167,23 +167,23 @@ class TestConnections(unittest.TestCase):
         self.assertEqual(len(trainable_vars), 2 * len(specs))
         self.assertEqual(trainable_vars[0].name, name + '/conv_0/kernel:0')
 
-    def test_upsampling_dropout(self):
+    def test_lateral_dropout(self):
         """
         Makes sure that total dropout is working.
         """
         height = 8
         width = 4
-        num_features = 32
+        num_features = 64
         batch_size = 3
-        num_output_features = 64
+        num_output_features = 64  # Must be the same as num_features as it has a skip connection
 
         specs = [
             [num_output_features, 1]
         ]
 
         # Create the graph.
-        name = 'upsampling_connection_dropped'
-        connection = UpSamplingConnection(name, specs,
+        name = 'lateral_connection_dropped'
+        connection = LateralConnection(name, specs,
                                           regularizer=l2_regularizer(1e-4),
                                           total_dropout_rate=1.0)
         input_features_tensor = tf.placeholder(shape=[None, height, width, num_features], dtype=tf.float32)
@@ -199,7 +199,7 @@ class TestConnections(unittest.TestCase):
 
         self.assertEqual(len(results), 1)
         output_np = results[0]
-        self.assertTrue(np.allclose(output_np.shape, np.asarray([batch_size, height * 2, width * 2, num_output_features])))
+        self.assertTrue(np.allclose(output_np.shape, np.asarray([batch_size, height, width, num_output_features])))
         self.assertEqual(np.sum(output_np), 0.0)
 
         # Test regularization losses.
