@@ -52,7 +52,7 @@ class GridNet:
         # More settings
         self.activation_fn = tf.keras.layers.PReLU
 
-        # Construct specs for lateral connections.
+        # Construct specs for connections.
         # Entry specs[i][j] is the spec for the jth convolution for any connection in the ith row.
         self.lateral_specs = []
         self.upsample_specs = []
@@ -87,7 +87,7 @@ class GridNet:
             # First lateral connection.
             grid_outputs[0][0] = self.process_rightwards(features, 0, 0)
 
-            # Connect first half by iterating to the right, and downwards.
+            # Connect first half (Down-sampling streams) by iterating to the right, and downwards.
             for i in range(self.height):
                 for j in range(self.width / 2):
                     if i == 0 and j == 0:
@@ -101,7 +101,7 @@ class GridNet:
 
                     grid_outputs[i][j] = top_output + left_output
 
-            # Connect second half by iterating to the right, and upwards.
+            # Connect second half (Up-sampling streams) by iterating to the right, and upwards.
             for i in range(self.height - 1, 0, -1):
                 for j in range(self.width / 2, self.width):
                     bottom_output, left_output = 0, 0
@@ -112,6 +112,7 @@ class GridNet:
 
                     grid_outputs[i][j] = bottom_output + left_output
 
+            # Final lateral connection.
             previous_output = grid_outputs[0][self.width-1]
             final_output = self.process_rightwards(previous_output, 0, self.width)
             return final_output, grid_outputs

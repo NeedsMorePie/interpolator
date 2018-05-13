@@ -40,15 +40,16 @@ class LateralConnection(ConvNetwork):
             # Pass through resolution preserving convolutions, with skip connection at the end.
             previous_output = self.activation_fn(features)
             previous_output, layer_outputs = self._get_conv_tower(previous_output)
-            previous_output += features
+            final_output = features + previous_output
 
             # Total dropout.
             if training:
-                dropped_out = previous_output * tf.cast(tf_coin_flip(1.0 - self.total_dropout_rate), tf.float32)
-            else:
-                dropped_out = previous_output / (1.0 - self.total_dropout_rate)
+                epsilon = 1E-6
+                is_heads = tf_coin_flip(1.0 - self.total_dropout_rate)
+                factor = tf.cast(is_heads, tf.float32) / (1.0 - self.total_dropout_rate + epsilon)
+                final_output *= factor
 
-            return dropped_out
+            return final_output
 
 
 class DownSamplingConnection(ConvNetwork):
@@ -113,7 +114,7 @@ class UpSamplingConnection(ConvNetwork):
 
         self.name = name
 
-    def get_forward(self, features, reuse_variables=False, training=False):
+    def get_forward(self, features, reuse_variables=False):
         """
         :param features: Tensor. Feature map of shape [batch_size, H, W, num_features].
         :param reuse_variables: Bool. Whether to reuse the variables.

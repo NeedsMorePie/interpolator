@@ -135,7 +135,7 @@ class TestConnections(unittest.TestCase):
         connection = UpSamplingConnection(name, specs,
                                           regularizer=l2_regularizer(1e-4))
         input_features_tensor = tf.placeholder(shape=[None, height, width, num_features], dtype=tf.float32)
-        output = connection.get_forward(input_features_tensor, training=True)
+        output = connection.get_forward(input_features_tensor)
 
         input_features = np.zeros(shape=[batch_size, height, width, num_features], dtype=np.float32)
         input_features[:, 0:height, 0:width, :] = 1.0
