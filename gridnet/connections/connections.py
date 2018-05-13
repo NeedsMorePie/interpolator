@@ -31,6 +31,7 @@ class LateralConnection(ConvNetwork):
         """
         :param features: Tensor. Feature map of shape [batch_size, H, W, num_features].
         :param reuse_variables: Bool. Whether to reuse the variables.
+        :param training: Bool. Whether the graph is to be constructed for training.
         :return: Tensor. Feature map of shape [batch_size, H, W, num_features].
         """
         with tf.variable_scope(self.name, reuse=reuse_variables):

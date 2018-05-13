@@ -30,6 +30,7 @@ class GridNet:
         :param num_downsampling_convs: Number of convolutions in each down-sampling connection.
         :param use_batch_norm: Whether to use batch normalization.
         :param connection_dropout_rate: E.g if 0.5, drops out each connection (not individual neurons) with 50% chance.
+        :param regularizer: Tf regularizer such as tf.contrib.layers.l2_regularizer.
 
         Example for height = 3, width = 4:
 
@@ -98,9 +99,10 @@ class GridNet:
             self.upsample_specs.append(row_upsample_specs)
             self.downsample_specs.append(row_downsample_specs)
 
-    def get_forward(self, features, reuse_variables=False):
+    def get_forward(self, features, training=False, reuse_variables=False):
         """
         :param features: A Tensor. Input feature maps of shape [batch_size, H, W, num_features]
+        :param training: A Bool. Whether the graph is to be constructed for training (dropout will be applied).
         :return: final_output: A Tensor. Will take on the same shape as param features.
                  grid_outputs: A 2D list of Tensors. Represents the output at each grid node.
         """
@@ -109,7 +111,7 @@ class GridNet:
             grid_outputs = [[None for x in range(self.width)] for y in range(self.height)]
 
             # First lateral connection.
-            grid_outputs[0][0] = self.process_rightwards(features, 0, 0)
+            grid_outputs[0][0] = self.process_rightwards(features, 0, 0, training=training)
 
             # Connect first half (Down-sampling streams) by iterating to the right, and downwards.
             for i in range(self.height):
@@ -121,7 +123,7 @@ class GridNet:
                     if i > 0:
                         top_output = self.process_downwards(grid_outputs[i-1][j], i, j)
                     if j > 0:
-                        left_output = self.process_rightwards(grid_outputs[i][j-1], i, j)
+                        left_output = self.process_rightwards(grid_outputs[i][j-1], i, j, training=training)
 
                     grid_outputs[i][j] = top_output + left_output
 
@@ -132,24 +134,24 @@ class GridNet:
                     if i < self.height - 1:
                         bottom_output = self.process_upwards(grid_outputs[i+1][j], i, j)
                     if j > 0:
-                        left_output = self.process_rightwards(grid_outputs[i][j-1], i, j)
+                        left_output = self.process_rightwards(grid_outputs[i][j-1], i, j, training=training)
 
                     grid_outputs[i][j] = bottom_output + left_output
 
             # Final lateral connection.
             previous_output = grid_outputs[0][self.width-1]
-            final_output = self.process_rightwards(previous_output, 0, self.width)
+            final_output = self.process_rightwards(previous_output, 0, self.width, training=training)
             return final_output, grid_outputs
 
     # Helper functions.
-    def process_rightwards(self, input, i, j):
+    def process_rightwards(self, input, i, j, training=False):
         return LateralConnection(
             'right_%d%d' % (i, j),
             self.lateral_specs[i],
             activation_fn=self.activation_fn,
             total_dropout_rate=self.connection_dropout_rate,
             regularizer=self.regularizer
-        ).get_forward(input)
+        ).get_forward(input, training=training)
 
     def process_upwards(self, input, i, j):
         return UpSamplingConnection(
