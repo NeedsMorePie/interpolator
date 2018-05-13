@@ -44,7 +44,7 @@ class LateralConnection(ConvNetwork):
 
             # Total dropout.
             if training:
-                dropped_out = previous_output * tf_coin_flip(1.0 - self.total_dropout_rate)
+                dropped_out = previous_output * tf.cast(tf_coin_flip(1.0 - self.total_dropout_rate), tf.float32)
             else:
                 dropped_out = previous_output / (1.0 - self.total_dropout_rate)
 

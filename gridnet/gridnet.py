@@ -22,6 +22,8 @@ class GridNet:
         :param num_downsample_convs: Number of convolutions in each down-sampling connection.
         :param use_batch_norm: Whether to use batch normalization.
         :param connection_dropout_rate: E.g if 0.5, drops out each connection (not individual neurons) with 50% chance.
+
+        ASCII art example here ...
         """
 
         if height <= 0:
@@ -45,6 +47,7 @@ class GridNet:
         self.num_upsample_convs = num_upsample_convs
         self.use_batch_norm = use_batch_norm
         self.connection_dropout_rate = connection_dropout_rate
+        self.regularizer = regularizer
 
         # More settings
         self.activation_fn = tf.keras.layers.PReLU
@@ -120,7 +123,8 @@ class GridNet:
             self.lateral_specs[i],
             activation_fn=self.activation_fn,
             use_batch_norm=self.use_batch_norm,
-            total_dropout_rate=self.connection_dropout_rate
+            total_dropout_rate=self.connection_dropout_rate,
+            regularizer=self.regularizer
         ).get_forward(input)
 
     def process_upwards(self, input, i, j):
@@ -130,7 +134,7 @@ class GridNet:
             self.activation_fn,
             activation_fn=self.activation_fn,
             use_batch_norm=self.use_batch_norm,
-            total_dropout_rate=self.connection_dropout_rate
+            regularizer=self.regularizer
         ).get_forward(input)
 
     def process_downwards(self, input, i, j):
@@ -140,5 +144,5 @@ class GridNet:
             self.activation_fn,
             activation_fn=self.activation_fn,
             use_batch_norm=self.use_batch_norm,
-            total_dropout_rate=self.connection_dropout_rate
+            regularizer=self.regularizer
         ).get_forward(input)
