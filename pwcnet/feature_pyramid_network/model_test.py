@@ -66,6 +66,14 @@ class TestFeaturePyramid(unittest.TestCase):
         for gradient in gradients:
             self.assertNotAlmostEqual(np.sum(gradient), 0.0)
 
+        c_3_tensor = layer_outputs[self.feature_pyr_net.get_c_n(3)]
+        c_3 = self.sess.run(c_3_tensor, feed_dict={input_image: input_features})
+        self.assertTrue(np.allclose(c_3.shape, [batch_size, 64, 64, 64]))
+
+        c_5_tensor = layer_outputs[self.feature_pyr_net.get_c_n(5)]
+        c_5 = self.sess.run(c_5_tensor, feed_dict={input_image: input_features})
+        self.assertTrue(np.allclose(c_5.shape, [batch_size, 16, 16, 128]))
+
 
 if __name__ == '__main__':
     unittest.main()

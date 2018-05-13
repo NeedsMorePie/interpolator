@@ -50,3 +50,11 @@ class FeaturePyramidNetwork(ConvNetwork):
         """
         with tf.variable_scope(self.name, reuse=reuse_variables):
             return self._get_conv_tower(image)
+
+    def get_c_n(self, n):
+        """
+        As notated in the PWC-Net paper, returns feature map c^n.
+        :param n: Int. Typically between 1 to 6.
+        :return: Int. Index of the layer_outputs array.
+        """
+        return n * 2 - 1
