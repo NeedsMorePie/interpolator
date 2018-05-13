@@ -1,5 +1,5 @@
 import tensorflow as tf
-from gridnet.connections import UpSamplingConnection, DownSamplingConnection, LateralConnection
+from gridnet.connections.connections import UpSamplingConnection, DownSamplingConnection, LateralConnection
 
 
 class GridNet:
@@ -109,7 +109,8 @@ class GridNet:
 
                     grid_outputs[i][j] = bottom_output + left_output
 
-            final_output = grid_outputs[self.height-1][self.width-1]
+            previous_output = grid_outputs[0][self.width-1]
+            final_output = self.process_rightwards(previous_output, 0, self.width)
             return final_output, grid_outputs
 
     # Helper functions.
