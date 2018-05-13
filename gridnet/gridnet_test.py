@@ -28,9 +28,6 @@ class TestGridNet(unittest.TestCase):
                                regularizer=l2_regularizer(1e-4))
 
     def test_network(self):
-        """
-        Sets up the network's forward pass and ensures that all shapes are expected.
-        """
 
         height = 32
         width = 60

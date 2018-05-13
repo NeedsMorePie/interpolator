@@ -31,7 +31,23 @@ class GridNet:
         :param use_batch_norm: Whether to use batch normalization.
         :param connection_dropout_rate: E.g if 0.5, drops out each connection (not individual neurons) with 50% chance.
 
-        ASCII art example here ...
+        Example for height = 3, width = 4:
+
+                       grid[0][0]                  grid[0][3]
+
+        features +-------> +-------> +-------> +-------> +-------> output
+                           |         |         ^         ^
+                           |         |         |         |
+                           |         |         |         |
+                           |         |         |         |
+                           v         v         |         |
+                           +-------> +-------> +-------> +
+                           |         |         ^         ^
+                           |         |         |         |
+                           |         |         |         |
+                           |         |         |         |
+                           v         v         |         |
+                           +-------> +-------> +-------> +
         """
         
         height = len(channel_sizes)
