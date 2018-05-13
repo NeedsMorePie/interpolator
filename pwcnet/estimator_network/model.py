@@ -9,8 +9,6 @@ class EstimatorNetwork(ConvNetwork):
                  activation_fn=tf.nn.leaky_relu,
                  regularizer=None, search_range=4, dense_net=True):
         """
-        Context network -- usually has 6 layer + a delta optical flow output layer.
-        The delta optical flow is added to the inputted optical flow.
         :param name: Str. For variable scoping.
         :param layer_specs: See parent class.
         :param activation_fn: Tensorflow activation function.
