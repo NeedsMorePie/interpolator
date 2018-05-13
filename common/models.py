@@ -25,6 +25,8 @@ class ConvNetwork:
 
         if last_activation_fn == _default:
             self.last_activation_fn = self.activation_fn
+        else:
+            self.last_activation_fn = last_activation_fn
 
     def _get_conv_tower(self, features):
         """
@@ -43,6 +45,9 @@ class ConvNetwork:
             dilation = layer_spec[2]
             stride = layer_spec[3]
 
+            is_last_layer = i == len(self.layer_specs) - 1
+            activation_fn = self.last_activation_fn if is_last_layer else self.activation_fn
+
             # Create the convolution layer.
             previous_output = tf.layers.conv2d(inputs=previous_output,
                                                filters=num_output_features,
@@ -50,7 +55,7 @@ class ConvNetwork:
                                                strides=(stride, stride),
                                                padding='SAME',
                                                dilation_rate=(dilation, dilation),
-                                               activation= self.activation_fn,
+                                               activation=activation_fn,
                                                kernel_regularizer=self.regularizer,
                                                bias_regularizer=self.regularizer,
                                                name='conv_' + str(i))
