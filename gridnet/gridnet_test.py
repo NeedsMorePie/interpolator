@@ -39,14 +39,14 @@ class TestGridNet(unittest.TestCase):
 
         # Create the graph.
         input_features_tensor = tf.placeholder(shape=[None, height, width, num_features], dtype=tf.float32)
-        final_outputs, grid_outputs = self.gridnet.get_forward(input_features_tensor)
+        final_output, grid_outputs = self.gridnet.get_forward(input_features_tensor)
 
         input_features = np.zeros(shape=[batch_size, height, width, num_features], dtype=np.float32)
         input_features[:, 4:height-4, 5:width-5, :] = 1.0
 
         self.sess.run(tf.global_variables_initializer())
 
-        query = [final_outputs, grid_outputs]
+        query = [final_output, grid_outputs]
         final_output_np, grid_outputs_np = self.sess.run(query, feed_dict={input_features_tensor: input_features})
 
         # Check final output shape.
@@ -79,7 +79,7 @@ class TestGridNet(unittest.TestCase):
         reg_losses = tf.losses.get_regularization_losses(scope='gridnet')
         self.assertEqual(len(reg_losses), num_total_convs * 2)
 
-        # # Make sure the reg losses aren't 0.
+        # Make sure the reg losses aren't 0.
         reg_loss_sum_tensor = tf.add_n(reg_losses)
         reg_loss_sum = self.sess.run(reg_loss_sum_tensor)
         self.assertNotEqual(reg_loss_sum, 0.0)
@@ -88,3 +88,10 @@ class TestGridNet(unittest.TestCase):
         trainable_vars = tf.trainable_variables(scope='gridnet')
         self.assertEqual(len(trainable_vars), num_total_convs * 2)
         self.assertEqual(trainable_vars[1].name, 'gridnet/right_00/conv_0/bias:0')
+
+        # Check that the gradients are flowing.
+        grad_op = tf.gradients(final_output,
+                               trainable_vars + [input_features_tensor])
+        gradients = self.sess.run(grad_op, feed_dict={input_features_tensor: input_features})
+        for gradient in gradients:
+            self.assertNotEqual(np.sum(gradient), 0.0)
