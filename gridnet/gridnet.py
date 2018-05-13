@@ -117,19 +117,27 @@ class GridNet:
         return LateralConnection(
             'right_%d%d' % (i, j),
             self.lateral_specs[i],
-            self.activation_fn
+            activation_fn=self.activation_fn,
+            use_batch_norm=self.use_batch_norm,
+            total_dropout_rate=self.connection_dropout_rate
         ).get_forward(input)
 
     def process_upwards(self, input, i, j):
         return UpSamplingConnection(
             'up_%d%d' % (i, j),
             self.upsample_specs[i],
-            self.activation_fn
+            self.activation_fn,
+            activation_fn=self.activation_fn,
+            use_batch_norm=self.use_batch_norm,
+            total_dropout_rate=self.connection_dropout_rate
         ).get_forward(input)
 
     def process_downwards(self, input, i, j):
         return DownSamplingConnection(
             'down_%d%d' % (i, j),
             self.downsample_specs[i],
-            self.activation_fn
+            self.activation_fn,
+            activation_fn=self.activation_fn,
+            use_batch_norm=self.use_batch_norm,
+            total_dropout_rate=self.connection_dropout_rate
         ).get_forward(input)
