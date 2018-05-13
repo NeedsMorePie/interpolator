@@ -7,7 +7,7 @@ from pwcnet.warp.warp import warp_via_flow
 class EstimatorNetwork(ConvNetwork):
     def __init__(self, name='estimator_network', layer_specs=None,
                  activation_fn=tf.nn.leaky_relu,
-                 regularizer=None, search_range=4):
+                 regularizer=None, search_range=4, dense_net=True):
         """
         Context network -- usually has 6 layer + a delta optical flow output layer.
         The delta optical flow is added to the inputted optical flow.
@@ -15,9 +15,10 @@ class EstimatorNetwork(ConvNetwork):
         :param layer_specs: See parent class.
         :param activation_fn: Tensorflow activation function.
         :param regularizer: Tf regularizer such as tf.contrib.layers.l2_regularizer.
+        :param dense_net: Bool. Default for PWC-Net is true.
         """
         super().__init__(layer_specs=layer_specs,
-                         activation_fn=activation_fn, regularizer=regularizer, padding='SAME')
+                         activation_fn=activation_fn, regularizer=regularizer, padding='SAME', dense_net=dense_net)
 
         self.name = name
         if layer_specs is None:
@@ -65,6 +66,11 @@ class EstimatorNetwork(ConvNetwork):
             # Initial input has shape [batch_size, H, W, in_features + cv_size]
             initial_input = tf.concat([features1, cv], axis=-1)
             previous_output, layer_outputs = self._get_conv_tower(initial_input)
+
+            if self.dense_net:
+                # layer_outputs contains previous_output.
+                assert previous_output == layer_outputs[-1]
+                previous_output = tf.concat(layer_outputs, axis=-1)
 
             # Create the last convolution layer that outputs the delta flow.
             previous_output = tf.layers.conv2d(inputs=previous_output,

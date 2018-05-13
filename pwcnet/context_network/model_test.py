@@ -17,8 +17,8 @@ class TestContextNetwork(unittest.TestCase):
         """
         Sets up the network's forward pass and ensures that all shapes are expected.
         """
-        height = 128
-        width = 200
+        height = 70
+        width = 90
         num_features = 32
         batch_size = 3
 
@@ -74,6 +74,14 @@ class TestContextNetwork(unittest.TestCase):
         delta_flow = results[7]
         reconstructed_input_flow = final_flow_result - delta_flow
         self.assertTrue(np.allclose(input_flow, reconstructed_input_flow))
+
+        # Check that the gradients are flowing.
+        grad_op = tf.gradients(final_flow,
+                               trainable_vars + [input_features_tensor, input_flow_tensor])
+        gradients = self.sess.run(grad_op, feed_dict={input_features_tensor: input_features,
+                                                      input_flow_tensor: input_flow})
+        for gradient in gradients:
+            self.assertNotEqual(np.sum(gradient), 0.0)
 
 
 if __name__ == '__main__':

@@ -140,6 +140,29 @@ class TestSpacialTransformTranslate(unittest.TestCase):
             show_image(error_ab_img)
             show_image(error_cd_img)
 
+    def test_gradients(self):
+        """
+        Test to see if the gradients flow.
+        """
+        # Load from files.
+        flow_ab = read_flow_file('pwcnet/warp/test_data/flow_ab.flo')
+        img_b = read_image('pwcnet/warp/test_data/image_b.png', as_float=True)
+
+        H = img_b.shape[0]
+        W = img_b.shape[1]
+        C = img_b.shape[2]
+        img_shape = [None, H, W, C]
+        flow_shape = [None, H, W, 2]
+        input = tf.placeholder(shape=img_shape, dtype=tf.float32)
+        flow_tensor = tf.placeholder(shape=flow_shape, dtype=tf.float32)
+        warped_tensor = warp_via_flow(input, flow_tensor)
+
+        dummy_loss = tf.reduce_mean(warped_tensor)
+        grad_op = tf.gradients(dummy_loss, [input, flow_tensor])
+        grads = self.sess.run(grad_op, feed_dict={input: [img_b], flow_tensor: [flow_ab]})
+        for gradient in grads:
+            self.assertNotEqual(np.sum(gradient), 0.0)
+
 
 if __name__ == '__main__':
     unittest.main()

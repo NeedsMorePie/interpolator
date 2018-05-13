@@ -5,7 +5,7 @@ from common.models import ConvNetwork
 class ContextNetwork(ConvNetwork):
     def __init__(self, name='context_network', layer_specs=None,
                  activation_fn=tf.nn.leaky_relu,
-                 regularizer=None):
+                 regularizer=None, dense_net=False):
         """
         Context network -- usually has 6 layer + a delta optical flow output layer.
         The delta optical flow is added to the inputted optical flow.
@@ -13,9 +13,10 @@ class ContextNetwork(ConvNetwork):
         :param layer_specs: See parent class.
         :param activation_fn: Tensorflow activation function.
         :param regularizer: Tf regularizer such as tf.contrib.layers.l2_regularizer.
+        :param dense_net: Bool.
         """
         super().__init__(layer_specs=layer_specs,
-                         activation_fn=activation_fn, regularizer=regularizer, padding='SAME')
+                         activation_fn=activation_fn, regularizer=regularizer, padding='SAME', dense_net=dense_net)
 
         self.name = name
         if layer_specs is None:
