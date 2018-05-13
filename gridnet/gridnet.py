@@ -71,68 +71,63 @@ class GridNet:
             self.downsample_specs.append(row_downsample_specs)
 
 
-    def get_forward(self, features):
+    def get_forward(self, features, reuse_variables=False):
         """
         :param features: A Tensor. Input feature maps of shape [batch_size, H, W, num_features]
         :return: final_output: A Tensor. Will take on the same shape as param features.
                  grid_outputs: A 2D list of Tensors. Represents the output at each grid node.
         """
 
-        grid_outputs = [[None for x in range(self.width)] for y in range(self.height)]
+        with tf.variable_scope(self.name, reuse=reuse_variables):
+            grid_outputs = [[None for x in range(self.width)] for y in range(self.height)]
 
-        # First lateral connection.
-        grid_outputs[0][0] = LateralConnection(
-            'right_in',
-            self.lateral_specs[0],
-            self.activation_fn
-        ).get_forward(features)
+            # First lateral connection.
+            grid_outputs[0][0] = self.process_rightwards(features, 0, 0)
 
-        # Connect first half by iterating to the right, and downwards.
-        for i in range(self.height):
-            for j in range(self.width / 2):
-                if i == 0 and j == 0:
-                    continue
+            # Connect first half by iterating to the right, and downwards.
+            for i in range(self.height):
+                for j in range(self.width / 2):
+                    if i == 0 and j == 0:
+                        continue
 
-                top_output, left_output = 0, 0
-                if i > 0:
-                    top_output = self.process_down(grid_outputs[i-1][j], i, j)
-                if j > 0:
-                    left_output = self.process_right(grid_outputs[i][j-1], i, j)
+                    top_output, left_output = 0, 0
+                    if i > 0:
+                        top_output = self.process_downwards(grid_outputs[i-1][j], i, j)
+                    if j > 0:
+                        left_output = self.process_rightwards(grid_outputs[i][j-1], i, j)
 
-                grid_outputs[i][j] = top_output + left_output
+                    grid_outputs[i][j] = top_output + left_output
 
-        # Connect second half by iterating to the right, and upwards.
-        for i in range(self.height - 1, 0, -1):
-            for j in range(self.width / 2, self.width):
-                bottom_output, left_output = 0, 0
-                if i < self.height - 1:
-                    bottom_output = self.process_up(grid_outputs[i+1][j], i, j)
-                if j > 0:
-                    left_output = self.process_right(grid_outputs[i][j-1], i, j)
+            # Connect second half by iterating to the right, and upwards.
+            for i in range(self.height - 1, 0, -1):
+                for j in range(self.width / 2, self.width):
+                    bottom_output, left_output = 0, 0
+                    if i < self.height - 1:
+                        bottom_output = self.process_upwards(grid_outputs[i+1][j], i, j)
+                    if j > 0:
+                        left_output = self.process_rightwards(grid_outputs[i][j-1], i, j)
 
-                # Add connections and form node output.
-                grid_outputs[i][j] = bottom_output + left_output
+                    grid_outputs[i][j] = bottom_output + left_output
 
-        final_output = grid_outputs[self.height-1][self.width-1]
-        return final_output, grid_outputs
+            final_output = grid_outputs[self.height-1][self.width-1]
+            return final_output, grid_outputs
 
-
-    # Helpers functions.
-    def process_right(self, input, i, j):
+    # Helper functions.
+    def process_rightwards(self, input, i, j):
         return LateralConnection(
             'right_%d%d' % (i, j),
             self.lateral_specs[i],
             self.activation_fn
         ).get_forward(input)
 
-    def process_up(self, input, i, j):
+    def process_upwards(self, input, i, j):
         return UpSamplingConnection(
             'up_%d%d' % (i, j),
             self.upsample_specs[i],
             self.activation_fn
         ).get_forward(input)
 
-    def process_down(self, input, i, j):
+    def process_downwards(self, input, i, j):
         return DownSamplingConnection(
             'down_%d%d' % (i, j),
             self.downsample_specs[i],
