@@ -1,4 +1,6 @@
 import tensorflow as tf
+from utils.misc import print_tensor_shape
+
 _default = object()
 
 class ConvNetwork:
@@ -48,10 +50,11 @@ class ConvNetwork:
                                                strides=(stride, stride),
                                                padding='SAME',
                                                dilation_rate=(dilation, dilation),
-                                               activation=self.activation_fn,
+                                               activation= self.activation_fn,
                                                kernel_regularizer=self.regularizer,
                                                bias_regularizer=self.regularizer,
                                                name='conv_' + str(i))
+
             layer_outputs.append(previous_output)
 
         final_output = previous_output

@@ -1,9 +1,10 @@
 import tensorflow as tf
+from utils.misc import print_tensor_shape
 from gridnet.connections.connections import UpSamplingConnection, DownSamplingConnection, LateralConnection
 
 
 class GridNet:
-    def __init__(self, height, width, row_channel_sizes,
+    def __init__(self, channel_sizes, width,
                  name='gridnet',
                  num_lateral_convs=2,
                  num_upsample_convs=2,
@@ -13,9 +14,8 @@ class GridNet:
                  regularizer=None):
         """
         See https://arxiv.org/pdf/1707.07958.pdf, and modifications made in https://arxiv.org/pdf/1803.10967.pdf.
-        :param height: Height of the GridNet.
+        :param channel_sizes: List of channel sizes for rows. Height of the GridNet = len(channel_sizes).
         :param width: Width of the GridNet. Must be an even number to ensure symmetry.
-        :param row_channel_sizes: List of channel sizes for rows. Must have length equal to height.
         :param name: Str. For variable scoping.
         :param num_lateral_convs: Number of convolutions in each lateral connection.
         :param num_upsample_convs: Number of convolutions in each up-sampling connection.
@@ -25,12 +25,10 @@ class GridNet:
 
         ASCII art example here ...
         """
-
+        
+        height = len(channel_sizes)
         if height <= 0:
-            raise ValueError('Height must be >= 1.')
-
-        if height != len(row_channel_sizes):
-            raise ValueError('Height must match with length of row_channel_sizes.')
+            raise ValueError('Height = len(channel_sizes) must be >= 1.')
 
         if width % 2 != 0:
             raise ValueError('Width must be an even number, to enforce GridNet symmetry.')
@@ -40,7 +38,7 @@ class GridNet:
 
         self.width = width
         self.height = height
-        self.row_channel_sizes = row_channel_sizes
+        self.channel_sizes = channel_sizes
         self.name = name
         self.num_lateral_convs = num_lateral_convs
         self.num_downsample_convs = num_downsample_convs
@@ -50,7 +48,8 @@ class GridNet:
         self.regularizer = regularizer
 
         # More settings
-        self.activation_fn = tf.keras.layers.PReLU
+        #self.activation_fn = tf.keras.layers.PReLU()
+        self.activation_fn = tf.nn.relu
 
         # Construct specs for connections.
         # Entry specs[i][j] is the spec for the jth convolution for any connection in the ith row.
@@ -59,7 +58,7 @@ class GridNet:
         self.downsample_specs = []
         for i in range(self.height):
             row_lateral_specs, row_upsample_specs, row_downsample_specs = [], [], []
-            num_filters = row_channel_sizes[i]
+            num_filters = channel_sizes[i]
             common_spec = [num_filters, 1]
             row_lateral_specs = [common_spec for j in range(self.num_lateral_convs)]
 
@@ -72,6 +71,10 @@ class GridNet:
             self.lateral_specs.append(row_lateral_specs)
             self.upsample_specs.append(row_upsample_specs)
             self.downsample_specs.append(row_downsample_specs)
+
+        # print(self.lateral_specs)
+        # print(self.upsample_specs)
+        # print(self.downsample_specs)
 
 
     def get_forward(self, features, reuse_variables=False):
@@ -89,7 +92,7 @@ class GridNet:
 
             # Connect first half (Down-sampling streams) by iterating to the right, and downwards.
             for i in range(self.height):
-                for j in range(self.width / 2):
+                for j in range(int(self.width / 2)):
                     if i == 0 and j == 0:
                         continue
 
@@ -102,8 +105,8 @@ class GridNet:
                     grid_outputs[i][j] = top_output + left_output
 
             # Connect second half (Up-sampling streams) by iterating to the right, and upwards.
-            for i in range(self.height - 1, 0, -1):
-                for j in range(self.width / 2, self.width):
+            for i in range(self.height - 1, -1, -1):
+                for j in range(int(self.width / 2), self.width):
                     bottom_output, left_output = 0, 0
                     if i < self.height - 1:
                         bottom_output = self.process_upwards(grid_outputs[i+1][j], i, j)
@@ -132,7 +135,6 @@ class GridNet:
         return UpSamplingConnection(
             'up_%d%d' % (i, j),
             self.upsample_specs[i],
-            self.activation_fn,
             activation_fn=self.activation_fn,
             use_batch_norm=self.use_batch_norm,
             regularizer=self.regularizer
@@ -142,7 +144,6 @@ class GridNet:
         return DownSamplingConnection(
             'down_%d%d' % (i, j),
             self.downsample_specs[i],
-            self.activation_fn,
             activation_fn=self.activation_fn,
             use_batch_norm=self.use_batch_norm,
             regularizer=self.regularizer
