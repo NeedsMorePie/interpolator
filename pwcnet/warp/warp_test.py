@@ -161,7 +161,7 @@ class TestSpacialTransformTranslate(unittest.TestCase):
         grad_op = tf.gradients(dummy_loss, [input, flow_tensor])
         grads = self.sess.run(grad_op, feed_dict={input: [img_b], flow_tensor: [flow_ab]})
         for gradient in grads:
-            self.assertNotEqual(np.sum(gradient), 0.0)
+            self.assertNotAlmostEqual(np.sum(gradient), 0.0)
 
 
 if __name__ == '__main__':

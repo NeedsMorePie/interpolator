@@ -81,7 +81,7 @@ class TestContextNetwork(unittest.TestCase):
         gradients = self.sess.run(grad_op, feed_dict={input_features_tensor: input_features,
                                                       input_flow_tensor: input_flow})
         for gradient in gradients:
-            self.assertNotEqual(np.sum(gradient), 0.0)
+            self.assertNotAlmostEqual(np.sum(gradient), 0.0)
 
 
 if __name__ == '__main__':
