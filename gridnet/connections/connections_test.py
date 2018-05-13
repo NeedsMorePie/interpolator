@@ -200,6 +200,8 @@ class TestConnections(unittest.TestCase):
         self.assertEqual(len(results), 1)
         output_np = results[0]
         self.assertTrue(np.allclose(output_np.shape, np.asarray([batch_size, height, width, num_output_features])))
+
+        # As we applied total dropout, the output of the connection should be 0.
         self.assertEqual(np.sum(output_np), 0.0)
 
         # Test regularization losses.
