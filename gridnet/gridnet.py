@@ -1,5 +1,5 @@
 import tensorflow as tf
-from utils.misc import print_tensor_shape
+from utils.misc import print_tensor_shape, pelu, parametric_relu
 from gridnet.connections.connections import UpSamplingConnection, DownSamplingConnection, LateralConnection
 
 
@@ -48,8 +48,7 @@ class GridNet:
         self.regularizer = regularizer
 
         # More settings
-        #self.activation_fn = tf.keras.layers.PReLU()
-        self.activation_fn = tf.nn.relu
+        self.activation_fn = parametric_relu
 
         # Construct specs for connections.
         # Entry specs[i][j] is the spec for the jth convolution for any connection in the ith row.
@@ -71,11 +70,6 @@ class GridNet:
             self.lateral_specs.append(row_lateral_specs)
             self.upsample_specs.append(row_upsample_specs)
             self.downsample_specs.append(row_downsample_specs)
-
-        # print(self.lateral_specs)
-        # print(self.upsample_specs)
-        # print(self.downsample_specs)
-
 
     def get_forward(self, features, reuse_variables=False):
         """

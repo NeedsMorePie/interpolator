@@ -86,12 +86,13 @@ class TestGridNet(unittest.TestCase):
 
         # Test that we have all the trainable variables.
         trainable_vars = tf.trainable_variables(scope='gridnet')
-        self.assertEqual(len(trainable_vars), num_total_convs * 2)
-        self.assertEqual(trainable_vars[1].name, 'gridnet/right_00/conv_0/bias:0')
+        self.assertEqual(len(trainable_vars), num_total_convs * 3)
+        self.assertEqual(trainable_vars[1].name, 'gridnet/right_00/conv_0/kernel:0')
 
         # Check that the gradients are flowing.
         grad_op = tf.gradients(final_output,
                                trainable_vars + [input_features_tensor])
         gradients = self.sess.run(grad_op, feed_dict={input_features_tensor: input_features})
         for gradient in gradients:
+            print(gradient)
             self.assertNotEqual(np.sum(gradient), 0.0)

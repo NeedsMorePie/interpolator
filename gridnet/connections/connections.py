@@ -38,7 +38,9 @@ class LateralConnection(ConvNetwork):
         with tf.variable_scope(self.name, reuse=reuse_variables):
 
             # Pass through resolution preserving convolutions, with skip connection at the end.
-            previous_output = self.activation_fn(features)
+            if self.activation_fn is not None:
+                previous_output = self.activation_fn(features)
+
             previous_output, layer_outputs = self._get_conv_tower(previous_output)
             final_output = features + previous_output
 
@@ -85,7 +87,10 @@ class DownSamplingConnection(ConvNetwork):
         :return: Tensor. Feature map of shape [batch_size, H, W, num_features].
         """
         with tf.variable_scope(self.name, reuse=reuse_variables):
-            previous_output = self.activation_fn(features)
+
+            if self.activation_fn is not None:
+                previous_output = self.activation_fn(features)
+
             final_output, layer_outputs = self._get_conv_tower(previous_output)
             return final_output
 
@@ -123,12 +128,16 @@ class UpSamplingConnection(ConvNetwork):
         with tf.variable_scope(self.name, reuse=reuse_variables):
 
             # Up-sample feature images.
-            cur_height, cur_width = tf.shape(features)[1], tf.shape(features)[2]
+            # It's important to get the current widths and heights not as Tensors to keep the up-sized shapes explicit.
+            shape_list = features.get_shape().as_list()
+            cur_height, cur_width = shape_list[1], shape_list[2]
             new_height, new_width = 2 * cur_height, 2 * cur_width
             previous_output = tf.image.resize_bilinear(features, (new_height, new_width))
 
             # Pass through resolution preserving convolutions.
-            previous_output = self.activation_fn(previous_output)
+            if self.activation_fn is not None:
+                previous_output = self.activation_fn(previous_output)
+
             final_output, layer_outputs = self._get_conv_tower(previous_output)
             return final_output
 

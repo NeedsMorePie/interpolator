@@ -55,10 +55,13 @@ class ConvNetwork:
                                                strides=(stride, stride),
                                                padding='SAME',
                                                dilation_rate=(dilation, dilation),
-                                               activation=activation_fn,
+                                               activation=None,
                                                kernel_regularizer=self.regularizer,
                                                bias_regularizer=self.regularizer,
                                                name='conv_' + str(i))
+
+            if activation_fn is not None:
+                previous_output = activation_fn(previous_output)
 
             layer_outputs.append(previous_output)
 
