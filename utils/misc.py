@@ -22,7 +22,7 @@ def pelu(x):
         return negative + positive
 
 # https://stackoverflow.com/questions/39975676/how-to-implement-prelu-activation-in-tensorflow
-def parametric_relu(_x):
+def prelu(_x):
     with tf.variable_scope(_x.op.name + '_activation', initializer=tf.constant_initializer(1.0)):
         alphas = tf.get_variable('alpha', _x.get_shape()[-1],
                            initializer=tf.constant_initializer(0.0),

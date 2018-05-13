@@ -1,7 +1,15 @@
 import tensorflow as tf
-from utils.misc import print_tensor_shape, pelu, parametric_relu
+from utils.misc import print_tensor_shape, pelu, prelu
 from gridnet.connections.connections import UpSamplingConnection, DownSamplingConnection, LateralConnection
 
+# Packaged 'activation' functions.
+def batch_norm_with_prelu(x):
+    x = tf.layers.batch_normalization(x)
+    return prelu(x)
+
+def batch_norm_with_relu(x):
+    x = tf.layers.batch_normalization(x)
+    return tf.nn.relu(x)
 
 class GridNet:
     def __init__(self, channel_sizes, width,
@@ -48,7 +56,10 @@ class GridNet:
         self.regularizer = regularizer
 
         # More settings
-        self.activation_fn = parametric_relu
+        if self.use_batch_norm:
+            self.activation_fn = batch_norm_with_prelu
+        else:
+            self.activation_fn = prelu
 
         # Construct specs for connections.
         # Entry specs[i][j] is the spec for the jth convolution for any connection in the ith row.
@@ -120,7 +131,6 @@ class GridNet:
             'right_%d%d' % (i, j),
             self.lateral_specs[i],
             activation_fn=self.activation_fn,
-            use_batch_norm=self.use_batch_norm,
             total_dropout_rate=self.connection_dropout_rate,
             regularizer=self.regularizer
         ).get_forward(input)
@@ -130,7 +140,6 @@ class GridNet:
             'up_%d%d' % (i, j),
             self.upsample_specs[i],
             activation_fn=self.activation_fn,
-            use_batch_norm=self.use_batch_norm,
             regularizer=self.regularizer
         ).get_forward(input)
 
@@ -139,6 +148,5 @@ class GridNet:
             'down_%d%d' % (i, j),
             self.downsample_specs[i],
             activation_fn=self.activation_fn,
-            use_batch_norm=self.use_batch_norm,
             regularizer=self.regularizer
         ).get_forward(input)

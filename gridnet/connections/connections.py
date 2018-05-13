@@ -5,7 +5,6 @@ from utils.misc import tf_coin_flip, print_tensor_shape
 class LateralConnection(ConvNetwork):
     def __init__(self, name, layer_specs,
                  activation_fn=tf.nn.leaky_relu,
-                 use_batch_norm=False,
                  total_dropout_rate=0.0,
                  regularizer=None):
         """
@@ -13,7 +12,6 @@ class LateralConnection(ConvNetwork):
         :param layer_specs: Array of shape [num_layers, 2]. Constrained version of parent class' layer_specs.
                             The second dimension consists of [num_output_features, dilation].
         :param activation_fn: Tensorflow activation function. This will not be applied on the last convolutional layer.
-        :param use_batch_norm: Whether to use batch normalization.
         :param total_dropout_rate: A value of 1.0 will always zero-out the output of this block, and 0.0 will keep it.
         :param regularizer: Tf regularizer such as tf.contrib.layers.l2_regularizer.
         """
@@ -57,14 +55,12 @@ class LateralConnection(ConvNetwork):
 class DownSamplingConnection(ConvNetwork):
     def __init__(self, name, layer_specs,
                  activation_fn=tf.nn.leaky_relu,
-                 use_batch_norm=False,
                  regularizer=None):
         """
         :param name: Str. For variable scoping.
         :param layer_specs: Array of shape [num_layers, 2]. Constrained version of parent class' layer_specs.
                             The second dimension consists of [num_output_features, dilation].
         :param activation_fn: Tensorflow activation function. This will not be applied on the last convolutional layer.
-        :param use_batch_norm: Whether to use batch normalization.
         :param regularizer: Tf regularizer such as tf.contrib.layers.l2_regularizer.
         """
 
@@ -98,14 +94,12 @@ class DownSamplingConnection(ConvNetwork):
 class UpSamplingConnection(ConvNetwork):
     def __init__(self, name, layer_specs,
                  activation_fn=tf.nn.leaky_relu,
-                 use_batch_norm=False,
                  regularizer=None):
         """
         :param name: Str. For variable scoping.
         :param layer_specs: Array of shape [num_layers, 2]. Constrained version of parent class' layer_specs.
                             The second dimension consists of [num_output_features, dilation].
         :param activation_fn: Tensorflow activation function. This will not be applied on the last convolutional layer.
-        :param use_batch_norm: Whether to use batch normalization.
         :param regularizer: Tf regularizer such as tf.contrib.layers.l2_regularizer.
         """
         full_layer_specs = []

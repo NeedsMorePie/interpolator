@@ -41,7 +41,7 @@ class TestGridNet(unittest.TestCase):
         input_features_tensor = tf.placeholder(shape=[None, height, width, num_features], dtype=tf.float32)
         final_output, grid_outputs = self.gridnet.get_forward(input_features_tensor)
 
-        # Note that the first parametric relu's gradient for alpha will be 0 if inputs are all non-negative.
+        # Note that the first parametric ReLU's gradient for alpha will be 0 if inputs are all non-negative.
         input_features = np.zeros(shape=[batch_size, height, width, num_features], dtype=np.float32)
         input_features[:, 2:height-2, 2:width-2, :] = -1.0
         input_features[:, 4:height-4, 5:width-5, :] = 1.0
@@ -87,6 +87,7 @@ class TestGridNet(unittest.TestCase):
         self.assertNotEqual(reg_loss_sum, 0.0)
 
         # Test that we have all the trainable variables.
+        # Each parametric ReLU has a trainable alpha variable.
         trainable_vars = tf.trainable_variables(scope='gridnet')
         self.assertEqual(len(trainable_vars), num_total_convs * 3)
         self.assertEqual(trainable_vars[1].name, 'gridnet/right_00/conv_0/kernel:0')
