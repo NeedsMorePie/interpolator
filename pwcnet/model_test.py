@@ -17,8 +17,8 @@ class TestPWCModel(unittest.TestCase):
         """
         Sets up the network's forward pass and ensures that all shapes are expected.
         """
-        height = 512
-        width = 512
+        height = 128
+        width = 128
         num_features = 3
         batch_size = 2
 
