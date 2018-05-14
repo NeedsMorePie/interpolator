@@ -31,7 +31,7 @@ class EstimatorNetwork(ConvNetwork):
 
         self.search_range = search_range
 
-    def get_forward(self, features1, features2, optical_flow, reuse_variables=tf.AUTO_REUSE):
+    def get_forward(self, features1, features2, optical_flow, prewarp_scale=1.0, reuse_variables=tf.AUTO_REUSE):
         """
         features1   features2  optical_flow
               \         \           /
@@ -49,13 +49,14 @@ class EstimatorNetwork(ConvNetwork):
         :param features1: Tensor. Feature map of shape [batch_size, H, W, num_features]. Time = 0.
         :param features2: Tensor. Feature map of shape [batch_size, H, W, num_features]. Time = 1.
         :param optical_flow: Tensor. Optical flow of shape [batch_size, H, W, 2].
+        :param prewarp_scale: Float. Optical flow is scaled by this just before warping.
         :param reuse_variables: tf reuse option. i.e. tf.AUTO_REUSE.
         :return: final_flow: optical flow of shape [batch_size, H, W, 2].
                  layer_outputs: array of layer intermediate conv outputs. Length is len(layer_specs) + 1.
         """
         with tf.variable_scope(self.name, reuse=reuse_variables):
             # Warp layer.
-            warped = warp_via_flow(features2, optical_flow)
+            warped = warp_via_flow(features2, optical_flow * prewarp_scale)
 
             # Cost volume layer.
             cv = cost_volume(features1, warped, search_range=self.search_range)
