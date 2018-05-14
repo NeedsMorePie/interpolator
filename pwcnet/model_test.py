@@ -31,6 +31,7 @@ class TestPWCModel(unittest.TestCase):
         image_a[:, 10:height-10, 10:width-10, :] = 1.0
         image_b = np.zeros(shape=[batch_size, height, width, num_features], dtype=np.float32)
         image_b[:, 5:height - 5, 5:width - 5, :] = 1.0
+        dummy_flow = np.ones(shape=[batch_size, height, width, 2], dtype=np.float32)
 
         self.sess.run(tf.global_variables_initializer())
 
@@ -56,6 +57,17 @@ class TestPWCModel(unittest.TestCase):
         grad_op = tf.gradients(tf.reduce_mean(final_flow), trainable_vars + [input_image_a, input_image_b])
         for grad in grad_op:
             self.assertNotEqual(grad, None)
+
+        # Get the losses.
+        gt_placeholder = tf.placeholder(shape=[None, height, width, 2], dtype=tf.float32)
+        training_loss = self.pwc_net.get_training_loss(previous_flows, gt_placeholder)
+        # Check the gradients with the loss.
+        loss_grad_op = tf.gradients(training_loss, trainable_vars + [input_image_a, input_image_b])
+        for grad in loss_grad_op:
+            self.assertNotEqual(grad, None)
+        loss_value = self.sess.run(training_loss, feed_dict={input_image_a: image_a, input_image_b: image_b,
+                                                             gt_placeholder: dummy_flow})
+        self.assertNotAlmostEqual(loss_value[0], 0.0)
 
 
 if __name__ == '__main__':
