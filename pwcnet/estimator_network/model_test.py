@@ -3,6 +3,7 @@ import tensorflow as tf
 import unittest
 from pwcnet.estimator_network.model import EstimatorNetwork
 from tensorflow.contrib.layers import l2_regularizer
+import time
 
 
 class TestContextNetwork(unittest.TestCase):

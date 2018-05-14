@@ -20,7 +20,9 @@ class TestCostVolume(unittest.TestCase):
         input2 = tf.placeholder(shape=image_shape, dtype=tf.float32)
         cv = cost_volume(input1, input2, 0)
         cv = self.sess.run(cv, feed_dict={input1: c1, input2: c2})
+        cv = np.flip(cv, axis=-1)
         self.assertEqual(cv.tolist(), expected.tolist())
+
 
     def testTinyImageOnesSearch0(self):
         image_shape = (1, 2, 2, 1)
@@ -30,6 +32,7 @@ class TestCostVolume(unittest.TestCase):
         input2 = tf.placeholder(shape=image_shape, dtype=tf.float32)
         cv = cost_volume(input1, input2, 0)
         cv = self.sess.run(cv, feed_dict={input1: c1, input2: c1})
+        cv = np.flip(cv, axis=-1)
         self.assertEqual(cv.tolist(), expected.tolist())
 
     def testTinyImageOnesLargerWidthSearch0(self):
@@ -40,6 +43,7 @@ class TestCostVolume(unittest.TestCase):
         input2 = tf.placeholder(shape=image_shape, dtype=tf.float32)
         cv = cost_volume(input1, input2, 0)
         cv = self.sess.run(cv, feed_dict={input1: c1, input2: c1})
+        cv = np.flip(cv, axis=-1)
         self.assertEqual(cv.tolist(), expected.tolist())
 
     def testTinyImageSearch1(self):
@@ -56,6 +60,7 @@ class TestCostVolume(unittest.TestCase):
         input2 = tf.placeholder(shape=image_shape, dtype=tf.float32)
         cv = cost_volume(input1, input2, 1)
         cv = self.sess.run(cv, feed_dict={input1: c1, input2: c2})
+        cv = np.flip(cv, axis=-1)
         self.assertEqual(np.squeeze(cv).tolist(), expected.tolist())
 
     def testTinyImageLargerWidthSearch1(self):
@@ -78,6 +83,7 @@ class TestCostVolume(unittest.TestCase):
         input2 = tf.placeholder(shape=image_shape, dtype=tf.float32)
         cv = cost_volume(input1, input2, 1)
         cv = self.sess.run(cv, feed_dict={input1: c1, input2: c2})
+        cv = np.flip(cv, axis=-1)
         self.assertEqual(np.squeeze(cv).tolist(), expected.tolist())
 
     def testTinyImageLargerHeightSearch1(self):
@@ -103,6 +109,7 @@ class TestCostVolume(unittest.TestCase):
         input2 = tf.placeholder(shape=image_shape, dtype=tf.float32)
         cv = cost_volume(input1, input2, 1)
         cv = self.sess.run(cv, feed_dict={input1: c1, input2: c2})
+        cv = np.flip(cv, axis=-1)
         self.assertEqual(np.squeeze(cv).tolist(), expected.tolist())
 
     def testTinyImageSearch1Batch(self):
@@ -121,6 +128,7 @@ class TestCostVolume(unittest.TestCase):
         input2 = tf.placeholder(shape=image_shape, dtype=tf.float32)
         cv = cost_volume(input1, input2, 1)
         cv = self.sess.run(cv, feed_dict={input1: c1, input2: c2})
+        cv = np.flip(cv, axis=-1)
         self.assertEqual(np.squeeze(cv).tolist(), expected.tolist())
 
     def testTinyImageSearch1BatchOnes(self):
@@ -152,6 +160,7 @@ class TestCostVolume(unittest.TestCase):
         input2 = tf.placeholder(shape=image_shape, dtype=tf.float32)
         cv = cost_volume(input1, input2, 1)
         cv = self.sess.run(cv, feed_dict={input1: c1, input2: c2})
+        cv = np.flip(cv, axis=-1)
         self.assertEqual(np.squeeze(cv).tolist(), expected.tolist())
 
     def testSmallImageSearch1(self):
@@ -176,6 +185,7 @@ class TestCostVolume(unittest.TestCase):
         input2 = tf.placeholder(shape=image_shape, dtype=tf.float32)
         cv = cost_volume(input1, input2, 1)
         cv = self.sess.run(cv, feed_dict={input1: c1, input2: c2})
+        cv = np.flip(cv, axis=-1)
         self.assertEqual(np.squeeze(cv).tolist(), expected.tolist())
 
 
