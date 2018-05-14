@@ -104,12 +104,14 @@ class PWCNet:
 
             final_flow = tf.image.resize_images(previous_flow, [img_height, img_width],
                                                 method=tf.image.ResizeMethod.BILINEAR)
+            final_flow /= self.flow_scaling
             return final_flow, previous_flows
 
-    def get_training_loss(self, previous_flows, expected_flow):
+    def _get_loss(self, previous_flows, expected_flow, diff_fn):
         """
         :param previous_flows: List of previous outputs from the PWC-Net forward pass.
         :param expected_flow: Tensor of shape [batch_size, H, W, 2]. These are the ground-truth labels.
+        :param diff_fn: Function to diff 2 tensors.
         :return: Tf scalar loss term, and an array of all the inidividual loss terms.
         """
         total_loss = tf.constant(0.0, dtype=tf.float32)
@@ -123,7 +125,7 @@ class PWCNet:
             resized_scaled_gt = tf.image.resize_images(scaled_gt, [H, W], method=tf.image.ResizeMethod.BILINEAR)
 
             # squared_difference has the shape [batch_size, H, W, 2].
-            squared_difference = tf.square(resized_scaled_gt - previous_flow)
+            squared_difference = diff_fn(resized_scaled_gt, previous_flow)
             # Reduce sum in the last 3 dimensions, average over the batch, and apply the weight.
             weight = self.flow_layer_loss_weights[i]
             layer_loss = weight * tf.reduce_mean(tf.reduce_sum(squared_difference, axis=[1, 2, 3]))
@@ -135,3 +137,21 @@ class PWCNet:
         # Add the regularization loss.
         total_loss += tf.add_n(tf.losses.get_regularization_losses(scope=self.name))
         return total_loss, layer_losses
+
+    def get_training_loss(self, previous_flows, expected_flow):
+        """
+        Uses an L2 diffing loss.
+        :return: Tf scalar loss term, and an array of all the inidividual loss terms.
+        """
+        def l2_diff(a, b):
+            return tf.square(a-b)
+        return self._get_loss(previous_flows, expected_flow, l2_diff)
+
+    def get_fine_tuning_loss(self, previous_flows, expected_flow, q=0.4, epsilon=0.01):
+        """
+        Uses an Lq diffing loss.
+        :return: Tf scalar loss term, and an array of all the inidividual loss terms.
+        """
+        def lq_diff(a, b):
+            return tf.pow(tf.abs(a-b) + epsilon, q)
+        return self._get_loss(previous_flows, expected_flow, lq_diff)
