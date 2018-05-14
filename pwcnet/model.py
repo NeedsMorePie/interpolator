@@ -67,8 +67,8 @@ class PWCNet:
                 if VERBOSE:
                     print('Creating estimator at level', i)
                 # Get the features at this level.
-                features_a_n = features_a[self.feature_pyramid.get_c_n(i)]
-                features_b_n = features_b[self.feature_pyramid.get_c_n(i)]
+                features_a_n = features_a[self.feature_pyramid.get_c_n_idx(i)]
+                features_b_n = features_b[self.feature_pyramid.get_c_n_idx(i)]
 
                 # Setup the previous flow for input into the estimator network at this level.
                 B = tf.shape(features_a_n)[0]

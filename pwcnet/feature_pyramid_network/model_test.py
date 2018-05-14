@@ -17,8 +17,8 @@ class TestFeaturePyramid(unittest.TestCase):
         """
         Sets up the network's forward pass and ensures that all shapes are expected.
         """
-        height = 512
-        width = 512
+        height = 128
+        width = 128
         num_features = 3
         batch_size = 3
 
@@ -66,11 +66,11 @@ class TestFeaturePyramid(unittest.TestCase):
         for gradient in gradients:
             self.assertNotAlmostEqual(np.sum(gradient), 0.0)
 
-        c_3_tensor = layer_outputs[self.feature_pyr_net.get_c_n(3)]
+        c_3_tensor = layer_outputs[self.feature_pyr_net.get_c_n_idx(3)]
         c_3 = self.sess.run(c_3_tensor, feed_dict={input_image: input_features})
         self.assertTrue(np.allclose(c_3.shape, [batch_size, 64, 64, 64]))
 
-        c_5_tensor = layer_outputs[self.feature_pyr_net.get_c_n(5)]
+        c_5_tensor = layer_outputs[self.feature_pyr_net.get_c_n_idx(5)]
         c_5 = self.sess.run(c_5_tensor, feed_dict={input_image: input_features})
         self.assertTrue(np.allclose(c_5.shape, [batch_size, 16, 16, 128]))
 
