@@ -38,7 +38,8 @@ class TestGridNet(unittest.TestCase):
 
         # Create the graph.
         input_features_tensor = tf.placeholder(shape=[None, height, width, num_features], dtype=tf.float32)
-        final_output, grid_outputs = gridnet.get_forward(input_features_tensor, training=True)
+        outputs = gridnet.get_forward(input_features_tensor, training=True)
+        final_output, node_outputs, lateral_inputs, vertical_inputs = outputs
 
         # Note that the first parametric ReLU's gradient for alpha will be 0 if inputs are all non-negative.
         input_features = np.zeros(shape=[batch_size, height, width, num_features], dtype=np.float32)
@@ -47,14 +48,15 @@ class TestGridNet(unittest.TestCase):
 
         self.sess.run(tf.global_variables_initializer())
 
-        query = [final_output, grid_outputs]
-        final_output_np, grid_outputs_np = self.sess.run(query, feed_dict={input_features_tensor: input_features})
+        query = [final_output, node_outputs, lateral_inputs, vertical_inputs]
+        outputs_np = self.sess.run(query, feed_dict={input_features_tensor: input_features})
+        final_output_np, node_outputs_np, lateral_inputs_np, vertical_inputs_np = outputs_np
 
         # Check final output shape.
         self.assertTrue(np.allclose(final_output_np.shape, np.asarray([batch_size, height, width, num_input_channels])))
 
         # Check the number of grid outputs.
-        num_grid_nodes = len(grid_outputs_np) * len(grid_outputs_np[0])
+        num_grid_nodes = len(node_outputs_np) * len(node_outputs_np[0])
         self.assertEqual(num_grid_nodes, grid_width * grid_height)
 
         # Check grid output shapes.
@@ -63,13 +65,19 @@ class TestGridNet(unittest.TestCase):
                 sample_factor = np.power(2.0, -i)
                 row_num_channels = num_channels[i]
                 expected_shape = np.asarray([batch_size, height * sample_factor, width * sample_factor, row_num_channels])
-                self.assertTrue(np.allclose(grid_outputs_np[i][j].shape, expected_shape))
+                self.assertTrue(np.allclose(node_outputs_np[i][j].shape, expected_shape))
 
-        # Check grid output values.
+        # Check grid node output values.
         self.assertNotEqual(np.sum(final_output_np), 0.0)
-        for i in range(len(grid_outputs_np)):
-            for j in range(len(grid_outputs_np[i])):
-                self.assertNotEqual(np.sum(grid_outputs_np[i][j]), 0.0)
+        for i in range(grid_height):
+            for j in range(grid_width):
+                self.assertNotEqual(np.sum(node_outputs_np[i][j]), 0.0)
+
+        # Check that each node is the sum of its incoming streams.
+        for i in range(grid_height):
+            for j in range(grid_width):
+                sum = lateral_inputs_np[i][j] + vertical_inputs_np[i][j]
+                self.assertEqual(sum.tolist(), node_outputs_np[i][j].tolist())
 
         # Test regularization losses. The magic numbers here have to do with grid net width and height.
         num_total_convs = 0
@@ -112,7 +120,7 @@ class TestGridNet(unittest.TestCase):
         num_upsampling_convs_per_connection = 3
         gridnet = GridNet(num_channels,
                           grid_width,
-                          name='gridnet_dropped',
+                          name=name,
                           connection_dropout_rate=1.0,
                           num_lateral_convs=num_lateral_convs_per_connection,
                           num_downsampling_convs=num_downsampling_convs_per_connection,
@@ -126,7 +134,8 @@ class TestGridNet(unittest.TestCase):
 
         # Create the graph.
         input_features_tensor = tf.placeholder(shape=[None, height, width, num_features], dtype=tf.float32)
-        final_output, grid_outputs = gridnet.get_forward(input_features_tensor, training=True)
+        outputs = gridnet.get_forward(input_features_tensor, training=True)
+        final_output, node_outputs, lateral_inputs, vertical_inputs = outputs
 
         # Note that the first parametric ReLU's gradient for alpha will be 0 if inputs are all non-negative.
         input_features = np.zeros(shape=[batch_size, height, width, num_features], dtype=np.float32)
@@ -135,23 +144,24 @@ class TestGridNet(unittest.TestCase):
 
         self.sess.run(tf.global_variables_initializer())
 
-        query = [final_output, grid_outputs]
-        final_output_np, grid_outputs_np = self.sess.run(query, feed_dict={input_features_tensor: input_features})
+        query = [final_output, node_outputs, lateral_inputs, vertical_inputs]
+        outputs_np = self.sess.run(query, feed_dict={input_features_tensor: input_features})
+        final_output_np, node_outputs_np, lateral_inputs_np, vertical_inputs_np = outputs_np
 
         # Check final output shape.
         self.assertTrue(np.allclose(final_output_np.shape, np.asarray([batch_size, height, width, num_input_channels])))
 
         # Check the number of grid outputs.
-        num_grid_nodes = len(grid_outputs_np) * len(grid_outputs_np[0])
+        num_grid_nodes = len(node_outputs_np) * len(node_outputs_np[0])
         self.assertEqual(num_grid_nodes, grid_width * grid_height)
 
-        # Check grid output shapes.
+        # Check grid node output shapes.
         for i in range(grid_height):
             for j in range(grid_width):
                 sample_factor = np.power(2.0, -i)
                 row_num_channels = num_channels[i]
                 expected_shape = np.asarray([batch_size, height * sample_factor, width * sample_factor, row_num_channels])
-                self.assertTrue(np.allclose(grid_outputs_np[i][j].shape, expected_shape))
+                self.assertTrue(np.allclose(node_outputs_np[i][j].shape, expected_shape))
 
         # Check grid output values.
         self.assertEqual(np.sum(final_output_np), 0.0)
@@ -164,10 +174,10 @@ class TestGridNet(unittest.TestCase):
                 #     lateral_output_only = True
                 #
                 # if lateral_output_only:
-                #     self.assertEqual(np.sum(grid_outputs_np[i][j]), 0.0)
+                #     self.assertEqual(np.sum(node_outputs_np[i][j]), 0.0)
 
                 # The entire network has zero output, at all nodes, when biases are zero-initialized
-                self.assertEqual(np.sum(grid_outputs_np[i][j]), 0.0)
+                self.assertEqual(np.sum(node_outputs_np[i][j]), 0.0)
 
         # Test regularization losses. The magic numbers here have to do with grid net width and height.
         num_total_convs = 0
