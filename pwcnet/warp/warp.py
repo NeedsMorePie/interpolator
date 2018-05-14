@@ -32,7 +32,7 @@ def optical_flow_to_transforms_immediate(optical_flows, session):
     return session.run(output_tensor, feed_dict={input_tensor: optical_flows})
 
 
-def warp_via_flow(images, optical_flows, bilinear_sample=False):
+def warp_via_flow(images, optical_flows, bilinear_sample=True):
     """
     Given a flow at image A that flows from B to A,
     warp image B to image A.

@@ -17,10 +17,13 @@ class TestContextNetwork(unittest.TestCase):
         """
         Sets up the network's forward pass and ensures that all shapes are expected.
         """
-        height = 128
-        width = 200
+        height = 30
+        width = 40
         num_features = 32
         batch_size = 3
+
+        # Check that the default is true.
+        self.assertTrue(self.estimator_network.dense_net)
 
         # Create the graph.
         input_features1_tensor = tf.placeholder(shape=[None, height, width, num_features], dtype=tf.float32)
@@ -73,6 +76,15 @@ class TestContextNetwork(unittest.TestCase):
         trainable_vars = tf.trainable_variables(scope='estimator_network')
         self.assertEqual(len(trainable_vars), 12)
         self.assertEqual(trainable_vars[2].name, 'estimator_network/conv_1/kernel:0')
+
+        # Check that the gradients are flowing.
+        grad_op = tf.gradients(final_flow,
+                               trainable_vars + [input_features1_tensor, input_features2_tensor, input_flow_tensor])
+        gradients = self.sess.run(grad_op, feed_dict={input_features1_tensor: input_features1,
+                                                      input_features2_tensor: input_features2,
+                                                      input_flow_tensor: input_flow})
+        for gradient in gradients:
+            self.assertNotAlmostEqual(np.sum(gradient), 0.0)
 
 
 if __name__ == '__main__':
