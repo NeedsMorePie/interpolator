@@ -7,7 +7,7 @@ class ConvNetwork:
     def __init__(self, layer_specs=None,
                  activation_fn=tf.nn.leaky_relu,
                  last_activation_fn=_default,
-                 regularizer=None, padding='SAME'):
+                 regularizer=None, padding='SAME', dense_net=False):
         """
         Generic conv-net
         :param name: Str. For variable scoping.
@@ -18,11 +18,13 @@ class ConvNetwork:
                                    in place of activation_fn. Defaults to the value of activation_fn.
         :param regularizer: Tf regularizer such as tf.contrib.layers.l2_regularizer.
         :param padding: Str. Either 'SAME' or 'VALID' case insensitive.
+        :param dense_net: Bool. If true, then it is expected that all layers have the same width and height.
         """
         self.layer_specs = layer_specs
         self.activation_fn = activation_fn
         self.regularizer = regularizer
         self.padding = padding
+        self.dense_net = dense_net
 
         if last_activation_fn == _default:
             self.last_activation_fn = self.activation_fn
@@ -48,9 +50,15 @@ class ConvNetwork:
 
             is_last_layer = i == len(self.layer_specs) - 1
             activation_fn = self.last_activation_fn if is_last_layer else self.activation_fn
+            if self.dense_net and i != 0:
+                # Dense-net layer input consists of all previous layer outputs.
+                assert previous_output == layer_outputs[-1]
+                inputs = tf.concat(layer_outputs, axis=-1)
+            else:
+                inputs = previous_output
 
             # Create the convolution layer.
-            previous_output = tf.layers.conv2d(inputs=previous_output,
+            previous_output = tf.layers.conv2d(inputs=inputs,
                                                filters=num_output_features,
                                                kernel_size=[kernel_size, kernel_size],
                                                strides=(stride, stride),

@@ -7,17 +7,16 @@ from pwcnet.warp.warp import warp_via_flow
 class EstimatorNetwork(ConvNetwork):
     def __init__(self, name='estimator_network', layer_specs=None,
                  activation_fn=tf.nn.leaky_relu,
-                 regularizer=None, search_range=4):
+                 regularizer=None, search_range=4, dense_net=True):
         """
-        Context network -- usually has 6 layer + a delta optical flow output layer.
-        The delta optical flow is added to the inputted optical flow.
         :param name: Str. For variable scoping.
         :param layer_specs: See parent class.
         :param activation_fn: Tensorflow activation function.
         :param regularizer: Tf regularizer such as tf.contrib.layers.l2_regularizer.
+        :param dense_net: Bool. Default for PWC-Net is true.
         """
         super().__init__(layer_specs=layer_specs,
-                         activation_fn=activation_fn, regularizer=regularizer, padding='SAME')
+                         activation_fn=activation_fn, regularizer=regularizer, padding='SAME', dense_net=dense_net)
 
         self.name = name
         if layer_specs is None:
@@ -32,7 +31,7 @@ class EstimatorNetwork(ConvNetwork):
 
         self.search_range = search_range
 
-    def get_forward(self, features1, features2, optical_flow, reuse_variables=False):
+    def get_forward(self, features1, features2, optical_flow, reuse_variables=tf.AUTO_REUSE):
         """
         features1   features2  optical_flow
               \         \           /
@@ -50,7 +49,7 @@ class EstimatorNetwork(ConvNetwork):
         :param features1: Tensor. Feature map of shape [batch_size, H, W, num_features]. Time = 0.
         :param features2: Tensor. Feature map of shape [batch_size, H, W, num_features]. Time = 1.
         :param optical_flow: Tensor. Optical flow of shape [batch_size, H, W, 2].
-        :param reuse_variables: Bool. Whether to reuse the variables.
+        :param reuse_variables: tf reuse option. i.e. tf.AUTO_REUSE.
         :return: final_flow: optical flow of shape [batch_size, H, W, 2].
                  layer_outputs: array of layer intermediate conv outputs. Length is len(layer_specs) + 1.
         """
@@ -65,6 +64,11 @@ class EstimatorNetwork(ConvNetwork):
             # Initial input has shape [batch_size, H, W, in_features + cv_size]
             initial_input = tf.concat([features1, cv], axis=-1)
             previous_output, layer_outputs = self._get_conv_tower(initial_input)
+
+            if self.dense_net:
+                # layer_outputs contains previous_output.
+                assert previous_output == layer_outputs[-1]
+                previous_output = tf.concat(layer_outputs, axis=-1)
 
             # Create the last convolution layer that outputs the delta flow.
             previous_output = tf.layers.conv2d(inputs=previous_output,
