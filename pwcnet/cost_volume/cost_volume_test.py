@@ -22,6 +22,7 @@ class TestCostVolume(unittest.TestCase):
         cv = self.sess.run(cv, feed_dict={input1: c1, input2: c2})
         self.assertEqual(cv.tolist(), expected.tolist())
 
+
     def testTinyImageOnesSearch0(self):
         image_shape = (1, 2, 2, 1)
         c1 = np.ones(image_shape)
