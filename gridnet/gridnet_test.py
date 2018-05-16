@@ -73,6 +73,22 @@ class TestGridNet(unittest.TestCase):
             for j in range(grid_width):
                 self.assertNotEqual(np.sum(node_outputs_np[i][j]), 0.0)
 
+        # Check stream output values.
+        for i in range(grid_height):
+            for j in range(grid_width):
+
+                # Lateral inputs.
+                if j > 0 or (i == 0 and j == 0):
+                    self.assertNotEqual(np.sum(lateral_inputs_np[i][j]), 0.0)
+                else:
+                    self.assertEqual(np.sum(lateral_inputs_np[i][j]), 0.0)
+
+                # Vertical inputs.
+                if (i > 0 and j < grid_width / 2) or (i < grid_height - 1 and j >= grid_width / 2):
+                    self.assertNotEqual(np.sum(vertical_inputs_np[i][j]), 0.0)
+                else:
+                    self.assertEqual(np.sum(vertical_inputs_np[i][j]), 0.0)
+
         # Check that each node is the sum of its incoming streams.
         for i in range(grid_height):
             for j in range(grid_width):
@@ -176,8 +192,13 @@ class TestGridNet(unittest.TestCase):
                 # if lateral_output_only:
                 #     self.assertEqual(np.sum(node_outputs_np[i][j]), 0.0)
 
-                # The entire network has zero output, at all nodes, when biases are zero-initialized
-                self.assertEqual(np.sum(node_outputs_np[i][j]), 0.0)
+                # The first lateral connection should always have non-zero output.
+                # The first column of down-sampling of streams should also have non-zero output.
+                # All other nodes have zero output when biases are zero-initialized.
+                if j == 0:
+                    self.assertNotEqual(np.sum(node_outputs_np[i][j]), 0.0)
+                else:
+                    self.assertEqual(np.sum(node_outputs_np[i][j]), 0.0)
 
         # Test regularization losses. The magic numbers here have to do with grid net width and height.
         num_total_convs = 0
@@ -200,11 +221,23 @@ class TestGridNet(unittest.TestCase):
         self.assertEqual(len(trainable_vars), num_total_convs * 3)
         self.assertEqual(trainable_vars[1].name, name + '/right_00/conv_0/kernel:0')
 
-        # Check that gradients are all 0.
+        # Check gradients.
         grad_op = tf.gradients(final_output,
                                trainable_vars + [input_features_tensor])
         gradients = self.sess.run(grad_op, feed_dict={input_features_tensor: input_features})
-        sum = 0
-        for gradient in gradients:
-            sum += np.sum(gradient)
-        self.assertEqual(sum, 0.0)
+
+        nonzero_grad_names = {'up_03', 'up_13', 'right_04'}
+        zero_sum = 0
+        nonzero_sum = 0
+        for i, gradient in enumerate(gradients):
+            nonzero = False
+            if i < len(trainable_vars):
+                connection_name = trainable_vars[i].name.split('/')
+                if len(connection_name) > 1 and connection_name[1] in nonzero_grad_names:
+                    nonzero_sum += np.sum(gradient)
+                    nonzero = True
+            if not nonzero:
+                zero_sum += np.sum(gradient)
+
+        self.assertEqual(zero_sum, 0.0)
+        self.assertNotEqual(nonzero_sum, 0)

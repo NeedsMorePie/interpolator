@@ -154,11 +154,15 @@ class GridNet:
 
     # Private helper functions.
     def _process_rightwards(self, input, i, j, training=False):
+
+        # The input and output lateral connections should never be dropped, as they cutoff gradients hard.
+        force_alive = i == 0 and (j == 0 or j == self.width)
+        total_dropout_rate = 0.0 if force_alive else self.connection_dropout_rate
         return LateralConnection(
             'right_%d%d' % (i, j),
             self.lateral_specs[i],
             activation_fn=self.activation_fn,
-            total_dropout_rate=self.connection_dropout_rate,
+            total_dropout_rate=total_dropout_rate,
             regularizer=self.regularizer
         ).get_forward(input, training=training)
 
