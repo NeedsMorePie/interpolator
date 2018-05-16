@@ -61,6 +61,7 @@ def cost_volume(c1, c2, search_range=4):
             cv_slice = tf.scatter_nd(cur_indices, costs, target_shape)
             cv_slices.append(cv_slice)
 
+    cv_slices = cv_slices[::-1]
     cv = tf.stack(cv_slices, axis=-1)
     cv = tf.transpose(cv, [2, 0, 1, 3])
     return cv
