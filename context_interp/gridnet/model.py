@@ -1,6 +1,6 @@
 import tensorflow as tf
 from utils.misc import print_tensor_shape, pelu, prelu
-from gridnet.connections.connections import UpSamplingConnection, DownSamplingConnection, LateralConnection
+from context_interp.gridnet.connections.connections import UpSamplingConnection, DownSamplingConnection, LateralConnection
 
 # Packaged 'activation' functions.
 def batch_norm_with_prelu(x):

@@ -2,20 +2,14 @@
 # Commit 4006debc1317b2de2b04ffa37c2040f9e2c1e4ad.
 # Modifications include adding partial build functions and moving trainable argument to build functions.
 import os
-import tensorflow as tf
-
-import numpy as np
 import time
 import inspect
 from utils.misc import print_tensor_shape
-
-VGG_MEAN = [103.939, 116.779, 123.68]
-
 import tensorflow as tf
-
 import numpy as np
 from functools import reduce
 
+VERBOSE = False
 VGG_MEAN = [103.939, 116.779, 123.68]
 
 _default = object()
@@ -24,7 +18,6 @@ class Vgg19:
     """
     A trainable version VGG19.
     """
-
     def __init__(self, vgg19_npy_path=_default, dropout=0.5):
         if vgg19_npy_path is not None:
             if vgg19_npy_path == _default:
@@ -34,8 +27,9 @@ class Vgg19:
                 vgg19_npy_path = path
             now = time.time()
             self.data_dict = np.load(vgg19_npy_path, encoding='latin1').item()
-            print('Loaded from ' + vgg19_npy_path)
-            print(time.time() - now)
+
+            if VERBOSE:
+                print('Loaded from ' + vgg19_npy_path + ' in %d' % time.time() - now)
         else:
             self.data_dict = None
 
