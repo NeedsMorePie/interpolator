@@ -30,10 +30,12 @@ sess = tf.Session(config=config)
 
 # Load completely.
 vgg19 = Vgg19(vgg19_npy_path=data_path)
+
+# Build partially.
 image_input = tf.placeholder(shape=[None, 224, 224, 3], dtype=tf.float32)
 vgg19.build_up_to_conv4_4(image_input)
 sess.run(tf.global_variables_initializer())
 
-# Save partially.
+# This only saves whatever variables were created from build.
 vgg19.save_npy(sess, npy_path=output_path)
 
