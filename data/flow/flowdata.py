@@ -78,7 +78,7 @@ class FlowDataSet(DataSet):
 
     def _get_data_paths(self):
         """
-        Gets the paths of [image, flow] pairs from a typical flow data directory structure.
+        Gets the paths of [image_a, image_b, flow] tuples from a typical flow data directory structure.
         :return: List of image_path strings, list of flow_path strings.
         """
         # Get sorted lists.
@@ -86,7 +86,7 @@ class FlowDataSet(DataSet):
         images.sort()
         flows = glob.glob(os.path.join(self.directory, '**', '*.flo'), recursive=True)
         flows.sort()
-        # Make sure the pairs are all under the same directory.
+        # Make sure the tuples are all under the same directory.
         filtered_images_a = []
         filtered_images_b = []
         filtered_flows = []
