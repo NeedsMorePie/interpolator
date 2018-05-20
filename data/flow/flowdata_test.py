@@ -11,7 +11,8 @@ class TestFlowDataSet(unittest.TestCase):
         self.flow_directory = os.path.join(self.data_directory, 'test_flows')
         self.image_directory = os.path.join(self.data_directory, 'test_images')
         self.data_set = FlowDataSet(self.data_directory)
-        self.output_path = os.path.join(self.data_directory, self.data_set.get_processed_file_name())
+        self.output_paths = [os.path.join(self.data_directory, name)
+                             for name in self.data_set.get_processed_file_names()]
 
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
@@ -40,31 +41,31 @@ class TestFlowDataSet(unittest.TestCase):
             self.assertTupleEqual(flow.shape, (436, 1024, 2))
 
     def test_data_read_write(self):
-        data_set = FlowDataSet(self.data_directory, 2)
+        data_set = FlowDataSet(self.data_directory, 2, 1)
 
-        self.assertFalse(os.path.isfile(self.output_path))
+        [self.assertFalse(os.path.isfile(output_path)) for output_path in self.output_paths]
         data_set.preprocess_raw()
-        self.assertTrue(os.path.isfile(self.output_path))
+        [self.assertTrue(os.path.isfile(output_path)) for output_path in self.output_paths]
 
         data_set.load()
-        next_images, next_flows = data_set.get_next_batch()
+        next_images, next_flows = data_set.get_next_train_batch()
+        images, flows = self.sess.run([next_images, next_flows])
+        self.assertTupleEqual(images.shape, (2, 436, 1024, 3))
+        self.assertTupleEqual(flows.shape, (2, 436, 1024, 2))
         images, flows = self.sess.run([next_images, next_flows])
         self.assertTupleEqual(images.shape, (2, 436, 1024, 3))
         self.assertTupleEqual(flows.shape, (2, 436, 1024, 2))
 
-        # Second run should wrap and have a batch size of 1.
+        # Validation data size is 1, so even though the dataset batch size is 2, the validation batch size is 1.
+        next_images, next_flows = data_set.get_next_validation_batch()
         images, flows = self.sess.run([next_images, next_flows])
         self.assertTupleEqual(images.shape, (1, 436, 1024, 3))
         self.assertTupleEqual(flows.shape, (1, 436, 1024, 2))
 
-        # Third run should be batch size of 2 again.
-        images, flows = self.sess.run([next_images, next_flows])
-        self.assertTupleEqual(images.shape, (2, 436, 1024, 3))
-        self.assertTupleEqual(flows.shape, (2, 436, 1024, 2))
-
     def tearDown(self):
-        if os.path.isfile(self.output_path):
-            os.remove(self.output_path)
+        for output_path in self.output_paths:
+            if os.path.isfile(output_path):
+                os.remove(output_path)
 
 
 if __name__ == '__main__':

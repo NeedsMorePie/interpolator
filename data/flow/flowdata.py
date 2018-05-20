@@ -13,19 +13,22 @@ FLOW_RAW = 'flow_raw'
 
 
 class FlowDataSet(DataSet):
-    def __init__(self, directory, batch_size=1):
-        super().__init__(directory, batch_size)
-        # Tensorflow dataset object.
-        self.dataset = None
+    def __init__(self, directory, batch_size=1, validation_size=1):
+        super().__init__(directory, batch_size, validation_size)
+        # Tensorflow dataset objects.
+        self.train_dataset = None
+        self.validation_dataset = None
         # Tensors.
-        self.next_images = None
-        self.next_flows = None
+        self.next_train_images = None
+        self.next_train_flows = None
+        self.next_validation_images = None
+        self.next_validation_flows = None
 
-    def get_processed_file_name(self):
+    def get_processed_file_names(self):
         """
         Overridden.
         """
-        return 'flowdataset.tfrecords'
+        return ['flowdataset_train.tfrecords', 'flowdataset_valid.tfrecords']
 
     def preprocess_raw(self):
         """
@@ -39,37 +42,26 @@ class FlowDataSet(DataSet):
         """
         Overridden.
         """
-        def _parse_function(example_proto):
-            features = {
-                HEIGHT: tf.FixedLenFeature((), tf.int64, default_value=0),
-                WIDTH: tf.FixedLenFeature((), tf.int64, default_value=0),
-                IMAGE_RAW: tf.FixedLenFeature((), tf.string),
-                FLOW_RAW: tf.FixedLenFeature((), tf.string)
-            }
-            parsed_features = tf.parse_single_example(example_proto, features)
-            H = tf.reshape(tf.cast(parsed_features[HEIGHT], tf.int32), ())
-            W = tf.reshape(tf.cast(parsed_features[WIDTH], tf.int32), ())
-            image = tf.decode_raw(parsed_features[IMAGE_RAW], tf.float32)
-            image = tf.reshape(image, [H, W, 3])
-            flow = tf.decode_raw(parsed_features[FLOW_RAW], tf.float32)
-            flow = tf.reshape(flow, [H, W, 2])
-            return image, flow
+        self.train_dataset = self._load_dataset([os.path.join(self.directory, self.get_processed_file_names()[0])])
+        self.validation_dataset = self._load_dataset([os.path.join(self.directory, self.get_processed_file_names()[1])])
 
-        filenames = [os.path.join(self.directory, self.get_processed_file_name())]
-        self.dataset = tf.data.TFRecordDataset(filenames)
-        self.dataset = self.dataset.map(_parse_function)
-        self.dataset = self.dataset.shuffle(buffer_size=10000)
-        self.dataset = self.dataset.batch(self.batch_size)
-        self.dataset = self.dataset.repeat()
+        iterator = self.train_dataset.make_one_shot_iterator()
+        self.next_train_images, self.next_train_flows = iterator.get_next()
 
-        iterator = self.dataset.make_one_shot_iterator()
-        self.next_images, self.next_flows = iterator.get_next()
+        iterator = self.validation_dataset.make_one_shot_iterator()
+        self.next_validation_images, self.next_validation_flows = iterator.get_next()
 
-    def get_next_batch(self):
+    def get_next_train_batch(self):
         """
         Overridden.
         """
-        return self.next_images, self.next_flows
+        return self.next_train_images, self.next_train_flows
+
+    def get_next_validation_batch(self):
+        """
+        Overridden.
+        """
+        return self.next_validation_images, self.next_validation_flows
 
     def _get_data_paths(self):
         """
@@ -109,19 +101,52 @@ class FlowDataSet(DataSet):
         assert len(images) > 0
         H = images[0].shape[0]
         W = images[0].shape[1]
-        C = images[0].shape[2]
-        filename = os.path.join(self.directory, self.get_processed_file_name())
+        train_filename = os.path.join(self.directory, self.get_processed_file_names()[0])
+        valid_filename = os.path.join(self.directory, self.get_processed_file_names()[1])
 
-        with tf.python_io.TFRecordWriter(filename) as writer:
-            for (image, flow) in zip(images, flows):
-                image_raw = image.tostring()
-                flow_raw = flow.tostring()
-                example = tf.train.Example(
-                    features=tf.train.Features(
-                        feature={
-                            HEIGHT: self._int64_feature(H),
-                            WIDTH: self._int64_feature(W),
-                            IMAGE_RAW: self._bytes_feature(image_raw),
-                            FLOW_RAW: self._bytes_feature(flow_raw)
-                        }))
-                writer.write(example.SerializeToString())
+        def _write(filename, iter_range):
+            with tf.python_io.TFRecordWriter(filename) as writer:
+                for i in iter_range:
+                    image_raw = images[i].tostring()
+                    flow_raw = flows[i].tostring()
+                    example = tf.train.Example(
+                        features=tf.train.Features(
+                            feature={
+                                HEIGHT: self._int64_feature(H),
+                                WIDTH: self._int64_feature(W),
+                                IMAGE_RAW: self._bytes_feature(image_raw),
+                                FLOW_RAW: self._bytes_feature(flow_raw)
+                            }))
+                    writer.write(example.SerializeToString())
+
+        valid_start_idx = len(images) - self.validation_size
+        _write(train_filename, range(0, valid_start_idx))
+        _write(valid_filename, range(valid_start_idx, len(images)))
+
+    def _load_dataset(self, file_paths):
+        """
+        :param file_path: String. TfRecord file path.
+        :return: Tensorflow dataset object.
+        """
+        def _parse_function(example_proto):
+            features = {
+                HEIGHT: tf.FixedLenFeature((), tf.int64, default_value=0),
+                WIDTH: tf.FixedLenFeature((), tf.int64, default_value=0),
+                IMAGE_RAW: tf.FixedLenFeature((), tf.string),
+                FLOW_RAW: tf.FixedLenFeature((), tf.string)
+            }
+            parsed_features = tf.parse_single_example(example_proto, features)
+            H = tf.reshape(tf.cast(parsed_features[HEIGHT], tf.int32), ())
+            W = tf.reshape(tf.cast(parsed_features[WIDTH], tf.int32), ())
+            image = tf.decode_raw(parsed_features[IMAGE_RAW], tf.float32)
+            image = tf.reshape(image, [H, W, 3])
+            flow = tf.decode_raw(parsed_features[FLOW_RAW], tf.float32)
+            flow = tf.reshape(flow, [H, W, 2])
+            return image, flow
+
+        dataset = tf.data.TFRecordDataset(file_paths)
+        dataset = dataset.map(_parse_function)
+        dataset = dataset.shuffle(buffer_size=1000)
+        dataset = dataset.batch(self.batch_size)
+        dataset = dataset.repeat()
+        return dataset
