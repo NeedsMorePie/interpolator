@@ -28,21 +28,6 @@ class TestFlowDataSet(unittest.TestCase):
         config.gpu_options.allow_growth = True
         self.sess = tf.Session(config=config)
 
-    def test_data_reading(self):
-        """
-        Tests that we can properly read a dataset into numpy arrays.
-        """
-        image_paths, flow_paths = self.data_set._get_data_paths()
-
-        self.assertListEqual(image_paths, self.expected_image_paths)
-        self.assertListEqual(flow_paths, self.expected_flow_paths)
-
-        # Test reading.
-        images, flows = self.data_set._read_from_data_paths(image_paths, flow_paths)
-        for image, flow in zip(images, flows):
-            self.assertTupleEqual(image.shape, (436, 1024, 3))
-            self.assertTupleEqual(flow.shape, (436, 1024, 2))
-
     def test_data_read_write(self):
         self.data_set.preprocess_raw(shard_size=2)
         output_paths = self.data_set.get_train_file_names() + self.data_set.get_validation_file_names()
@@ -50,14 +35,17 @@ class TestFlowDataSet(unittest.TestCase):
         # The train set should have been sharded, so there should be 3 files.
         self.assertEquals(len(output_paths), 3)
 
+        from utils.img import show_image
         self.data_set.load()
         next_images, next_flows = self.data_set.get_next_train_batch()
         images, flows = self.sess.run([next_images, next_flows])
+        [show_image(image) for image in images]
         self.assertTupleEqual(images.shape, (2, 436, 1024, 3))
         self.assertTupleEqual(flows.shape, (2, 436, 1024, 2))
         images, flows = self.sess.run([next_images, next_flows])
         self.assertTupleEqual(images.shape, (2, 436, 1024, 3))
         self.assertTupleEqual(flows.shape, (2, 436, 1024, 2))
+        [show_image(image) for image in images]
 
         # Validation data size is 1, so even though the dataset batch size is 2, the validation batch size is 1.
         next_images, next_flows = self.data_set.get_next_validation_batch()
