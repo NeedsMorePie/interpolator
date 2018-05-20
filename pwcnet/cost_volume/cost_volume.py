@@ -8,10 +8,10 @@ def cost_volume(c1, c2, search_range=4):
     """
     See https://arxiv.org/pdf/1709.02371.pdf.
     For each pixel in c1, we will compute correlations with its spatial neighbors in c2.
-    :param c1: Input tensor, with shape (batch, height, width, features).
+    :param c1: Tensor. Feature map of shape [batch_size, H, W, num_features].
     :param c2: Input tensor with the exact same shape as c1.
-    :param search_range: The search square's side length = 2 * search_range + 1.
-    :return: A tensor with shape (batch, height, width, s * s), where s is each search square's side length.
+    :param search_range: The search square's side length is equal to 2 * search_range + 1.
+    :return: A tensor with shape (batch, height, width, s * s), where s is equal to search_range.
     """
     square_len = 2 * search_range + 1
 
