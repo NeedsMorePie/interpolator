@@ -1,9 +1,9 @@
 import glob
 import multiprocessing
 import os.path
-import tensorflow as tf
 from data.dataset import DataSet
 from joblib import Parallel, delayed
+from utils.data import *
 from utils.flow import read_flow_file
 from utils.img import read_image
 
@@ -95,7 +95,7 @@ class FlowDataSet(DataSet):
         assert len(image_paths) == len(flow_paths)
 
         def _write(filename, iter_range):
-            sharded_iter_ranges = _create_shard_ranges(iter_range, shard_size)
+            sharded_iter_ranges = create_shard_ranges(iter_range, shard_size)
 
             Parallel(n_jobs=multiprocessing.cpu_count(), backend="threading")(
                 delayed(_write_shard)(shard_id, shard_range, image_paths, flow_paths, filename, self.directory)
@@ -135,14 +135,6 @@ class FlowDataSet(DataSet):
         return dataset
 
 
-def _int64_feature(value):
-    return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
-
-
-def _bytes_feature(value):
-    return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
-
-
 def _write_shard(shard_id, shard_range, image_paths, flow_paths, filename, directory):
     """
     :param shard_id: Index of the shard.
@@ -165,32 +157,10 @@ def _write_shard(shard_id, shard_range, image_paths, flow_paths, filename, direc
         example = tf.train.Example(
             features=tf.train.Features(
                 feature={
-                    HEIGHT: _int64_feature(H),
-                    WIDTH: _int64_feature(W),
-                    IMAGE_RAW: _bytes_feature(image_raw),
-                    FLOW_RAW: _bytes_feature(flow_raw)
+                    HEIGHT: tf_int64_feature(H),
+                    WIDTH: tf_int64_feature(W),
+                    IMAGE_RAW: tf_bytes_feature(image_raw),
+                    FLOW_RAW: tf_bytes_feature(flow_raw)
                 }))
         writer.write(example.SerializeToString())
     writer.close()
-
-
-def _create_shard_ranges(iter_range, shard_size):
-    """
-    :param iter_range: List of increasing integers representing a range to iterate over.
-    :param shard_size: Maximum shard size.
-    :return: List of ranges.
-    """
-    sharded_iter_ranges = []
-    current_shard_ids = []
-    first_example = True
-    for i in iter_range:
-        if i % shard_size == 0 and not first_example:
-            # New shard.
-            sharded_iter_ranges.append(current_shard_ids)
-            current_shard_ids = []
-        first_example = False
-        current_shard_ids.append(i)
-    # Append the last shard if there is one.
-    if len(current_shard_ids) != 0:
-        sharded_iter_ranges.append(current_shard_ids)
-    return sharded_iter_ranges
