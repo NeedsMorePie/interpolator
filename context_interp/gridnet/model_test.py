@@ -16,7 +16,8 @@ class TestGridNet(unittest.TestCase):
 
         # Note that test might fail if you change one of these parameters without modifying the expected values.
         name='gridnet'
-        num_input_channels = 8
+        num_input_channels = 16
+        num_output_channels = 3
         num_channels = [num_input_channels, 16, 32]
         grid_height = len(num_channels)
         grid_width = 4
@@ -26,6 +27,7 @@ class TestGridNet(unittest.TestCase):
         gridnet = GridNet(num_channels,
                           grid_width,
                           name=name,
+                          num_output_channels=num_output_channels,
                           num_lateral_convs=num_lateral_convs_per_connection,
                           num_downsampling_convs=num_downsampling_convs_per_connection,
                           num_upsample_convs=num_upsampling_convs_per_connection,
@@ -53,7 +55,7 @@ class TestGridNet(unittest.TestCase):
         final_output_np, node_outputs_np, lateral_inputs_np, vertical_inputs_np = outputs_np
 
         # Check final output shape.
-        self.assertTrue(np.allclose(final_output_np.shape, np.asarray([batch_size, height, width, num_input_channels])))
+        self.assertTrue(np.allclose(final_output_np.shape, np.asarray([batch_size, height, width, num_output_channels])))
 
         # Check the number of grid outputs.
         num_grid_nodes = len(node_outputs_np) * len(node_outputs_np[0])

@@ -36,12 +36,17 @@ class LateralConnection(ConvNetwork):
         """
         with tf.variable_scope(self.name, reuse=reuse_variables):
 
-            # Pass through resolution preserving convolutions, with skip connection at the end.
+            # Pass through resolution preserving convolutions.
             if self.activation_fn is not None:
                 previous_output = self.activation_fn(features)
 
             previous_output, layer_outputs = self._get_conv_tower(previous_output)
-            final_output = features + previous_output
+
+            # Add skip connection only if channels are the same size.
+            if features.get_shape().as_list()[-1] == previous_output.get_shape().as_list()[-1]:
+                final_output = features + previous_output
+            else:
+                final_output = previous_output
 
             # Total dropout.
             if training:

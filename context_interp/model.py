@@ -3,6 +3,7 @@ import numpy as np
 import os
 import inspect
 from context_interp.vgg19.model import Vgg19
+from context_interp.gridnet.model import GridNet
 from pwcnet.warp.warp import warp_via_flow
 from pwcnet.model import PWCNet
 
@@ -16,6 +17,8 @@ class ContextInterp:
         vgg_path = os.path.join(vgg_path, "vgg19_conv4_4.npy")
         self.vgg19_data = Vgg19.load_data_dict(vgg19_npy_path=vgg_path)
         self.vgg19 = Vgg19(self.vgg19_data)
+        self.pwcnet = PWCNet()
+        self.gridnet = GridNet([32, 64, 96], 6)
 
     def get_forward(self, image_a, image_b, t):
         """
@@ -33,12 +36,22 @@ class ContextInterp:
         image_a_contexts, _ = self.vgg19.get_forward_up_to_conv1_2(image_a, trainable=False)
         image_b_contexts, _ = self.vgg19.get_forward_up_to_conv1_2(image_b, trainable=False)
 
-        # Get a to b and b to a flows from PWCNet.
+        # Get a->b and b->a flows from PWCNet.
+        flow_a_b = tf.stop_gradient(self.pwcnet.get_forward(image_a, image_b))
+        flow_b_a = tf.stop_gradient(self.pwcnet.get_forward(image_b, image_a))
 
-        # Warp images and their contexts from a to b and from b to a.
+        features_a = tf.stack([image_a, image_a_contexts])
+        features_b = tf.stack([image_b, image_b_contexts])
 
-        # Stack and feed into GridNet.
+        # Warp images and their contexts from a->b and from b->a.
+        # @TODO Forward warp needs to be added. Currently no warp is applied.
+        warped_a_b = features_a
+        warped_b_a = features_b
 
+        # Feed into GridNet for final synthesis.
+        warped_combined = tf.concat([warped_a_b, warped_b_a], axis=0)
+        synthesized = self.gridnet.get_forward(warped_combined)
+        return synthesized,
 
     def get_feature_loss(self, prediction, expected):
         """
