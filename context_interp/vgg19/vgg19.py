@@ -1,13 +1,13 @@
 # Copied from https://github.com/machrisaa/tensorflow-vgg/blob/master/vgg19_trainable.py
 # Commit 4006debc1317b2de2b04ffa37c2040f9e2c1e4ad.
 # Modifications include adding partial build functions and moving trainable argument to build functions.
-
 import os
 import tensorflow as tf
 
 import numpy as np
 import time
 import inspect
+from utils.misc import print_tensor_shape
 
 VGG_MEAN = [103.939, 116.779, 123.68]
 
@@ -18,22 +18,31 @@ from functools import reduce
 
 VGG_MEAN = [103.939, 116.779, 123.68]
 
+_default = object()
 
 class Vgg19:
     """
     A trainable version VGG19.
     """
 
-    def __init__(self, vgg19_npy_path=None, dropout=0.5):
+    def __init__(self, vgg19_npy_path=_default, dropout=0.5):
         if vgg19_npy_path is not None:
+            if vgg19_npy_path == _default:
+                path = inspect.getfile(Vgg19)
+                path = os.path.abspath(os.path.join(path, os.pardir))
+                path = os.path.join(path, "vgg19.npy")
+                vgg19_npy_path = path
+            now = time.time()
             self.data_dict = np.load(vgg19_npy_path, encoding='latin1').item()
+            print('Loaded from ' + vgg19_npy_path)
+            print(time.time() - now)
         else:
             self.data_dict = None
 
         self.var_dict = {}
         self.dropout = dropout
 
-    def build_to_conv1_2(self, rgb, trainable=True):
+    def build_up_to_conv1_2(self, rgb, trainable=True):
         """
         Build VGG19 partially, up to the conv1_2 layer.
         :param rgb: rgb image [batch, height, width, 3] values scaled [0, 1].
@@ -43,18 +52,38 @@ class Vgg19:
 
         # Convert RGB to BGR
         red, green, blue = tf.split(axis=3, num_or_size_splits=3, value=rgb_scaled)
-        assert red.get_shape().as_list()[1:] == [224, 224, 1]
-        assert green.get_shape().as_list()[1:] == [224, 224, 1]
-        assert blue.get_shape().as_list()[1:] == [224, 224, 1]
+        # assert red.get_shape().as_list()[1:] == [224, 224, 1]
+        # assert green.get_shape().as_list()[1:] == [224, 224, 1]
+        # assert blue.get_shape().as_list()[1:] == [224, 224, 1]
         bgr = tf.concat(axis=3, values=[
             blue - VGG_MEAN[0],
             green - VGG_MEAN[1],
             red - VGG_MEAN[2],
         ])
-        assert bgr.get_shape().as_list()[1:] == [224, 224, 3]
+        # assert bgr.get_shape().as_list()[1:] == [224, 224, 3]
 
-        self.conv1_1 = self.conv_layer(bgr, "conv1_1", trainable)
-        self.conv1_2 = self.conv_layer(self.conv1_1, "conv1_2", trainable)
+        self.conv1_1 = self.conv_layer(bgr, 3, 64, "conv1_1", trainable)
+        self.conv1_2 = self.conv_layer(self.conv1_1, 64, 64, "conv1_2", trainable)
+
+    def build_up_to_conv4_4(self, rgb, trainable=True):
+        self.build_up_to_conv1_2(rgb, trainable=trainable)
+        self.conv1_2 = self.conv_layer(self.conv1_1, 64, 64, "conv1_2", trainable)
+        self.pool1 = self.max_pool(self.conv1_2, 'pool1')
+
+        self.conv2_1 = self.conv_layer(self.pool1, 64, 128, "conv2_1", trainable)
+        self.conv2_2 = self.conv_layer(self.conv2_1, 128, 128, "conv2_2", trainable)
+        self.pool2 = self.max_pool(self.conv2_2, 'pool2')
+
+        self.conv3_1 = self.conv_layer(self.pool2, 128, 256, "conv3_1", trainable)
+        self.conv3_2 = self.conv_layer(self.conv3_1, 256, 256, "conv3_2", trainable)
+        self.conv3_3 = self.conv_layer(self.conv3_2, 256, 256, "conv3_3", trainable)
+        self.conv3_4 = self.conv_layer(self.conv3_3, 256, 256, "conv3_4", trainable)
+        self.pool3 = self.max_pool(self.conv3_4, 'pool3')
+
+        self.conv4_1 = self.conv_layer(self.pool3, 256, 512, "conv4_1", trainable)
+        self.conv4_2 = self.conv_layer(self.conv4_1, 512, 512, "conv4_2", trainable)
+        self.conv4_3 = self.conv_layer(self.conv4_2, 512, 512, "conv4_3", trainable)
+        self.conv4_4 = self.conv_layer(self.conv4_3, 512, 512, "conv4_4", trainable)
 
     def build(self, rgb, trainable=True, train_mode=None):
         """
@@ -68,15 +97,15 @@ class Vgg19:
 
         # Convert RGB to BGR
         red, green, blue = tf.split(axis=3, num_or_size_splits=3, value=rgb_scaled)
-        assert red.get_shape().as_list()[1:] == [224, 224, 1]
-        assert green.get_shape().as_list()[1:] == [224, 224, 1]
-        assert blue.get_shape().as_list()[1:] == [224, 224, 1]
+        # assert red.get_shape().as_list()[1:] == [224, 224, 1]
+        # assert green.get_shape().as_list()[1:] == [224, 224, 1]
+        # assert blue.get_shape().as_list()[1:] == [224, 224, 1]
         bgr = tf.concat(axis=3, values=[
             blue - VGG_MEAN[0],
             green - VGG_MEAN[1],
             red - VGG_MEAN[2],
         ])
-        assert bgr.get_shape().as_list()[1:] == [224, 224, 3]
+        # assert bgr.get_shape().as_list()[1:] == [224, 224, 3]
 
         self.conv1_1 = self.conv_layer(bgr, 3, 64, "conv1_1", trainable)
         self.conv1_2 = self.conv_layer(self.conv1_1, 64, 64, "conv1_2", trainable)
@@ -172,6 +201,7 @@ class Vgg19:
             value = self.data_dict[name][idx]
         else:
             value = initial_value
+            assert trainable
 
         if trainable:
             var = tf.Variable(value, name=var_name)
@@ -185,20 +215,6 @@ class Vgg19:
 
         return var
 
-    def save_npy_to_conv1_2(self, sess, npy_path="./vgg19-conv1_2.npy"):
-        assert isinstance(sess, tf.Session)
-        data_dict = {}
-
-        for (name, idx), var in list(self.var_dict.items()):
-            var_out = sess.run(var)
-            if name not in data_dict:
-                data_dict[name] = {}
-            data_dict[name][idx] = var_out
-
-        np.save(npy_path, data_dict)
-        print(("file saved", npy_path))
-        return npy_path
-
     def save_npy(self, sess, npy_path="./vgg19-save.npy"):
         assert isinstance(sess, tf.Session)
 
@@ -211,7 +227,7 @@ class Vgg19:
             data_dict[name][idx] = var_out
 
         np.save(npy_path, data_dict)
-        print(("file saved", npy_path))
+        print(("File saved", npy_path))
         return npy_path
 
     def get_var_count(self):

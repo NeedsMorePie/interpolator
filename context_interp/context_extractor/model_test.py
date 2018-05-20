@@ -6,7 +6,7 @@ from context_interp.context_extractor.model import ContextExtractor
 
 class TestContextExtractor(unittest.TestCase):
     def setUp(self):
-        self.context_extractor = ContextExtractor()
+        self.context_extractor = ContextExtractor(name='context_extractor')
 
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
@@ -29,31 +29,15 @@ class TestContextExtractor(unittest.TestCase):
         input_images_np[:, 2:height-2, 2:width-2, :] = 3.0
 
         self.sess.run(tf.global_variables_initializer())
-        results = self.sess.run(features, feed_dict={input_image: input_images_np})
+        features = self.sess.run(features, feed_dict={input_image: input_images_np})
 
         # Test that the default values are working.
-        self.assertTrue(np.allclose(results[1].shape, np.asarray([batch_size, height/2, width/2, 16])))
+        self.assertTrue(np.allclose(features.shape, np.asarray([batch_size, height, width, 64])))
+        self.assertNotEqual(np.sum(features), 0.0)
 
-        for i in range(1, 13):
-            self.assertNotEqual(np.sum(results[i]), 0.0)
-
-        # Test that we have all the trainable variables.
-        trainable_vars = tf.trainable_variables(scope='feature_pyramid_network')
-        self.assertEqual(len(trainable_vars), 24)
-
-        # Check that the gradients are flowing.
-        grad_op = tf.gradients(tf.reduce_mean(final_features), trainable_vars + [input_image])
-        gradients = self.sess.run(grad_op, feed_dict={input_image: input_features})
-        for gradient in gradients:
-            self.assertNotAlmostEqual(np.sum(gradient), 0.0)
-
-        c_3_tensor = layer_outputs[self.feature_pyr_net.get_c_n(3)]
-        c_3 = self.sess.run(c_3_tensor, feed_dict={input_image: input_features})
-        self.assertTrue(np.allclose(c_3.shape, [batch_size, 64, 64, 64]))
-
-        c_5_tensor = layer_outputs[self.feature_pyr_net.get_c_n(5)]
-        c_5 = self.sess.run(c_5_tensor, feed_dict={input_image: input_features})
-        self.assertTrue(np.allclose(c_5.shape, [batch_size, 16, 16, 128]))
+        # Model should not be trainable.
+        trainable_vars = tf.trainable_variables(scope='context_extractor')
+        self.assertEqual(len(trainable_vars), 0)
 
 
 if __name__ == '__main__':
