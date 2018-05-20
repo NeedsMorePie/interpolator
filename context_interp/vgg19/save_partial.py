@@ -33,7 +33,7 @@ vgg19 = Vgg19(vgg19_npy_path=data_path)
 
 # Build partially.
 image_input = tf.placeholder(shape=[None, 224, 224, 3], dtype=tf.float32)
-vgg19.build_up_to_conv4_4(image_input)
+vgg19.get_forward_up_to_conv4_4(image_input)
 sess.run(tf.global_variables_initializer())
 
 # This only saves whatever variables were created from build.
