@@ -24,26 +24,32 @@ class FlowDataSet(DataSet):
         self.next_validation_images = None
         self.next_validation_flows = None
 
-    def get_processed_file_names(self):
+    def get_train_file_names(self):
         """
         Overridden.
         """
-        return ['flowdataset_train.tfrecords', 'flowdataset_valid.tfrecords']
+        return glob.glob(os.path.join(self.directory, '*flowdataset_train.tfrecords'))
 
-    def preprocess_raw(self):
+    def get_validation_file_names(self):
+        """
+        :return: List of string.
+        """
+        return glob.glob(os.path.join(self.directory, '*flowdataset_valid.tfrecords'))
+
+    def preprocess_raw(self, shard_size):
         """
         Overridden.
         """
         image_paths, flow_paths = self._get_data_paths()
         images, flows = self._read_from_data_paths(image_paths, flow_paths)
-        self._convert_to_tf_record(images, flows)
+        self._convert_to_tf_record(images, flows, shard_size)
 
     def load(self):
         """
         Overridden.
         """
-        self.train_dataset = self._load_dataset([os.path.join(self.directory, self.get_processed_file_names()[0])])
-        self.validation_dataset = self._load_dataset([os.path.join(self.directory, self.get_processed_file_names()[1])])
+        self.train_dataset = self._load_dataset(self.get_train_file_names())
+        self.validation_dataset = self._load_dataset(self.get_validation_file_names())
 
         iterator = self.train_dataset.make_one_shot_iterator()
         self.next_train_images, self.next_train_flows = iterator.get_next()
@@ -92,32 +98,43 @@ class FlowDataSet(DataSet):
     def _bytes_feature(self, value):
         return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
 
-    def _convert_to_tf_record(self, images, flows):
+    def _convert_to_tf_record(self, images, flows, shard_size):
         """
         :param images: List of image_np_arrays.
         :param flows: List of flow_np_arrays.
+        :param shard_size: Maximum number of examples in each shard.
         :return: Nothing.
         """
         assert len(images) > 0
         H = images[0].shape[0]
         W = images[0].shape[1]
-        train_filename = os.path.join(self.directory, self.get_processed_file_names()[0])
-        valid_filename = os.path.join(self.directory, self.get_processed_file_names()[1])
+        train_filename = 'flowdataset_train.tfrecords'
+        valid_filename = 'flowdataset_valid.tfrecords'
 
         def _write(filename, iter_range):
-            with tf.python_io.TFRecordWriter(filename) as writer:
-                for i in iter_range:
-                    image_raw = images[i].tostring()
-                    flow_raw = flows[i].tostring()
-                    example = tf.train.Example(
-                        features=tf.train.Features(
-                            feature={
-                                HEIGHT: self._int64_feature(H),
-                                WIDTH: self._int64_feature(W),
-                                IMAGE_RAW: self._bytes_feature(image_raw),
-                                FLOW_RAW: self._bytes_feature(flow_raw)
-                            }))
-                    writer.write(example.SerializeToString())
+            shard_id = 0
+            writer = tf.python_io.TFRecordWriter(os.path.join(self.directory, str(shard_id) + '_' + filename))
+            first_example = True
+            for i in iter_range:
+                # Handle sharding by starting a new writer every time we need to shard.
+                if i % shard_size == 0 and not first_example:
+                    shard_id += 1
+                    writer.close()
+                    writer = tf.python_io.TFRecordWriter(os.path.join(self.directory, str(shard_id) + '_' + filename))
+                first_example = False
+
+                image_raw = images[i].tostring()
+                flow_raw = flows[i].tostring()
+                example = tf.train.Example(
+                    features=tf.train.Features(
+                        feature={
+                            HEIGHT: self._int64_feature(H),
+                            WIDTH: self._int64_feature(W),
+                            IMAGE_RAW: self._bytes_feature(image_raw),
+                            FLOW_RAW: self._bytes_feature(flow_raw)
+                        }))
+                writer.write(example.SerializeToString())
+            writer.close()
 
         valid_start_idx = len(images) - self.validation_size
         _write(train_filename, range(0, valid_start_idx))

@@ -5,18 +5,24 @@ class DataSet:
         self.batch_size = batch_size
         self.validation_size = validation_size
 
-    def get_processed_file_names(self):
+    def get_train_file_names(self):
         """
-        preprocess_raw() uses this as the filename.
         :return: List of string.
         """
-        raise NotImplementedError('get_processed_file_name() is not implemented.')
+        raise NotImplementedError('get_train_file_names() is not implemented.')
 
-    def preprocess_raw(self):
+    def get_validation_file_names(self):
+        """
+        :return: List of string.
+        """
+        raise NotImplementedError('get_validation_file_names() is not implemented.')
+
+    def preprocess_raw(self, shard_size):
         """
         Takes a raw dataset (i.e. directories of images) and processes them into an intermediate format (i.e.
         TFRecords or numpy arrays).
-        Output file is named get_processed_file_name().
+        Output file is named get_train_file_names() and get_validation_file_names().
+        :param shard_size: Number of elements in each shard.
         :return: Nothing.
         """
         raise NotImplementedError('preprocess_raw() is not implemented.')
