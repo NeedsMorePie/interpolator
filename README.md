@@ -8,6 +8,7 @@
     *   tensorflow or tensorflow-gpu
     *   opencv-python
     *   matplotlib
+    *   joblib
     
 ### Running tests
 
