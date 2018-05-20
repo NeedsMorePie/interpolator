@@ -1,3 +1,4 @@
+import numpy as np
 import os
 import os.path
 import tensorflow as tf
@@ -35,17 +36,20 @@ class TestFlowDataSet(unittest.TestCase):
         # The train set should have been sharded, so there should be 3 files.
         self.assertEquals(len(output_paths), 3)
 
-        from utils.img import show_image
         self.data_set.load()
         next_images, next_flows = self.data_set.get_next_train_batch()
-        images, flows = self.sess.run([next_images, next_flows])
-        [show_image(image) for image in images]
-        self.assertTupleEqual(images.shape, (2, 436, 1024, 3))
+        images_a, flows = self.sess.run([next_images, next_flows])
+        self.assertTupleEqual(images_a.shape, (2, 436, 1024, 3))
         self.assertTupleEqual(flows.shape, (2, 436, 1024, 2))
-        images, flows = self.sess.run([next_images, next_flows])
-        self.assertTupleEqual(images.shape, (2, 436, 1024, 3))
+        images_b, flows = self.sess.run([next_images, next_flows])
+        self.assertTupleEqual(images_b.shape, (2, 436, 1024, 3))
         self.assertTupleEqual(flows.shape, (2, 436, 1024, 2))
-        [show_image(image) for image in images]
+
+        # Make sure all the images are different (i.e. read correctly).
+        self.assertFalse(np.allclose(images_a[0], images_a[1]))
+        self.assertFalse(np.allclose(images_b[0], images_a[1]))
+        self.assertFalse(np.allclose(images_a[0], images_b[1]))
+        self.assertFalse(np.allclose(images_b[0], images_b[1]))
 
         # Validation data size is 1, so even though the dataset batch size is 2, the validation batch size is 1.
         next_images, next_flows = self.data_set.get_next_validation_batch()

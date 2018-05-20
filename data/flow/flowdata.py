@@ -14,36 +14,6 @@ IMAGE_RAW = 'image_raw'
 FLOW_RAW = 'flow_raw'
 
 
-def _int64_feature(value):
-    return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
-
-
-def _bytes_feature(value):
-    return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
-
-
-def _write_shard(shard_id, shard_range, image_paths, flow_paths, filename, directory):
-    images = [read_image(image_paths[i], as_float=True) for i in shard_range]
-    flows = [read_flow_file(flow_paths[i]) for i in shard_range]
-
-    writer = tf.python_io.TFRecordWriter(os.path.join(directory, str(shard_id) + '_' + filename))
-    for image, flow in zip(images, flows):
-        H = image.shape[0]
-        W = image.shape[1]
-        image_raw = image.tostring()
-        flow_raw = flow.tostring()
-        example = tf.train.Example(
-            features=tf.train.Features(
-                feature={
-                    HEIGHT: _int64_feature(H),
-                    WIDTH: _int64_feature(W),
-                    IMAGE_RAW: _bytes_feature(image_raw),
-                    FLOW_RAW: _bytes_feature(flow_raw)
-                }))
-        writer.write(example.SerializeToString())
-    writer.close()
-
-
 class FlowDataSet(DataSet):
     def __init__(self, directory, batch_size=1, validation_size=1):
         super().__init__(directory, batch_size, validation_size)
@@ -56,17 +26,20 @@ class FlowDataSet(DataSet):
         self.next_validation_images = None
         self.next_validation_flows = None
 
+        self.train_filename = 'flowdataset_train.tfrecords'
+        self.valid_filename = 'flowdataset_valid.tfrecords'
+
     def get_train_file_names(self):
         """
         Overridden.
         """
-        return glob.glob(os.path.join(self.directory, '*flowdataset_train.tfrecords'))
+        return glob.glob(os.path.join(self.directory, '*' + self.train_filename))
 
     def get_validation_file_names(self):
         """
         :return: List of string.
         """
-        return glob.glob(os.path.join(self.directory, '*flowdataset_valid.tfrecords'))
+        return glob.glob(os.path.join(self.directory, '*' + self.valid_filename))
 
     def preprocess_raw(self, shard_size):
         """
@@ -112,20 +85,6 @@ class FlowDataSet(DataSet):
         flows.sort()
         return images, flows
 
-    def _create_shard_ranges(self, iter_range, shard_size):
-        sharded_iter_ranges = []
-        current_shard_ids = []
-        first_example = True
-        for i in iter_range:
-            if i % shard_size == 0 and not first_example:
-                sharded_iter_ranges.append(current_shard_ids)
-                current_shard_ids = []
-            first_example = False
-            current_shard_ids.append(i)
-        if len(current_shard_ids) != 0:
-            sharded_iter_ranges.append(current_shard_ids)
-        return sharded_iter_ranges
-
     def _convert_to_tf_record(self, image_paths, flow_paths, shard_size):
         """
         :param image_paths: List of image_path strings.
@@ -134,11 +93,9 @@ class FlowDataSet(DataSet):
         :return: Nothing.
         """
         assert len(image_paths) == len(flow_paths)
-        train_filename = 'flowdataset_train.tfrecords'
-        valid_filename = 'flowdataset_valid.tfrecords'
 
         def _write(filename, iter_range):
-            sharded_iter_ranges = self._create_shard_ranges(iter_range, shard_size)
+            sharded_iter_ranges = _create_shard_ranges(iter_range, shard_size)
 
             Parallel(n_jobs=multiprocessing.cpu_count(), backend="threading")(
                 delayed(_write_shard)(shard_id, shard_range, image_paths, flow_paths, filename, self.directory)
@@ -146,8 +103,8 @@ class FlowDataSet(DataSet):
             )
 
         valid_start_idx = len(image_paths) - self.validation_size
-        _write(train_filename, range(0, valid_start_idx))
-        _write(valid_filename, range(valid_start_idx, len(image_paths)))
+        _write(self.train_filename, range(0, valid_start_idx))
+        _write(self.valid_filename, range(valid_start_idx, len(image_paths)))
 
     def _load_dataset(self, file_paths):
         """
@@ -176,3 +133,64 @@ class FlowDataSet(DataSet):
         dataset = dataset.batch(self.batch_size)
         dataset = dataset.repeat()
         return dataset
+
+
+def _int64_feature(value):
+    return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
+
+
+def _bytes_feature(value):
+    return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
+
+
+def _write_shard(shard_id, shard_range, image_paths, flow_paths, filename, directory):
+    """
+    :param shard_id: Index of the shard.
+    :param shard_range: Iteration range of the shard.
+    :param image_paths: Path of all images.
+    :param flow_paths: Path of all flows.
+    :param filename: Base name of the output shard.
+    :param directory: Output directory.
+    :return: Nothing.
+    """
+    images = [read_image(image_paths[i], as_float=True) for i in shard_range]
+    flows = [read_flow_file(flow_paths[i]) for i in shard_range]
+
+    writer = tf.python_io.TFRecordWriter(os.path.join(directory, str(shard_id) + '_' + filename))
+    for image, flow in zip(images, flows):
+        H = image.shape[0]
+        W = image.shape[1]
+        image_raw = image.tostring()
+        flow_raw = flow.tostring()
+        example = tf.train.Example(
+            features=tf.train.Features(
+                feature={
+                    HEIGHT: _int64_feature(H),
+                    WIDTH: _int64_feature(W),
+                    IMAGE_RAW: _bytes_feature(image_raw),
+                    FLOW_RAW: _bytes_feature(flow_raw)
+                }))
+        writer.write(example.SerializeToString())
+    writer.close()
+
+
+def _create_shard_ranges(iter_range, shard_size):
+    """
+    :param iter_range: List of increasing integers representing a range to iterate over.
+    :param shard_size: Maximum shard size.
+    :return: List of ranges.
+    """
+    sharded_iter_ranges = []
+    current_shard_ids = []
+    first_example = True
+    for i in iter_range:
+        if i % shard_size == 0 and not first_example:
+            # New shard.
+            sharded_iter_ranges.append(current_shard_ids)
+            current_shard_ids = []
+        first_example = False
+        current_shard_ids.append(i)
+    # Append the last shard if there is one.
+    if len(current_shard_ids) != 0:
+        sharded_iter_ranges.append(current_shard_ids)
+    return sharded_iter_ranges
