@@ -14,11 +14,16 @@ class TestFlowDataSet(unittest.TestCase):
         self.data_set = FlowDataSet(self.data_directory, batch_size=2, validation_size=1)
 
         # Test paths.
-        self.expected_image_paths = [os.path.join(self.image_directory, 'set_a', 'image_0000.png'),
-                                     os.path.join(self.image_directory, 'set_a', 'image_0001.png'),
-                                     os.path.join(self.image_directory, 'set_a', 'image_0002.png'),
-                                     os.path.join(self.image_directory, 'set_a', 'image_0003.png'),
-                                     os.path.join(self.image_directory, 'set_b', 'image_0001.png')]
+        self.expected_image_a_paths = [os.path.join(self.image_directory, 'set_a', 'image_0000.png'),
+                                       os.path.join(self.image_directory, 'set_a', 'image_0001.png'),
+                                       os.path.join(self.image_directory, 'set_a', 'image_0002.png'),
+                                       os.path.join(self.image_directory, 'set_a', 'image_0003.png'),
+                                       os.path.join(self.image_directory, 'set_b', 'image_0001.png')]
+        self.expected_image_b_paths = [os.path.join(self.image_directory, 'set_a', 'image_0001.png'),
+                                       os.path.join(self.image_directory, 'set_a', 'image_0002.png'),
+                                       os.path.join(self.image_directory, 'set_a', 'image_0003.png'),
+                                       os.path.join(self.image_directory, 'set_a', 'image_0004.png'),
+                                       os.path.join(self.image_directory, 'set_b', 'image_0002.png')]
         self.expected_flow_paths = [os.path.join(self.flow_directory, 'set_a', 'flow_0000.flo'),
                                     os.path.join(self.flow_directory, 'set_a', 'flow_0001.flo'),
                                     os.path.join(self.flow_directory, 'set_a', 'flow_0002.flo'),
@@ -29,6 +34,14 @@ class TestFlowDataSet(unittest.TestCase):
         config.gpu_options.allow_growth = True
         self.sess = tf.Session(config=config)
 
+    def test_data_paths(self):
+        """
+        Test that the data paths make sense.
+        """
+        image_a_paths, image_b_paths, flow_paths = self.data_set._get_data_paths()
+        self.assertListEqual(image_a_paths, self.expected_image_a_paths)
+        self.assertListEqual(image_b_paths, self.expected_image_b_paths)
+
     def test_data_read_write(self):
         self.data_set.preprocess_raw(shard_size=2)
         output_paths = self.data_set.get_train_file_names() + self.data_set.get_validation_file_names()
@@ -37,24 +50,28 @@ class TestFlowDataSet(unittest.TestCase):
         self.assertEquals(len(output_paths), 3)
 
         self.data_set.load()
-        next_images, next_flows = self.data_set.get_next_train_batch()
-        images_a, flows = self.sess.run([next_images, next_flows])
-        self.assertTupleEqual(images_a.shape, (2, 436, 1024, 3))
+        next_images_a, next_images_b, next_flows = self.data_set.get_next_train_batch()
+        images_1_a, images_1_b, flows = self.sess.run([next_images_a, next_images_b, next_flows])
+        self.assertTupleEqual(images_1_a.shape, (2, 436, 1024, 3))
+        self.assertTupleEqual(images_1_b.shape, (2, 436, 1024, 3))
         self.assertTupleEqual(flows.shape, (2, 436, 1024, 2))
-        images_b, flows = self.sess.run([next_images, next_flows])
-        self.assertTupleEqual(images_b.shape, (2, 436, 1024, 3))
+        images_2_a, images_2_b, flows = self.sess.run([next_images_a, next_images_b, next_flows])
+        self.assertTupleEqual(images_2_a.shape, (2, 436, 1024, 3))
+        self.assertTupleEqual(images_2_b.shape, (2, 436, 1024, 3))
         self.assertTupleEqual(flows.shape, (2, 436, 1024, 2))
 
         # Make sure all the images are different (i.e. read correctly).
-        self.assertFalse(np.allclose(images_a[0], images_a[1]))
-        self.assertFalse(np.allclose(images_b[0], images_a[1]))
-        self.assertFalse(np.allclose(images_a[0], images_b[1]))
-        self.assertFalse(np.allclose(images_b[0], images_b[1]))
+        self.assertFalse(np.allclose(images_1_a[0], images_1_a[1]))
+        self.assertFalse(np.allclose(images_2_a[0], images_1_a[1]))
+        self.assertFalse(np.allclose(images_1_a[0], images_2_a[1]))
+        self.assertFalse(np.allclose(images_2_a[0], images_2_a[1]))
+        self.assertTrue(np.max(images_1_a[0]) <= 1.0)
 
         # Validation data size is 1, so even though the dataset batch size is 2, the validation batch size is 1.
-        next_images, next_flows = self.data_set.get_next_validation_batch()
-        images, flows = self.sess.run([next_images, next_flows])
-        self.assertTupleEqual(images.shape, (1, 436, 1024, 3))
+        next_images_a, next_images_b, next_flows = self.data_set.get_next_validation_batch()
+        images_a, images_b, flows = self.sess.run([next_images_a, next_images_b, next_flows])
+        self.assertTupleEqual(images_a.shape, (1, 436, 1024, 3))
+        self.assertTupleEqual(images_b.shape, (1, 436, 1024, 3))
         self.assertTupleEqual(flows.shape, (1, 436, 1024, 2))
 
     def tearDown(self):

@@ -46,14 +46,14 @@ class PWCNet:
                                    for i in self.iter_range]
         self.context_network = ContextNetwork(regularizer=self.regularizer)
 
-    def get_forward(self, image_a, image_b):
+    def get_forward(self, image_a, image_b, reuse_variables=tf.AUTO_REUSE):
         """
         :param image_a: Tensor of shape [batch_size, H, W, 3].
         :param image_b: Tensor of shape [batch_size, H, W, 3].
         :return: final_flow: up-sampled final flow.
                  previous_flows: all previous flow outputs of the estimator networks and the context network.
         """
-        with tf.variable_scope(self.name):
+        with tf.variable_scope(self.name, reuse=reuse_variables):
             img_height = tf.shape(image_a)[1]
             img_width = tf.shape(image_a)[2]
             # Siamese networks (i.e. image_a and image_b are fed through the same network with shared weights).
@@ -92,7 +92,7 @@ class PWCNet:
                 if VERBOSE:
                     print('Getting forward ops for', estimator_network.name)
                 previous_flow, estimator_outputs = estimator_network.get_forward(
-                    features_a_n, features_b_n, previous_flow)
+                    features_a_n, features_b_n, previous_flow, reuse_variables=reuse_variables)
                 previous_flows.append(previous_flow)
 
                 # Last level gets the context-network treatment.
@@ -102,7 +102,7 @@ class PWCNet:
                     assert estimator_outputs[-1] == previous_flow
                     # Features are the second to last output of the estimator network.
                     previous_flow, context_outputs = self.context_network.get_forward(
-                        estimator_outputs[-2], previous_flow)
+                        estimator_outputs[-2], previous_flow, reuse_variables=reuse_variables)
                     previous_flows.append(previous_flow)
 
             final_flow = tf.image.resize_images(previous_flow, [img_height, img_width],
