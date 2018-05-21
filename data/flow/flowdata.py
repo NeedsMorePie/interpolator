@@ -156,7 +156,7 @@ class FlowDataSet(DataSet):
 
         dataset = tf.data.TFRecordDataset(file_paths)
         dataset = dataset.map(_parse_function)
-        dataset = dataset.shuffle(buffer_size=1000)
+        dataset = dataset.shuffle(buffer_size=500)
         dataset = dataset.batch(self.batch_size)
         dataset = dataset.repeat()
         return dataset
