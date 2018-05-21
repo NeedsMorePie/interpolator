@@ -4,6 +4,14 @@ class DataSet:
         self.directory = directory
         self.batch_size = batch_size
         self.validation_size = validation_size
+        self.verbose = False
+
+    def set_verbose(self, verbose):
+        """
+        :param verbose: Whether to have print statements everywhere.
+        :return: Nothing.
+        """
+        self.verbose = verbose
 
     def get_train_file_names(self):
         """

@@ -48,6 +48,8 @@ class FlowDataSet(DataSet):
         """
         Overridden.
         """
+        if self.verbose:
+            print('Checking directory for data.')
         image_a_paths, image_b_paths, flow_paths = self._get_data_paths()
         self._convert_to_tf_record(image_a_paths, image_b_paths, flow_paths, shard_size)
 
@@ -90,13 +92,15 @@ class FlowDataSet(DataSet):
         filtered_images_a = []
         filtered_images_b = []
         filtered_flows = []
+        flow_idx = 0
         for i in range(len(images) - 1):
             directory_a = os.path.dirname(images[i])
             directory_b = os.path.dirname(images[i + 1])
             if directory_a == directory_b:
                 filtered_images_a.append(images[i])
                 filtered_images_b.append(images[i + 1])
-                filtered_flows.append(flows[i])
+                filtered_flows.append(flows[flow_idx])
+                flow_idx += 1
         return filtered_images_a, filtered_images_b, filtered_flows
 
     def _convert_to_tf_record(self, image_a_paths, image_b_paths, flow_paths, shard_size):
@@ -110,11 +114,14 @@ class FlowDataSet(DataSet):
         assert len(image_b_paths) == len(flow_paths)
 
         def _write(filename, iter_range):
+            if self.verbose:
+                print('Writing', len(iter_range),'data examples to the', filename, 'dataset.')
+
             sharded_iter_ranges = create_shard_ranges(iter_range, shard_size)
 
             Parallel(n_jobs=multiprocessing.cpu_count(), backend="threading")(
                 delayed(_write_shard)(shard_id, shard_range, image_a_paths, image_b_paths,
-                                      flow_paths, filename, self.directory)
+                                      flow_paths, filename, self.directory, self.verbose)
                 for shard_id, shard_range in enumerate(sharded_iter_ranges)
             )
 
@@ -154,7 +161,7 @@ class FlowDataSet(DataSet):
         return dataset
 
 
-def _write_shard(shard_id, shard_range, image_a_paths, image_b_paths, flow_paths, filename, directory):
+def _write_shard(shard_id, shard_range, image_a_paths, image_b_paths, flow_paths, filename, directory, verbose):
     """
     :param shard_id: Index of the shard.
     :param shard_range: Iteration range of the shard.
@@ -164,12 +171,17 @@ def _write_shard(shard_id, shard_range, image_a_paths, image_b_paths, flow_paths
     :param directory: Output directory.
     :return: Nothing.
     """
-    images_a = [read_image(image_a_paths[i], as_float=True) for i in shard_range]
-    images_b = [read_image(image_b_paths[i], as_float=True) for i in shard_range]
-    flows = [read_flow_file(flow_paths[i]) for i in shard_range]
+    if verbose and len(shard_range) > 0:
+        print('Writing to shard', shard_id, 'data points', shard_range[0], 'to', shard_range[-1])
 
     writer = tf.python_io.TFRecordWriter(os.path.join(directory, str(shard_id) + '_' + filename))
-    for image_a, image_b, flow in zip(images_a, images_b, flows):
+    for i in shard_range:
+        # Read from file.
+        image_a = read_image(image_a_paths[i], as_float=True)
+        image_b = read_image(image_b_paths[i], as_float=True)
+        flow = read_flow_file(flow_paths[i])
+
+        # Write to tf record.
         H = image_a.shape[0]
         W = image_a.shape[1]
         image_a_raw = image_a.tostring()

@@ -7,19 +7,18 @@ def create_shard_ranges(iter_range, shard_size):
     :param shard_size: Maximum shard size.
     :return: List of ranges.
     """
+    if shard_size == 0:
+        return []
+
     sharded_iter_ranges = []
-    current_shard_ids = []
-    first_example = True
-    for i in iter_range:
-        if i % shard_size == 0 and not first_example:
-            # New shard.
-            sharded_iter_ranges.append(current_shard_ids)
-            current_shard_ids = []
-        first_example = False
-        current_shard_ids.append(i)
-    # Append the last shard if there is one.
-    if len(current_shard_ids) != 0:
-        sharded_iter_ranges.append(current_shard_ids)
+    num_shards = int(len(iter_range) / shard_size) + 1
+    for shard_id in range(num_shards):
+        start_idx = shard_id * shard_size
+        end_idx = min((shard_id + 1) * shard_size, len(iter_range))
+        if start_idx - end_idx == 0:
+            break
+        sharded_iter_ranges.append(iter_range[start_idx:end_idx])
+
     return sharded_iter_ranges
 
 

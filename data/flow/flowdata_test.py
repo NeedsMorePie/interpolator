@@ -65,6 +65,7 @@ class TestFlowDataSet(unittest.TestCase):
         self.assertFalse(np.allclose(images_2_a[0], images_1_a[1]))
         self.assertFalse(np.allclose(images_1_a[0], images_2_a[1]))
         self.assertFalse(np.allclose(images_2_a[0], images_2_a[1]))
+        self.assertTrue(np.max(images_1_a[0]) <= 1.0)
 
         # Validation data size is 1, so even though the dataset batch size is 2, the validation batch size is 1.
         next_images_a, next_images_b, next_flows = self.data_set.get_next_validation_batch()
