@@ -4,6 +4,14 @@ class DataSet:
         self.directory = directory
         self.batch_size = batch_size
         self.validation_size = validation_size
+        self.verbose = False
+
+    def set_verbose(self, verbose):
+        """
+        :param verbose: Whether to have print statements everywhere.
+        :return: Nothing.
+        """
+        self.verbose = verbose
 
     def get_train_file_names(self):
         """
@@ -34,16 +42,20 @@ class DataSet:
         """
         raise NotImplementedError('load() is not implemented.')
 
+    # TODO: Use a get_next_iterators() function to get the iterators.
+    # TODO: Use an initialize_train_data() function to start the train data.
+    # TODO: Use an initialize_valid_data() function to start the valid data.
+
     def get_next_train_batch(self):
         """
         Gets the next batch as either tensors or numpy arrays.
         :return: Variables for the next batch.
         """
-        raise NotImplementedError('get_next_batch() is not implemented.')
+        raise NotImplementedError('get_next_train_batch() is not implemented.')
 
     def get_next_validation_batch(self):
         """
         Gets the next batch as either tensors or numpy arrays.
         :return: Variables for the next batch.
         """
-        raise NotImplementedError('get_next_batch() is not implemented.')
+        raise NotImplementedError('get_next_validation_batch() is not implemented.')
