@@ -101,6 +101,7 @@ class FlowDataSet(DataSet):
                 filtered_images_b.append(images[i + 1])
                 filtered_flows.append(flows[flow_idx])
                 flow_idx += 1
+        assert flow_idx == len(flows)
         return filtered_images_a, filtered_images_b, filtered_flows
 
     def _convert_to_tf_record(self, image_a_paths, image_b_paths, flow_paths, shard_size):
