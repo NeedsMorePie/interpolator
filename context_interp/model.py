@@ -2,7 +2,7 @@ import tensorflow as tf
 import numpy as np
 import os
 import inspect
-from context_interp.vgg19.model import Vgg19
+from context_interp.feature_extractors.vgg19.vgg19_features import Vgg19Features
 from context_interp.gridnet.model import GridNet
 from pwcnet.warp.warp import warp_via_flow
 from pwcnet.model import PWCNet
@@ -14,11 +14,7 @@ class ContextInterp:
         self.name = name
         self.pwcnet = PWCNet()
         self.gridnet = GridNet([32, 64, 96], 6, num_output_channels=3)
-
-        # Load only necessary VGGNet constants.
-        # A pre-trained network is needed for context extraction and perceptual losses.
-        vgg19_data = Vgg19.load_data_dict(load_small=True)
-        self.vgg19 = Vgg19(data_dict=vgg19_data)
+        self.feature_extractor = Vgg19Features()
 
     def get_forward(self, image_a, image_b, t):
         """
@@ -32,14 +28,14 @@ class ContextInterp:
                              The first 3 channels are the image.
         """
         with tf.variable_scope(self.name):
-            image_a_contexts, _ = self.vgg19.build_up_to_conv1_2(image_a, trainable=False)
-            image_b_contexts, _ = self.vgg19.build_up_to_conv1_2(image_b, trainable=False)
+            image_a_contexts = self.feature_extractor.get_context_features(image_a)
+            image_b_contexts = self.feature_extractor.get_context_features(image_b)
 
             # Get a->b and b->a flows from PWCNet.
-            flow_a_b, _ = self.pwcnet.get_forward(image_a, image_b)
-            flow_b_a, _ = self.pwcnet.get_forward(image_b, image_a)
-            flow_a_b = tf.stop_gradient(flow_a_b)
-            flow_b_a = tf.stop_gradient(flow_b_a)
+            # flow_a_b, _ = self.pwcnet.get_forward(image_a, image_b)
+            # flow_b_a, _ = self.pwcnet.get_forward(image_b, image_a)
+            # flow_a_b = tf.stop_gradient(flow_a_b)
+            # flow_b_a = tf.stop_gradient(flow_b_a)
 
             features_a = tf.concat([image_a, image_a_contexts], axis=-1)
             features_b = tf.concat([image_b, image_b_contexts], axis=-1)
@@ -63,11 +59,8 @@ class ContextInterp:
         return self._get_feature_loss(prediction, expected)
 
     def _get_feature_loss(self, prediction, expected):
-        """
-        Uses VGG19 layer conv4_4 to compute squared distance loss.
-        """
-        prediction_features, _ = self.vgg19.build_up_to_conv4_4(prediction, trainable=False)
-        expected_features, _ = self.vgg19.build_up_to_conv4_4(expected, trainable=False)
+        prediction_features = self.feature_extractor.get_perceptual_features(prediction)
+        expected_features = self.feature_extractor.get_perceptual_features(expected)
         return tf.reduce_sum(tf.squared_difference(prediction_features, expected_features))
 
     def _get_l1_loss(self, prediction, expected):

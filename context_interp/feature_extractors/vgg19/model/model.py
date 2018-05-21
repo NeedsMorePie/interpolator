@@ -16,7 +16,7 @@ VGG_MEAN = [103.939, 116.779, 123.68]
 class Vgg19:
 
     @staticmethod
-    def load_data_dict(load_small=False):
+    def load_params_dict(load_small=False):
         """
         :param load_small: Whether to load only weights up to layer conv4_4 or not.
         :return: data_dict that can be fed into Vgg19 constructor to create the pretrained model.
