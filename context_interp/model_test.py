@@ -17,7 +17,7 @@ class TestContextInterp(unittest.TestCase):
         height = 128
         width = 64
         im_channels = 3
-        batch_size = 3
+        batch_size = 2
 
         # Create the graph.
         model = ContextInterp()
@@ -69,3 +69,4 @@ class TestContextInterp(unittest.TestCase):
             self.assertNotEqual(np.sum(gradient), 0.0)
 
         self.assertNotAlmostEqual(loss, 0.0)
+        tf.reset_default_graph()

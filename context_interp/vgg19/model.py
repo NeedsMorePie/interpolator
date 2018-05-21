@@ -48,7 +48,7 @@ class Vgg19:
         :param rgb: rgb image [batch, height, width, 3] values scaled [0, 1].
         :param trainable: Whether the model is trainable.
         """
-        with tf.variable_scope(self.name):
+        with tf.variable_scope(self.name, reuse=tf.AUTO_REUSE):
             self.var_dict = {}
             rgb_scaled = rgb * 255.0
 
@@ -72,8 +72,7 @@ class Vgg19:
     def build_up_to_conv4_4(self, rgb, trainable=True):
         conv1_2, layers = self.build_up_to_conv1_2(rgb, trainable=trainable)
 
-        with tf.variable_scope(self.name):
-            layers.conv1_2 = self.conv_layer(layers.conv1_1, 64, 64, "conv1_2", trainable)
+        with tf.variable_scope(self.name, reuse=tf.AUTO_REUSE):
             layers.pool1 = self.max_pool(layers.conv1_2, 'pool1')
 
             layers.conv2_1 = self.conv_layer(layers.pool1, 64, 128, "conv2_1", trainable)
@@ -102,7 +101,7 @@ class Vgg19:
         self.var_dict = {}
         conv4_4, layers = self.build_up_to_conv4_4(rgb, trainable=trainable)
 
-        with tf.variable_scope(self.name):
+        with tf.variable_scope(self.name, reuse=tf.AUTO_REUSE):
             layers.pool4 = self.max_pool(layers.conv4_4, 'pool4')
 
             layers.conv5_1 = self.conv_layer(layers.pool4, 512, 512, "conv5_1", trainable)

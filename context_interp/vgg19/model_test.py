@@ -10,8 +10,10 @@ class TestVgg19(unittest.TestCase):
     def setUp(self):
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
+
+        name = 'vgg19_test'
         self.sess = tf.Session(config=config)
-        self.vgg19 = Vgg19(data_dict=Vgg19.load_data_dict(load_small=True))
+        self.vgg19 = Vgg19(name=name, data_dict=Vgg19.load_data_dict(load_small=True))
 
     def test_network(self):
         """
@@ -39,8 +41,9 @@ class TestVgg19(unittest.TestCase):
         # Model should not be trainable.
         vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='vgg19')
         trainable_vars = tf.trainable_variables(scope='vgg19')
-        self.assertEqual(len(vars), 26)
+        self.assertEqual(len(vars), 24)
         self.assertEqual(len(trainable_vars), 0)
+        tf.reset_default_graph()
 
 
 if __name__ == '__main__':

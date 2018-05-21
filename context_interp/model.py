@@ -60,8 +60,7 @@ class ContextInterp:
         :param expected: Tensor of shape [batch, H, W, num_features]. Ground truth image.
         :return: Tf scalar loss term.
         """
-        #return self._get_feature_loss(prediction, expected)
-        return self._get_l1_loss(prediction, expected)
+        return self._get_feature_loss(prediction, expected)
 
     def _get_feature_loss(self, prediction, expected):
         """
