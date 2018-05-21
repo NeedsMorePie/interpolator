@@ -42,16 +42,20 @@ class DataSet:
         """
         raise NotImplementedError('load() is not implemented.')
 
+    # TODO: Use a get_next_iterators() function to get the iterators.
+    # TODO: Use an initialize_train_data() function to start the train data.
+    # TODO: Use an initialize_valid_data() function to start the valid data.
+
     def get_next_train_batch(self):
         """
         Gets the next batch as either tensors or numpy arrays.
         :return: Variables for the next batch.
         """
-        raise NotImplementedError('get_next_batch() is not implemented.')
+        raise NotImplementedError('get_next_train_batch() is not implemented.')
 
     def get_next_validation_batch(self):
         """
         Gets the next batch as either tensors or numpy arrays.
         :return: Variables for the next batch.
         """
-        raise NotImplementedError('get_next_batch() is not implemented.')
+        raise NotImplementedError('get_next_validation_batch() is not implemented.')

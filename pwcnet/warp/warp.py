@@ -41,5 +41,6 @@ def warp_via_flow(images, optical_flows, bilinear_sample=True):
     :param bilinear_sample: Whether to use bilinear interpolation sampling or just nearest-pixel sampling.
     :return: Warped images -- tensors of shape (Batch, Height, Width, Channels).
     """
-    transforms = optical_flow_to_transforms(optical_flows)
-    return spatial_transformer_network(images, transforms, True, bilinear_sample=bilinear_sample)
+    with tf.name_scope('warp'):
+        transforms = optical_flow_to_transforms(optical_flows)
+        return spatial_transformer_network(images, transforms, True, bilinear_sample=bilinear_sample)
