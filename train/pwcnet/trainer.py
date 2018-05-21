@@ -17,16 +17,14 @@ class PWCNetTrainer(Trainer):
         valid_images_a, valid_images_b, valid_flows = dataset.get_next_validation_batch()
 
         # Get the train network.
-        with tf.name_scope('train_ops'):
-            train_final_flow, train_previous_flows = self.model.get_forward(train_images_a, train_images_b,
-                                                                            reuse_variables=tf.AUTO_REUSE)
-            self.train_loss, self.train_layer_losses = self.model.get_training_loss(train_previous_flows, train_flows)
+        train_final_flow, train_previous_flows = self.model.get_forward(train_images_a, train_images_b,
+                                                                        reuse_variables=tf.AUTO_REUSE)
+        self.train_loss, self.train_layer_losses = self.model.get_training_loss(train_previous_flows, train_flows)
 
         # Get the validation network.
-        with tf.name_scope('valid_ops'):
-            valid_final_flow, valid_previous_flows = self.model.get_forward(valid_images_a, valid_images_b,
-                                                                            reuse_variables=tf.AUTO_REUSE)
-            self.valid_loss, self.valid_layer_losses = self.model.get_training_loss(valid_previous_flows, valid_flows)
+        valid_final_flow, valid_previous_flows = self.model.get_forward(valid_images_a, valid_images_b,
+                                                                        reuse_variables=tf.AUTO_REUSE)
+        self.valid_loss, self.valid_layer_losses = self.model.get_training_loss(valid_previous_flows, valid_flows)
 
         # Get the optimizer.
         self.global_step = tf.Variable(initial_value=0, trainable=False, dtype=tf.int32, name='global_step')
@@ -35,6 +33,9 @@ class PWCNetTrainer(Trainer):
 
         # Checkpoint saving.
         self.saver = tf.train.Saver()
+
+        self.valid_writer = tf.summary.FileWriter(os.path.join(config['checkpoint_directory'], 'valid'),
+                                                  self.session.graph)
 
     def restore(self):
         """
