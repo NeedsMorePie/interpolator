@@ -17,6 +17,9 @@ class Trainer:
         self.config = config
         self.verbose = verbose
 
+    def restore(self):
+        raise NotImplementedError('restore() is not implemented.')
+
     def train(self, validate_every=100):
         """
         Runs an infinite training loop that validates every so often.
@@ -24,6 +27,8 @@ class Trainer:
         :return: Nothing.
         """
         while True:
+            if self.verbose:
+                print('Training.')
             self.train_for(validate_every)
             if self.verbose:
                 print('Validating.')
