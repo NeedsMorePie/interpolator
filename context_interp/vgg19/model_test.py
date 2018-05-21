@@ -8,18 +8,10 @@ from context_interp.vgg19.model import Vgg19
 
 class TestVgg19(unittest.TestCase):
     def setUp(self):
-
-        # Load values.
-        path = inspect.getfile(Vgg19)
-        path = os.path.abspath(os.path.join(path, os.pardir))
-        path = os.path.join(path, "vgg19_conv4_4.npy")
-        vgg19_npy_path = path
-        vgg19_data_dict = Vgg19.load_data_dict(vgg19_npy_path=vgg19_npy_path)
-        self.vgg19 = Vgg19(data_dict=vgg19_data_dict)
-
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
         self.sess = tf.Session(config=config)
+        self.vgg19 = Vgg19(data_dict=Vgg19.load_data_dict(load_small=True))
 
     def test_network(self):
         """
@@ -32,7 +24,7 @@ class TestVgg19(unittest.TestCase):
 
         # Create the graph.
         input_image = tf.placeholder(shape=[None, height, width, num_features], dtype=tf.float32)
-        features, layers = self.vgg19.get_forward_up_to_conv4_4(input_image, trainable=False)
+        features, layers = self.vgg19.build_up_to_conv4_4(input_image, trainable=False)
 
         input_images_np = np.zeros(shape=[batch_size, height, width, num_features], dtype=np.float32)
         input_images_np[:, 2:height-2, 2:width-2, :] = 3.0

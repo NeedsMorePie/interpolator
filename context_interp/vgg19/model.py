@@ -13,43 +13,36 @@ from functools import reduce
 VERBOSE = False
 VGG_MEAN = [103.939, 116.779, 123.68]
 
-_default = object()
-
 class Vgg19:
 
     @staticmethod
-    def load_data_dict(vgg19_npy_path=_default):
-        if vgg19_npy_path is not None:
-            if vgg19_npy_path == _default:
-                path = inspect.getfile(Vgg19)
-                path = os.path.abspath(os.path.join(path, os.pardir))
-                path = os.path.join(path, "vgg19.npy")
-                vgg19_npy_path = path
-            now = time.time()
-            data_dict = np.load(vgg19_npy_path, encoding='latin1').item()
+    def load_data_dict(load_small=False):
+        """
+        :param load_small: Whether to load only weights up to layer conv4_4 or not.
+        :return: data_dict that can be fed into Vgg19 constructor to create the pretrained model.
+        """
+        path = inspect.getfile(Vgg19)
+        path = os.path.abspath(os.path.join(path, os.pardir))
+        name = "vgg19_conv4_4.npy" if load_small else "vgg19.npy"
+        path = os.path.join(path, name)
+        vgg19_npy_path = path
+        now = time.time()
+        data_dict = np.load(vgg19_npy_path, encoding='latin1').item()
 
-            if VERBOSE:
-                print('Loaded from ' + vgg19_npy_path + ' in %d' % time.time() - now)
-        else:
-            data_dict = None
+        if VERBOSE:
+            print('Loaded from ' + vgg19_npy_path + ' in %d' % time.time() - now)
         return data_dict
 
-    """
-    A trainable version VGG19.
-    """
-    def __init__(self, name='vgg19', data_dict=_default, dropout=0.5):
+    def __init__(self, name='vgg19', data_dict=None, dropout=0.5):
         """
         :param data_dict: Provide this to prevent re-loading of variables.
         """
-        if data_dict is _default:
-            data_dict = Vgg19.load_data_dict()
-
         self.name = name
         self.data_dict = data_dict
         self.var_dict = {}
         self.dropout = dropout
 
-    def get_forward_up_to_conv1_2(self, rgb, trainable=True):
+    def build_up_to_conv1_2(self, rgb, trainable=True):
         """
         Build VGG19 partially, up to the conv1_2 layer.
         :param rgb: rgb image [batch, height, width, 3] values scaled [0, 1].
@@ -60,6 +53,7 @@ class Vgg19:
             rgb_scaled = rgb * 255.0
 
             # Convert RGB to BGR
+            assert rgb.get_shape().as_list()[-1] == 3
             red, green, blue = tf.split(axis=3, num_or_size_splits=3, value=rgb_scaled)
             # assert red.get_shape().as_list()[1:] == [224, 224, 1]
             # assert green.get_shape().as_list()[1:] == [224, 224, 1]
@@ -75,8 +69,8 @@ class Vgg19:
             layers.conv1_2 = self.conv_layer(layers.conv1_1, 64, 64, "conv1_2", trainable)
             return layers.conv1_2, layers
 
-    def get_forward_up_to_conv4_4(self, rgb, trainable=True):
-        conv1_2, layers = self.get_forward_up_to_conv1_2(rgb, trainable=trainable)
+    def build_up_to_conv4_4(self, rgb, trainable=True):
+        conv1_2, layers = self.build_up_to_conv1_2(rgb, trainable=trainable)
 
         with tf.variable_scope(self.name):
             layers.conv1_2 = self.conv_layer(layers.conv1_1, 64, 64, "conv1_2", trainable)
@@ -98,7 +92,7 @@ class Vgg19:
             layers.conv4_4 = self.conv_layer(layers.conv4_3, 512, 512, "conv4_4", trainable)
             return layers.conv4_4, layers
 
-    def get_forward(self, rgb, trainable=True, train_mode=None):
+    def build(self, rgb, trainable=True, train_mode=None):
         """
         load variable from npy to build the VGG
         :param rgb: rgb image [batch, height, width, 3] values scaled [0, 1]
@@ -106,7 +100,7 @@ class Vgg19:
         :param train_mode: a bool tensor, usually a placeholder: if True, dropout will be turned on
         """
         self.var_dict = {}
-        conv4_4, layers = self.get_forward_up_to_conv4_4(rgb, trainable=trainable)
+        conv4_4, layers = self.build_up_to_conv4_4(rgb, trainable=trainable)
 
         with tf.variable_scope(self.name):
             layers.pool4 = self.max_pool(layers.conv4_4, 'pool4')
