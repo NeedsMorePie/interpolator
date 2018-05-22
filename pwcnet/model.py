@@ -119,19 +119,20 @@ class PWCNet:
 
         layer_losses = []
         for i, previous_flow in enumerate(previous_flows):
-            H, W = tf.shape(previous_flow)[1], tf.shape(previous_flow)[2]
+            with tf.name_scope('layer_' + str(i) + '_loss'):
+                H, W = tf.shape(previous_flow)[1], tf.shape(previous_flow)[2]
 
-            # Ground truth needs to be resized to match the size of the previous flow.
-            resized_scaled_gt = tf.image.resize_images(scaled_gt, [H, W], method=tf.image.ResizeMethod.BILINEAR)
+                # Ground truth needs to be resized to match the size of the previous flow.
+                resized_scaled_gt = tf.image.resize_images(scaled_gt, [H, W], method=tf.image.ResizeMethod.BILINEAR)
 
-            # squared_difference has the shape [batch_size, H, W, 2].
-            squared_difference = diff_fn(resized_scaled_gt, previous_flow)
-            # Reduce sum in the last 3 dimensions, average over the batch, and apply the weight.
-            weight = self.flow_layer_loss_weights[i]
-            layer_loss = weight * tf.reduce_mean(tf.reduce_sum(squared_difference, axis=[1, 2, 3]))
+                # squared_difference has the shape [batch_size, H, W, 2].
+                squared_difference = diff_fn(resized_scaled_gt, previous_flow)
+                # Reduce sum in the last 3 dimensions, average over the batch, and apply the weight.
+                weight = self.flow_layer_loss_weights[i]
+                layer_loss = weight * tf.reduce_mean(tf.reduce_sum(squared_difference, axis=[1, 2, 3]))
 
-            # Accumulate the total loss.
-            layer_losses.append(layer_loss)
+                # Accumulate the total loss.
+                layer_losses.append(layer_loss)
             total_loss += layer_loss
 
         # Add the regularization loss.
@@ -143,15 +144,17 @@ class PWCNet:
         Uses an L2 diffing loss.
         :return: Tf scalar loss term, and an array of all the inidividual loss terms.
         """
-        def l2_diff(a, b):
-            return tf.square(a-b)
-        return self._get_loss(previous_flows, expected_flow, l2_diff)
+        with tf.name_scope('training_loss'):
+            def l2_diff(a, b):
+                return tf.square(a-b)
+            return self._get_loss(previous_flows, expected_flow, l2_diff)
 
     def get_fine_tuning_loss(self, previous_flows, expected_flow, q=0.4, epsilon=0.01):
         """
         Uses an Lq diffing loss.
         :return: Tf scalar loss term, and an array of all the inidividual loss terms.
         """
-        def lq_diff(a, b):
-            return tf.pow(tf.abs(a-b) + epsilon, q)
-        return self._get_loss(previous_flows, expected_flow, lq_diff)
+        with tf.name_scope('fine_tuning_loss'):
+            def lq_diff(a, b):
+                return tf.pow(tf.abs(a-b) + epsilon, q)
+            return self._get_loss(previous_flows, expected_flow, lq_diff)

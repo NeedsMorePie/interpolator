@@ -27,7 +27,6 @@ def main():
     # TODO: config read from json.
     config = {
         'learning_rate': 1e-4,
-        'validation_iterations': 1,
         'checkpoint_directory': args.checkpoint_directory
     }
 
@@ -38,7 +37,6 @@ def main():
     session.run(tf.global_variables_initializer())
     trainer.restore()
 
-    print('Training...')
     trainer.train(validate_every=args.validate_every)
 
 

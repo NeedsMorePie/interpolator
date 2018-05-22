@@ -1,3 +1,6 @@
+import tensorflow as tf
+
+
 # Dataset interface.
 class DataSet:
     def __init__(self, directory, batch_size, validation_size):
@@ -35,27 +38,45 @@ class DataSet:
         """
         raise NotImplementedError('preprocess_raw() is not implemented.')
 
-    def load(self):
+    def load(self, session):
         """
         Loads the intermediate format.
+        :param session: Tensorflow session.
         :return: Nothing.
         """
+        assert isinstance(session, tf.Session)
         raise NotImplementedError('load() is not implemented.')
 
-    # TODO: Use a get_next_iterators() function to get the iterators.
-    # TODO: Use an initialize_train_data() function to start the train data.
-    # TODO: Use an initialize_valid_data() function to start the valid data.
+    def get_next_batch(self):
+        """
+        Gets the tensors for the next batch.
+        :return: Tensors.
+        """
+        raise NotImplementedError('get_next_batch() is not implemented.')
 
-    def get_next_train_batch(self):
+    def get_train_feed_dict(self):
         """
-        Gets the next batch as either tensors or numpy arrays.
-        :return: Variables for the next batch.
+        Gets the feed_dict for the training dataset.
+        Usage: Getting the next batch of data:
+            sess.run(dataset.get_next_batch(), feed_dict=dataset.get_train_feed_dict()).
+        :return: Dictionary.
         """
-        raise NotImplementedError('get_next_train_batch() is not implemented.')
+        raise NotImplementedError('get_train_feed_dict() is not implemented.')
 
-    def get_next_validation_batch(self):
+    def get_validation_feed_dict(self):
         """
-        Gets the next batch as either tensors or numpy arrays.
-        :return: Variables for the next batch.
+        Gets the feed_dict for the validation dataset.
+        Usage: Getting the next batch of data:
+            dataset.init_validation_data(sess)  # Run once per validation epoch.
+            sess.run(dataset.get_next_batch(), feed_dict=dataset.get_validation_feed_dict()).
+        :return: Dictionary.
         """
-        raise NotImplementedError('get_next_validation_batch() is not implemented.')
+        raise NotImplementedError('get_validation_feed_dict() is not implemented.')
+
+    def init_validation_data(self, session):
+        """
+        :param session: Tensorflow session.
+        :return: Nothing.
+        """
+        assert isinstance(session, tf.Session)
+        raise NotImplementedError('init_validation_data() is not implemented.')

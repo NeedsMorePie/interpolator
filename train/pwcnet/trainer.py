@@ -12,30 +12,24 @@ class PWCNetTrainer(Trainer):
         assert isinstance(self.model, PWCNet)
         assert isinstance(dataset, FlowDataSet)
 
-        dataset.load()
-        train_images_a, train_images_b, train_flows = dataset.get_next_train_batch()
-        valid_images_a, valid_images_b, valid_flows = dataset.get_next_validation_batch()
+        self.dataset.load(self.session)
+        images_a, images_b, flows = self.dataset.get_next_batch()
 
         # Get the train network.
-        train_final_flow, train_previous_flows = self.model.get_forward(train_images_a, train_images_b,
-                                                                        reuse_variables=tf.AUTO_REUSE)
-        self.train_loss, self.train_layer_losses = self.model.get_training_loss(train_previous_flows, train_flows)
-
-        # Get the validation network.
-        valid_final_flow, valid_previous_flows = self.model.get_forward(valid_images_a, valid_images_b,
-                                                                        reuse_variables=tf.AUTO_REUSE)
-        self.valid_loss, self.valid_layer_losses = self.model.get_training_loss(valid_previous_flows, valid_flows)
+        final_flow, previous_flows = self.model.get_forward(images_a, images_b, reuse_variables=tf.AUTO_REUSE)
+        self.loss, self.layer_losses = self.model.get_training_loss(previous_flows, flows)
 
         # Get the optimizer.
-        self.global_step = tf.Variable(initial_value=0, trainable=False, dtype=tf.int32, name='global_step')
-        self.train_op = tf.train.AdamOptimizer(config['learning_rate']).minimize(
-            self.train_loss, global_step=self.global_step)
+        with tf.variable_scope('train'):
+            self.global_step = tf.Variable(initial_value=0, trainable=False, dtype=tf.int32, name='global_step')
+            self.train_op = tf.train.AdamOptimizer(config['learning_rate']).minimize(
+                self.loss, global_step=self.global_step)
 
         # Checkpoint saving.
         self.saver = tf.train.Saver()
 
-        self.valid_writer = tf.summary.FileWriter(os.path.join(config['checkpoint_directory'], 'valid'),
-                                                  self.session.graph)
+        self.writer = tf.summary.FileWriter(os.path.join(config['checkpoint_directory'], 'valid'),
+                                            self.session.graph)
 
     def restore(self):
         """
@@ -51,20 +45,31 @@ class PWCNetTrainer(Trainer):
         """
         avg_loss = 0.0
         for i in range(iterations):
-            loss, _ = self.session.run([self.train_loss, self.train_op])
+            loss, _ = self.session.run([self.loss, self.train_op], feed_dict=self.dataset.get_train_feed_dict())
             avg_loss += loss
         avg_loss /= float(iterations)
 
         print('Saving model checkpoint...')
-        save_path = self.saver.save(self.session, os.path.join(self.config['checkpoint_directory'], 'model.ckpt'))
+        save_path = self.saver.save(self.session, os.path.join(self.config['checkpoint_directory'], 'model.ckpt'),
+                                    global_step=self._eval_global_step())
         print('Model saved in path:', save_path)
 
-    def validate(self, iterations):
+    def validate(self):
         """
         Overridden.
         """
+        self.dataset.init_validation_data(self.session)
         avg_loss = 0.0
-        for i in range(iterations):
-            loss = self.session.run(self.valid_loss)
+        iterations = 0
+        while True:
+            try:
+                loss = self.session.run(self.loss, feed_dict=self.dataset.get_validation_feed_dict())
+            except tf.errors.OutOfRangeError:
+                # End of validation epoch.
+                break
             avg_loss += loss
+            iterations += 1
         avg_loss /= float(iterations)
+
+    def _eval_global_step(self):
+        return self.session.run(self.global_step)
