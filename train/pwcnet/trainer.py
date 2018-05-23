@@ -55,7 +55,7 @@ class PWCNetTrainer(Trainer):
                                            feed_dict=self.dataset.get_train_feed_dict(),
                                            options=run_options, run_metadata=run_metadata)
                 global_step = self._eval_global_step()
-                self.train_writer.add_run_metadata(run_metadata, 'step%d' % global_step)
+                self.train_writer.add_run_metadata(run_metadata, 'step%d' % global_step, global_step=global_step)
                 self.train_writer.add_summary(summ, global_step=global_step)
             else:
                 loss, _ = self.session.run([self.loss, self.train_op], feed_dict=self.dataset.get_train_feed_dict())
