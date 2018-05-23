@@ -229,7 +229,6 @@ class TestGridNet(unittest.TestCase):
         gradients = self.sess.run(grad_op, feed_dict={input_features_tensor: input_features})
 
         nonzero_grad_names = {'up_03', 'up_13', 'right_04'}
-        zero_sum = 0
         nonzero_sum = 0
         for i, gradient in enumerate(gradients):
             nonzero = False
@@ -239,7 +238,6 @@ class TestGridNet(unittest.TestCase):
                     nonzero_sum += np.sum(gradient)
                     nonzero = True
             if not nonzero:
-                zero_sum += np.sum(gradient)
+                self.assertEqual(np.sum(gradient), 0)
 
-        self.assertEqual(zero_sum, 0.0)
         self.assertNotEqual(nonzero_sum, 0)
