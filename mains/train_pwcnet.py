@@ -45,7 +45,7 @@ def add_args(parser):
                         help='Directory of the tf records.')
     parser.add_argument('-v', '--validate_every', type=int, default=20,
                         help='Defines the frequency of validation.')
-    parser.add_argument('-b', '--batch_size', type=int, default=4,
+    parser.add_argument('-b', '--batch_size', type=int, default=8,
                         help='Size of the batch.')
     parser.add_argument('-c', '--checkpoint_directory', type=str,
                         help='Directory of saved checkpoints.')
