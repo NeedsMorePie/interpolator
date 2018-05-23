@@ -49,13 +49,15 @@ class TestFlowDataSet(unittest.TestCase):
         # The train set should have been sharded, so there should be 3 files.
         self.assertEquals(len(output_paths), 3)
 
-        self.data_set.load()
-        next_images_a, next_images_b, next_flows = self.data_set.get_next_train_batch()
-        images_1_a, images_1_b, flows = self.sess.run([next_images_a, next_images_b, next_flows])
+        self.data_set.load(self.sess)
+        next_images_a, next_images_b, next_flows = self.data_set.get_next_batch()
+        images_1_a, images_1_b, flows = self.sess.run([next_images_a, next_images_b, next_flows],
+                                                      feed_dict=self.data_set.get_train_feed_dict())
         self.assertTupleEqual(images_1_a.shape, (2, 436, 1024, 3))
         self.assertTupleEqual(images_1_b.shape, (2, 436, 1024, 3))
         self.assertTupleEqual(flows.shape, (2, 436, 1024, 2))
-        images_2_a, images_2_b, flows = self.sess.run([next_images_a, next_images_b, next_flows])
+        images_2_a, images_2_b, flows = self.sess.run([next_images_a, next_images_b, next_flows],
+                                                      feed_dict=self.data_set.get_train_feed_dict())
         self.assertTupleEqual(images_2_a.shape, (2, 436, 1024, 3))
         self.assertTupleEqual(images_2_b.shape, (2, 436, 1024, 3))
         self.assertTupleEqual(flows.shape, (2, 436, 1024, 2))
@@ -68,11 +70,21 @@ class TestFlowDataSet(unittest.TestCase):
         self.assertTrue(np.max(images_1_a[0]) <= 1.0)
 
         # Validation data size is 1, so even though the dataset batch size is 2, the validation batch size is 1.
-        next_images_a, next_images_b, next_flows = self.data_set.get_next_validation_batch()
-        images_a, images_b, flows = self.sess.run([next_images_a, next_images_b, next_flows])
+        self.data_set.init_validation_data(self.sess)
+        images_a, images_b, flows = self.sess.run([next_images_a, next_images_b, next_flows],
+                                                  feed_dict=self.data_set.get_validation_feed_dict())
         self.assertTupleEqual(images_a.shape, (1, 436, 1024, 3))
         self.assertTupleEqual(images_b.shape, (1, 436, 1024, 3))
         self.assertTupleEqual(flows.shape, (1, 436, 1024, 2))
+        # If init_validation_data isn't called again, validation dataset has hit the end of its epoch and will be out
+        # of range.
+        end_of_dataset = False
+        try:
+            self.sess.run([next_images_a, next_images_b, next_flows],
+                          feed_dict=self.data_set.get_validation_feed_dict())
+        except tf.errors.OutOfRangeError:
+            end_of_dataset = True
+        self.assertTrue(end_of_dataset)
 
     def tearDown(self):
         output_paths = self.data_set.get_train_file_names() + self.data_set.get_validation_file_names()

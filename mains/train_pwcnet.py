@@ -27,7 +27,6 @@ def main():
     # TODO: config read from json.
     config = {
         'learning_rate': 1e-4,
-        'validation_iterations': 1,
         'checkpoint_directory': args.checkpoint_directory
     }
 
@@ -38,16 +37,15 @@ def main():
     session.run(tf.global_variables_initializer())
     trainer.restore()
 
-    print('Training...')
     trainer.train(validate_every=args.validate_every)
 
 
 def add_args(parser):
     parser.add_argument('-d', '--directory', type=str,
                         help='Directory of the tf records.')
-    parser.add_argument('-v', '--validate_every', type=int, default=2,
+    parser.add_argument('-v', '--validate_every', type=int, default=20,
                         help='Defines the frequency of validation.')
-    parser.add_argument('-b', '--batch_size', type=int, default=4,
+    parser.add_argument('-b', '--batch_size', type=int, default=8,
                         help='Size of the batch.')
     parser.add_argument('-c', '--checkpoint_directory', type=str,
                         help='Directory of saved checkpoints.')

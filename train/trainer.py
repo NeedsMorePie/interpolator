@@ -1,4 +1,5 @@
 import tensorflow as tf
+from data.dataset import DataSet
 
 
 class Trainer:
@@ -11,6 +12,7 @@ class Trainer:
         :param verbose: Bool.
         """
         assert isinstance(session, tf.Session)
+        assert isinstance(dataset, DataSet)
         self.model = model
         self.dataset = dataset
         self.session = session
@@ -32,7 +34,7 @@ class Trainer:
             self.train_for(validate_every)
             if self.verbose:
                 print('Validating.')
-            self.validate(self.config['validation_iterations'])
+            self.validate()
 
     def train_for(self, iterations):
         """
@@ -41,5 +43,5 @@ class Trainer:
         """
         raise NotImplementedError('train_for() is not implemented.')
 
-    def validate(self, iterations):
+    def validate(self):
         raise NotImplementedError('validate() is not implemented.')

@@ -8,6 +8,7 @@ if platform.system() == 'Darwin':
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
+import tensorflow as tf
 
 
 FLOW_CHANNELS = 2
@@ -65,6 +66,32 @@ def get_flow_visualization(flow):
 
     hsv_img = (np.clip(np.stack([hue, saturation, value], axis=-1) * 255, 0, 255)).astype(dtype=np.uint8)
     return cv2.cvtColor(hsv_img, cv2.COLOR_HSV2RGB)
+
+
+def get_tf_flow_visualization(flow):
+    """
+    :param flow: Optical flow tensor.
+    :return: RGB image normalized between 0 and 1.
+    """
+    with tf.name_scope('flow_visualization'):
+        # B, H, W, C dimensions.
+        abs_image = tf.abs(flow)
+        flow_mean, flow_var = tf.nn.moments(abs_image, axes=[1, 2, 3])
+        flow_std = tf.sqrt(flow_var)
+
+        # Apply some kind of normalization. Divide by the perceived maximum (mean + std)
+        flow = flow / tf.expand_dims(tf.expand_dims(
+            tf.expand_dims(flow_mean + flow_std + 1e-10, axis=-1), axis=-1), axis=-1)
+
+        radius = tf.sqrt(tf.reduce_sum(tf.square(flow), axis=-1))
+        radius_clipped = tf.clip_by_value(radius, 0.0, 1.0)
+        angle = tf.atan2(-flow[..., 1], -flow[..., 0]) / np.pi
+
+        hue = tf.clip_by_value((angle + 1.0) / 2.0, 0.0, 1.0)
+        saturation = tf.ones(shape=tf.shape(hue), dtype=tf.float32) * 0.75
+        value = radius_clipped
+        hsv = tf.stack([hue, saturation, value], axis=-1)
+        return tf.image.hsv_to_rgb(hsv)
 
 
 def show_flow_image(flow):
