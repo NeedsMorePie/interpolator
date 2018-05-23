@@ -1,6 +1,7 @@
 import glob
 import multiprocessing
 import os.path
+import random
 from data.dataset import DataSet
 from joblib import Parallel, delayed
 from utils.data import *
@@ -135,6 +136,11 @@ class FlowDataSet(DataSet):
         assert len(image_a_paths) == len(flow_paths)
         assert len(image_b_paths) == len(flow_paths)
 
+        # Shuffle in unison.
+        zipped = list(zip(image_a_paths, image_b_paths, flow_paths))
+        random.shuffle(zipped)
+        image_a_paths, image_b_paths, flow_paths = zip(*zipped)
+
         def _write(filename, iter_range):
             if self.verbose:
                 print('Writing', len(iter_range),'data examples to the', filename, 'dataset.')
@@ -178,7 +184,7 @@ class FlowDataSet(DataSet):
 
         dataset = tf.data.TFRecordDataset(filenames)
         dataset = dataset.map(_parse_function)
-        dataset = dataset.shuffle(buffer_size=500)
+        dataset = dataset.shuffle(buffer_size=200)
         dataset = dataset.batch(self.batch_size)
         if repeat:
             dataset = dataset.repeat()

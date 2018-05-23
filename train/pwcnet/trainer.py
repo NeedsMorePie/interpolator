@@ -46,17 +46,19 @@ class PWCNetTrainer(Trainer):
         """
         Overridden.
         """
-        avg_loss = 0.0
         for i in range(iterations):
             if i == iterations - 1:
                 # Write the summary on the last iteration.
-                loss, _, summ = self.session.run([self.loss, self.train_op, self.merged_summ],
-                                                 feed_dict=self.dataset.get_train_feed_dict())
-                self.train_writer.add_summary(summ, self._eval_global_step())
+                run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+                run_metadata = tf.RunMetadata()
+                _, summ = self.session.run([self.train_op, self.merged_summ],
+                                           feed_dict=self.dataset.get_train_feed_dict(),
+                                           options=run_options, run_metadata=run_metadata)
+                global_step = self._eval_global_step()
+                self.train_writer.add_run_metadata(run_metadata, 'step%d' % global_step)
+                self.train_writer.add_summary(summ, global_step=global_step)
             else:
                 loss, _ = self.session.run([self.loss, self.train_op], feed_dict=self.dataset.get_train_feed_dict())
-            avg_loss += loss
-        avg_loss /= float(iterations)
 
         print('Saving model checkpoint...')
         save_path = self.saver.save(self.session, os.path.join(self.config['checkpoint_directory'], 'model.ckpt'),
