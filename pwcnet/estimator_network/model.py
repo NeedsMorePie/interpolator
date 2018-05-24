@@ -62,7 +62,7 @@ class EstimatorNetwork(ConvNetwork):
             cv = cost_volume(features1, warped, search_range=self.search_range)
 
             # CNN layers.
-            # Initial input has shape [batch_size, H, W, in_features + cv_size]
+            # Initial input has shape [batch_size, H, W, in_features + cv_size + 2]
             initial_input = tf.concat([features1, cv, optical_flow], axis=-1)
             previous_output, layer_outputs = self._get_conv_tower(initial_input)
 

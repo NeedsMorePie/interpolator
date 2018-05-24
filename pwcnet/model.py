@@ -79,8 +79,8 @@ class PWCNet:
                     previous_flow = tf.zeros(shape=[B, H, W, 2], dtype=tf.float32)
                 else:
                     # The original scale flows at all layers is the same as the scale of the ground truth.
-                    scaling = tf.cast(H, tf.float32) / tf.cast(img_height, tf.float32)
-                    pre_warp_scaling = scaling / self.flow_scaling
+                    dimension_scaling = tf.cast(H, tf.float32) / tf.cast(img_height, tf.float32)
+                    pre_warp_scaling = dimension_scaling / self.flow_scaling
                     # Upsample to the size of the current layer.
                     previous_flow = tf.image.resize_images(previous_flow, [H, W],
                                                            method=tf.image.ResizeMethod.BILINEAR)
