@@ -74,12 +74,13 @@ class PWCNet:
                 B = tf.shape(features_a_n)[0]
                 H = tf.shape(features_a_n)[1]
                 W = tf.shape(features_a_n)[2]
+                pre_warp_scaling = 1.0
                 if previous_flow is None:
                     previous_flow = tf.zeros(shape=[B, H, W, 2], dtype=tf.float32)
                 else:
                     # The original scale flows at all layers is the same as the scale of the ground truth.
-                    scaling = tf.cast(H, tf.float32) / tf.cast(img_height, tf.float32)
-                    previous_flow = previous_flow * scaling / self.flow_scaling
+                    dimension_scaling = tf.cast(H, tf.float32) / tf.cast(img_height, tf.float32)
+                    pre_warp_scaling = dimension_scaling / self.flow_scaling
                     # Upsample to the size of the current layer.
                     previous_flow = tf.image.resize_images(previous_flow, [H, W],
                                                            method=tf.image.ResizeMethod.BILINEAR)
@@ -89,7 +90,8 @@ class PWCNet:
                 if VERBOSE:
                     print('Getting forward ops for', estimator_network.name)
                 previous_flow, estimator_outputs = estimator_network.get_forward(
-                    features_a_n, features_b_n, previous_flow, reuse_variables=reuse_variables)
+                    features_a_n, features_b_n, previous_flow,
+                    pre_warp_scaling=pre_warp_scaling, reuse_variables=reuse_variables)
                 previous_flows.append(previous_flow)
 
                 # Last level gets the context-network treatment.
