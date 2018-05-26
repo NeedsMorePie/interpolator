@@ -16,8 +16,8 @@ SHOT = 'shot'
 
 
 class InterpDataSet(DataSet):
-    def __init__(self, directory, batch_size=1):
-        super().__init__(directory, batch_size, batch_size)
+    def __init__(self, directory, batch_size=1, validation_size=1):
+        super().__init__(directory, batch_size, validation_size)
 
         # Initialized during load().
         self.train_dataset = None  # Tensorflow DataSet object.
@@ -179,7 +179,8 @@ class InterpDataSet(DataSet):
         dataset = tf.data.TFRecordDataset(filenames)
         dataset = dataset.map(_parse_function)
 
-        # Each element in the dataset is currently a video shot, so we need to 'unbatch' them first.
+        # Each element in the dataset is currently a group of sequences (grouped by video shot),
+        # so we need to 'unbatch' them first.
         dataset = dataset.apply(tf.contrib.data.unbatch())
 
         # Shuffle the sequences and batch them.

@@ -3,14 +3,16 @@ import os
 import os.path
 import tensorflow as tf
 import unittest
-from data.interp.interp_data import InterpDataSet, sliding_window_slice
+from data.interp.interp_data import InterpDataSet
 
 
 class TestInterpDataSet(unittest.TestCase):
     def setUp(self):
         cur_dir = os.path.dirname(__file__)
         self.data_directory = os.path.join(cur_dir, 'test_data')
-        self.data_set = InterpDataSet(self.data_directory, batch_size=0)
+
+        # A non-zero validation size is extremely sketchy and not nice to implement well.
+        self.data_set = InterpDataSet(self.data_directory, batch_size=2, validation_size=0)
 
         # Test paths.
         self.expected_image_paths_0 = [
@@ -50,9 +52,12 @@ class TestInterpDataSet(unittest.TestCase):
         # For a shard size of 1 the number of files is the number of video shots (or the number of sub-folders).
         self.assertEqual(len(output_paths), 2)
 
-        #
-        # self.data_set.load(self.sess)
-        # next_images_a, next_images_b, next_flows = self.data_set.get_next_batch()
+        self.data_set.load(self.sess)
+        next_sequence_tensor = self.data_set.get_next_batch()
+        next_sequence = self.sess.run([next_sequence_tensor])
+
+        print(next_sequence)
+        #self.assertTupleEqual(next_sequence.shape, (2, 3, ))
         # images_1_a, images_1_b, flows = self.sess.run([next_images_a, next_images_b, next_flows],
         #                                               feed_dict=self.data_set.get_train_feed_dict())
         # self.assertTupleEqual(images_1_a.shape, (2, 436, 1024, 3))

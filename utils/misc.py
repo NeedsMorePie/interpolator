@@ -40,13 +40,27 @@ def sliding_window_slice(x, slice_locations):
                             E.g [1, 0, 1] means that at each window offset j, we form [x[j], x[j + 2]].
     :return: The window sliced tensor. Is 1 rank higher than x.
     """
-    total_len = x.get_shape().as_list()[0]
-    sequences = []
-    for i in range(total_len - len(slice_locations) + 1):
-        sequence = []
-        for j in range(len(slice_locations)):
-            if slice_locations[j] == 1:
-                sequence.append(x[i + j])
-        sequence = tf.stack(sequence, axis=0)
-        sequences.append(sequence)
-    return tf.stack(sequences, axis=0)
+    slice_indices = []
+    for i in range(len(slice_locations)):
+        if slice_locations[i] == 1:
+            slice_indices.append(i)
+
+    sequence_len = len(slice_indices)
+
+    # Get the sliding window indices.
+    slice_indices_tensor = tf.constant(slice_indices)
+    num_offsets = tf.shape(x)[0] - tf.cast(sequence_len + 1, tf.int32)
+    tiled = tf.tile(slice_indices_tensor, [num_offsets])
+    tiled = tf.expand_dims(tiled, axis=0)
+
+    tiled = tf.reshape(tiled, [num_offsets, -1])
+    offsets = tf.expand_dims(tf.range(0, num_offsets), axis=1)
+    indices = tiled + offsets
+    indices = tf.reshape(indices, [-1])
+
+    # Gather and reshape.
+    images = tf.gather(x, indices)
+    images = tf.expand_dims(images, axis=0)
+    final_shape = tf.concat([[num_offsets, sequence_len], tf.shape(images)[2:]], axis=0)
+    images = tf.reshape(images, final_shape)
+    return images
