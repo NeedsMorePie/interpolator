@@ -3,8 +3,37 @@ from utils.misc import print_tensor_shape
 
 _default = object()
 
-class ConvNetwork:
-    def __init__(self, layer_specs=None,
+
+# Allows saving and restoring all network parameters its scope into an npz file.
+class RestorableNetwork():
+    def __init__(self, name):
+        """
+        :param name: Str. For variable scoping.
+        """
+        self.name = name
+
+    def save_to(self, file_path, sess):
+        save_dict = self._get_save_np(sess)
+        # TODO: save the file.
+
+    def _get_save_np(self,sess):
+        trainable_vars = tf.trainable_variables(self.name)
+        trainable_vars_np = sess.run(trainable_vars)
+        # Create a dict of variable_name:variable_np.
+        save_dict = {}
+        for i, trainable_var in enumerate(trainable_vars):
+            var_name = trainable_var.name
+            save_dict[var_name] = trainable_vars_np[i]
+
+        return save_dict
+
+    def restore_from(self, file_path, session):
+        # TODO: read the file.
+        trainable_vars = tf.trainable_variables(self.name)
+
+
+class ConvNetwork(RestorableNetwork):
+    def __init__(self, name, layer_specs=None,
                  activation_fn=tf.nn.leaky_relu,
                  last_activation_fn=_default,
                  regularizer=None, padding='SAME', dense_net=False):
@@ -20,6 +49,7 @@ class ConvNetwork:
         :param padding: Str. Either 'SAME' or 'VALID' case insensitive.
         :param dense_net: Bool. If true, then it is expected that all layers have the same width and height.
         """
+        super().__init__(name)
         self.layer_specs = layer_specs
         self.activation_fn = activation_fn
         self.regularizer = regularizer
