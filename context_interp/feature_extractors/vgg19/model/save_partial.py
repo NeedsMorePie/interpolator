@@ -4,6 +4,12 @@ from context_interp.feature_extractors.vgg19.model.model import Vgg19
 import os
 import inspect
 
+# Usage of this script:
+# Download the VGG19 NPY file from https://github.com/machrisaa/tensorflow-vgg.
+# Put it wherever the variable data_path looks.
+# After running this script a partial model (up to layer conv4_4) will be saved to output_path.
+# The full model is ~574.7MB, the partial one ~64MB.
+
 cur_dir = os.path.dirname(os.path.realpath(__file__))
 
 # This does not work nicely with our modules, would need to move this script to root folder.

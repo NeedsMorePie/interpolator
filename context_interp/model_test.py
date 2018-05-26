@@ -57,9 +57,9 @@ class TestContextInterp(unittest.TestCase):
         self.assertTrue(np.allclose(warped_feat_b_a.shape[:-1], np.asarray([batch_size, height, width])))
         self.assertTrue(np.allclose(warped_feat_a_b.shape, warped_feat_b_a.shape))
 
-        # @TODO Not sure what the forward warp op is, some tests will depend on it.
-        # @TODO Check the number of trainable variables (not including zero grad variables).
-        # @TODO Check that the gradients are flowing.
+        # TODO Not sure what the forward warp op is, some tests will depend on it.
+        # TODO Check the number of trainable variables (not including zero grad variables).
+        # TODO Check that the gradients are flowing.
 
         # Check the gradients with the loss.
         grads = self.sess.run(grad_tensors, feed_dict={image_a_placeholder: image_a,

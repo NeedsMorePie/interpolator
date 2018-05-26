@@ -50,7 +50,7 @@ def cost_volume(c1, c2, search_range=4):
 
                 costs = tf.reduce_mean(c1[:, slice_h, slice_w, :] * c2[:, slice_h_r, slice_w_r, :], axis=-1)
 
-                # Get the coordinates for scatter update, where each element is an (y, x, z) coordinate.
+                # Get the coordinates for scatter update, where each element is a (y, x) coordinate.
                 cur_indices = indices_2d[slice_h, slice_w]
                 cur_indices = tf.reshape(cur_indices, (-1, 2))
 
