@@ -40,8 +40,6 @@ class ContextNetwork(ConvNetwork):
                  ...       |
              [LAYER N-1]   |
                   |        |
-            [Output layer] |
-                  |        |
               delta_flow   |
                   +       /
              optical_flow
