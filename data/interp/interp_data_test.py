@@ -10,44 +10,46 @@ class TestInterpDataSet(unittest.TestCase):
     def setUp(self):
         cur_dir = os.path.dirname(__file__)
         self.data_directory = os.path.join(cur_dir, 'test_data')
-        self.data_set = InterpDataSet(self.data_directory, batch_size=2, validation_size=1)
+        self.data_set = InterpDataSet(self.data_directory, batch_size=2)
 
-        # # Test paths.
-        # self.expected_image_a_paths = [os.path.join(self.image_directory, 'set_a', 'image_0000.png'),
-        #                                os.path.join(self.image_directory, 'set_a', 'image_0001.png'),
-        #                                os.path.join(self.image_directory, 'set_a', 'image_0002.png'),
-        #                                os.path.join(self.image_directory, 'set_a', 'image_0003.png'),
-        #                                os.path.join(self.image_directory, 'set_b', 'image_0001.png')]
-        # self.expected_image_b_paths = [os.path.join(self.image_directory, 'set_a', 'image_0001.png'),
-        #                                os.path.join(self.image_directory, 'set_a', 'image_0002.png'),
-        #                                os.path.join(self.image_directory, 'set_a', 'image_0003.png'),
-        #                                os.path.join(self.image_directory, 'set_a', 'image_0004.png'),
-        #                                os.path.join(self.image_directory, 'set_b', 'image_0002.png')]
-        # self.expected_flow_paths = [os.path.join(self.flow_directory, 'set_a', 'flow_0000.flo'),
-        #                             os.path.join(self.flow_directory, 'set_a', 'flow_0001.flo'),
-        #                             os.path.join(self.flow_directory, 'set_a', 'flow_0002.flo'),
-        #                             os.path.join(self.flow_directory, 'set_a', 'flow_0003.flo'),
-        #                             os.path.join(self.flow_directory, 'set_b', 'flow_0001.flo')]
+        # Test paths.
+        self.expected_image_paths_0 = [
+            os.path.join(self.data_directory, 'breakdance-flare', '00000.jpg'),
+            os.path.join(self.data_directory, 'breakdance-flare', '00001.jpg'),
+            os.path.join(self.data_directory, 'breakdance-flare', '00002.jpg'),
+            os.path.join(self.data_directory, 'breakdance-flare', '00003.jpg'),
+            os.path.join(self.data_directory, 'breakdance-flare', '00004.jpg'),
+            os.path.join(self.data_directory, 'breakdance-flare', '00005.jpg'),
+            os.path.join(self.data_directory, 'breakdance-flare', '00006.jpg')
+        ]
+
+        self.expected_image_paths_1 = [
+            os.path.join(self.data_directory, 'dog-agility', '00000.jpg'),
+            os.path.join(self.data_directory, 'dog-agility', '00001.jpg'),
+            os.path.join(self.data_directory, 'dog-agility', '00002.jpg'),
+        ]
 
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
         self.sess = tf.Session(config=config)
 
-    # def test_data_paths(self):
+    def test_data_paths(self):
         """
         Test that the data paths make sense.
         """
-        # image_a_paths, image_b_paths, flow_paths = self.data_set._get_data_paths()
-        # self.assertListEqual(image_a_paths, self.expected_image_a_paths)
-        # self.assertListEqual(image_b_paths, self.expected_image_b_paths)
+        image_paths = self.data_set._get_data_paths()
+        self.assertListEqual(image_paths[0], self.expected_image_paths_0)
+        self.assertListEqual(image_paths[1], self.expected_image_paths_1)
 
     def test_data_read_write(self):
-        self.data_set.preprocess_raw(shard_size=2)
+        self.data_set.preprocess_raw(shard_size=1)
 
-        # output_paths = self.data_set.get_train_file_names() + self.data_set.get_validation_file_names()
-        # [self.assertTrue(os.path.isfile(output_path)) for output_path in output_paths]
-        # # The train set should have been sharded, so there should be 3 files.
-        # self.assertEquals(len(output_paths), 3)
+        output_paths = self.data_set.get_train_file_names() + self.data_set.get_validation_file_names()
+        [self.assertTrue(os.path.isfile(output_path)) for output_path in output_paths]
+
+        # For a shard size of 1 the number of files is the number of video shots (or the number of sub-folders).
+        self.assertEquals(len(output_paths), 2)
+
         #
         # self.data_set.load(self.sess)
         # next_images_a, next_images_b, next_flows = self.data_set.get_next_batch()
@@ -92,6 +94,8 @@ class TestInterpDataSet(unittest.TestCase):
         #     if os.path.isfile(output_path):
         #         os.remove(output_path)
 
+    #def test_sliding_window_slice(self):
+    #    x =
 
 if __name__ == '__main__':
     unittest.main()

@@ -8,16 +8,15 @@ from joblib import Parallel, delayed
 from utils.data import *
 from utils.img import read_image
 
-SEQUENCE_LEN = 'sequence_len'
+SHOT_LEN = 'shot_len'
 HEIGHT = 'height'
 WIDTH = 'width'
-SEQUENCE = 'sequence'
-FLOW_RAW = 'flow_raw'
+SHOT = 'shot'
 
 
 class InterpDataSet(DataSet):
-    def __init__(self, directory, batch_size=1, validation_size=1):
-        super().__init__(directory, batch_size, validation_size)
+    def __init__(self, directory, batch_size=1):
+        super().__init__(directory, batch_size, 0)
 
         # Initialized during load().
         self.train_dataset = None  # Tensorflow DataSet object.
@@ -32,10 +31,10 @@ class InterpDataSet(DataSet):
         self.next_images_b = None  # Data iterator batch.
         self.next_flows = None  # Data iterator batch.
 
-        self.train_filename = 'flowdataset_train.tfrecords'
-        self.valid_filename = 'flowdataset_valid.tfrecords'
+        self.train_filename = 'interp_dataset_train.tfrecords'
+        self.valid_filename = 'interp_dataset_valid.tfrecords'
 
-        self.sequence_len = 3
+        self.sequence_inbetweens = [1]
 
     def get_train_file_names(self):
         """
@@ -125,7 +124,6 @@ class InterpDataSet(DataSet):
                             where image_paths[0][0] is the first image in the first video shot.
         :return: Nothing.
         """
-
         random.shuffle(image_paths)
         def _write(filename, iter_range):
             if self.verbose:
@@ -134,7 +132,7 @@ class InterpDataSet(DataSet):
             sharded_iter_ranges = create_shard_ranges(iter_range, shard_size)
 
             Parallel(n_jobs=multiprocessing.cpu_count(), backend="threading")(
-                delayed(_write_shard)(shard_id, shard_range, image_paths, self.sequence_len,
+                delayed(_write_shard)(shard_id, shard_range, image_paths,
                                       filename, self.directory, self.verbose)
                 for shard_id, shard_range in enumerate(sharded_iter_ranges)
             )
@@ -159,24 +157,25 @@ class InterpDataSet(DataSet):
         :param repeat: Whether to repeat the dataset indefinitely.
         :return: Tensorflow dataset object.
         """
+
+        sequence_inbetweens = self.sequence_inbetweens
         def _parse_function(example_proto):
             features = {
+                SHOT_LEN: tf.FixedLenFeature((), tf.int64, default_value=0),
                 HEIGHT: tf.FixedLenFeature((), tf.int64, default_value=0),
                 WIDTH: tf.FixedLenFeature((), tf.int64, default_value=0),
-                IMAGE_A_RAW: tf.FixedLenFeature((), tf.string),
-                IMAGE_B_RAW: tf.FixedLenFeature((), tf.string),
-                FLOW_RAW: tf.FixedLenFeature((), tf.string)
+                SHOT: tf.FixedLenFeature((), tf.string),
             }
             parsed_features = tf.parse_single_example(example_proto, features)
+            shot_len = tf.reshape(tf.cast(parsed_features[SHOT_LEN], tf.int32), ())
             H = tf.reshape(tf.cast(parsed_features[HEIGHT], tf.int32), ())
             W = tf.reshape(tf.cast(parsed_features[WIDTH], tf.int32), ())
-            image_a = tf.decode_raw(parsed_features[IMAGE_A_RAW], tf.float32)
-            image_a = tf.reshape(image_a, [H, W, 3])
-            image_b = tf.decode_raw(parsed_features[IMAGE_B_RAW], tf.float32)
-            image_b = tf.reshape(image_b, [H, W, 3])
-            flow = tf.decode_raw(parsed_features[FLOW_RAW], tf.float32)
-            flow = tf.reshape(flow, [H, W, 2])
-            return image_a, image_b, flow
+            shot = tf.decode_raw(parsed_features[SHOT], tf.float32)
+            shot = tf.reshape(shot, [shot_len, H, W, 3])
+
+            # Decompose each shot into sequences of consecutive images.
+            slice_locations = [1] + sequence_inbetweens + [1]
+            return _sliding_window_slice(shot, parsed_features[SHOT_LEN], slice_locations)
 
         dataset = tf.data.TFRecordDataset(filenames)
         dataset = dataset.map(_parse_function)
@@ -187,7 +186,20 @@ class InterpDataSet(DataSet):
         return dataset
 
 
-def _write_shard(shard_id, shard_range, image_paths, sequence_len, filename, directory, verbose):
+def _sliding_window_slice(x, total_len, slice_locations):
+    sequences = []
+    for i in range(total_len - len(slice_locations) + 1):
+        sequence = []
+        for j in range(len(slice_locations)):
+            if slice_locations[j] == 1:
+                sequence.append(x[i + j])
+        sequence = tf.concat(sequence)
+        sequences.append(sequence)
+    sequences = tf.concat(sequences)
+    return sequences
+
+
+def _write_shard(shard_id, shard_range, image_paths, filename, directory, verbose):
     """
     :param shard_id: Index of the shard.
     :param shard_range: Iteration range of the shard.
@@ -201,23 +213,22 @@ def _write_shard(shard_id, shard_range, image_paths, sequence_len, filename, dir
 
     writer = tf.python_io.TFRecordWriter(os.path.join(directory, str(shard_id) + '_' + filename))
     for i in shard_range:
+
         # Read sequence from file.
-        images = [read_image(image_path, as_float=True) for image_path in image_paths[i]]
+        shot = [read_image(image_path, as_float=True) for image_path in image_paths[i]]
+        shot = np.asarray(shot)
+        H = shot[0].shape[0]
+        W = shot[0].shape[1]
 
-        for j in range(len(images) - sequence_len + 1):
-
-            # Write to tf record.
-            sequence = np.asarray([images[k] for k in range(j, j + sequence_len)])
-            H = images[0].shape[0]
-            W = images[0].shape[1]
-            sequence_raw = sequence.to_string()
-            example = tf.train.Example(
-                features=tf.train.Features(
-                    feature={
-                        SEQUENCE_LEN: tf_int64_feature(sequence_len),
-                        HEIGHT: tf_int64_feature(H),
-                        WIDTH: tf_int64_feature(W),
-                        SEQUENCE: tf_bytes_feature(sequence_raw),
-                    }))
-            writer.write(example.SerializeToString())
+        # Write to tf record.
+        shot_raw = shot.tostring()
+        example = tf.train.Example(
+            features=tf.train.Features(
+                feature={
+                    SHOT_LEN: tf_int64_feature(len(shot)),
+                    HEIGHT: tf_int64_feature(H),
+                    WIDTH: tf_int64_feature(W),
+                    SHOT: tf_bytes_feature(shot_raw),
+                }))
+        writer.write(example.SerializeToString())
     writer.close()
