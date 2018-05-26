@@ -2,16 +2,16 @@ import glob
 import multiprocessing
 import os.path
 import random
+import numpy as np
 from data.dataset import DataSet
 from joblib import Parallel, delayed
 from utils.data import *
 from utils.img import read_image
 
-
+SEQUENCE_LEN = 'sequence_len'
 HEIGHT = 'height'
 WIDTH = 'width'
-IMAGE_A_RAW = 'image_a_raw'
-IMAGE_B_RAW = 'image_b_raw'
+SEQUENCE = 'sequence'
 FLOW_RAW = 'flow_raw'
 
 
@@ -35,6 +35,8 @@ class InterpDataSet(DataSet):
         self.train_filename = 'flowdataset_train.tfrecords'
         self.valid_filename = 'flowdataset_valid.tfrecords'
 
+        self.sequence_len = 3
+
     def get_train_file_names(self):
         """
         Overridden.
@@ -53,8 +55,8 @@ class InterpDataSet(DataSet):
         """
         if self.verbose:
             print('Checking directory for data.')
-        image_a_paths, image_b_paths, flow_paths = self._get_data_paths()
-        self._convert_to_tf_record(image_a_paths, image_b_paths, flow_paths, shard_size)
+        image_paths = self._get_data_paths()
+        self._convert_to_tf_record(image_paths, shard_size)
 
     def load(self, session):
         """
@@ -101,60 +103,55 @@ class InterpDataSet(DataSet):
 
     def _get_data_paths(self):
         """
-        Gets the paths of [image_a, image_b, flow] tuples from a typical flow data directory structure.
-        :return: List of image_path strings, list of flow_path strings.
+        Gets the paths of images from a directory that is organized with each video shot in its own folder.
+        The image order for each sequence must be obtainable by sorting their names.
+        :return: List of list of image names, where image_paths[0][0] is the first image in the first video shot.
         """
-        # Get sorted lists.
-        images = glob.glob(os.path.join(self.directory, '**', '*.png'), recursive=True)
-        images.sort()
-        flows = glob.glob(os.path.join(self.directory, '**', '*.flo'), recursive=True)
-        flows.sort()
-        # Make sure the tuples are all under the same directory.
-        filtered_images_a = []
-        filtered_images_b = []
-        filtered_flows = []
-        flow_idx = 0
-        for i in range(len(images) - 1):
-            directory_a = os.path.dirname(images[i])
-            directory_b = os.path.dirname(images[i + 1])
-            if directory_a == directory_b:
-                filtered_images_a.append(images[i])
-                filtered_images_b.append(images[i + 1])
-                filtered_flows.append(flows[flow_idx])
-                flow_idx += 1
-        assert flow_idx == len(flows)
-        return filtered_images_a, filtered_images_b, filtered_flows
+        image_names = []
+        extensions = ['*.jpg']
+        for item in os.listdir(self.directory):
+            path = os.path.join(self.directory, item)
+            if os.path.isdir(path):
+                cur_names = []
+                for ext in extensions:
+                    cur_names += glob.glob(os.path.join(path, '**', ext), recursive=True)
+                cur_names.sort()
+                image_names.append(cur_names)
+        return image_names
 
-    def _convert_to_tf_record(self, image_a_paths, image_b_paths, flow_paths, shard_size):
+    def _convert_to_tf_record(self, image_paths, shard_size):
         """
-        :param image_paths: List of image_path strings.
-        :param flow_paths: List of flow_np_path strings.
-        :param shard_size: Maximum number of examples in each shard.
+        :param image_paths: List of list of image names,
+                            where image_paths[0][0] is the first image in the first video shot.
         :return: Nothing.
         """
-        assert len(image_a_paths) == len(flow_paths)
-        assert len(image_b_paths) == len(flow_paths)
 
-        # Shuffle in unison.
-        zipped = list(zip(image_a_paths, image_b_paths, flow_paths))
-        random.shuffle(zipped)
-        image_a_paths, image_b_paths, flow_paths = zip(*zipped)
-
+        random.shuffle(image_paths)
         def _write(filename, iter_range):
             if self.verbose:
-                print('Writing', len(iter_range),'data examples to the', filename, 'dataset.')
+                print('Writing', len(iter_range), 'data examples to the', filename, 'dataset.')
 
             sharded_iter_ranges = create_shard_ranges(iter_range, shard_size)
 
             Parallel(n_jobs=multiprocessing.cpu_count(), backend="threading")(
-                delayed(_write_shard)(shard_id, shard_range, image_a_paths, image_b_paths,
-                                      flow_paths, filename, self.directory, self.verbose)
+                delayed(_write_shard)(shard_id, shard_range, image_paths, self.sequence_len,
+                                      filename, self.directory, self.verbose)
                 for shard_id, shard_range in enumerate(sharded_iter_ranges)
             )
 
-        valid_start_idx = len(image_a_paths) - self.validation_size
+        # Compute the validation start idx.
+        # We might not satisfy self.validation_size as the split granularity will be at the shot level.
+        cur_items = 0
+        validation_seq_size = 0
+        for i in range(len(image_paths)):
+            cur_items += len(image_paths[i])
+            validation_seq_size = i + 1
+            if cur_items >= self.validation_size:
+                break
+
+        valid_start_idx = len(image_paths) - validation_seq_size
         _write(self.train_filename, range(0, valid_start_idx))
-        _write(self.valid_filename, range(valid_start_idx, len(image_a_paths)))
+        _write(self.valid_filename, range(valid_start_idx, len(image_paths)))
 
     def _load_dataset(self, filenames, repeat):
         """
@@ -190,12 +187,11 @@ class InterpDataSet(DataSet):
         return dataset
 
 
-def _write_shard(shard_id, shard_range, image_a_paths, image_b_paths, flow_paths, filename, directory, verbose):
+def _write_shard(shard_id, shard_range, image_paths, sequence_len, filename, directory, verbose):
     """
     :param shard_id: Index of the shard.
     :param shard_range: Iteration range of the shard.
-    :param image_paths: Path of all images.
-    :param flow_paths: Path of all flows.
+    :param image_paths: List of list of image names.
     :param filename: Base name of the output shard.
     :param directory: Output directory.
     :return: Nothing.
@@ -205,25 +201,23 @@ def _write_shard(shard_id, shard_range, image_a_paths, image_b_paths, flow_paths
 
     writer = tf.python_io.TFRecordWriter(os.path.join(directory, str(shard_id) + '_' + filename))
     for i in shard_range:
-        # Read from file.
-        image_a = read_image(image_a_paths[i], as_float=True)
-        image_b = read_image(image_b_paths[i], as_float=True)
-        flow = read_flow_file(flow_paths[i])
+        # Read sequence from file.
+        images = [read_image(image_path, as_float=True) for image_path in image_paths[i]]
 
-        # Write to tf record.
-        H = image_a.shape[0]
-        W = image_a.shape[1]
-        image_a_raw = image_a.tostring()
-        image_b_raw = image_b.tostring()
-        flow_raw = flow.tostring()
-        example = tf.train.Example(
-            features=tf.train.Features(
-                feature={
-                    HEIGHT: tf_int64_feature(H),
-                    WIDTH: tf_int64_feature(W),
-                    IMAGE_A_RAW: tf_bytes_feature(image_a_raw),
-                    IMAGE_B_RAW: tf_bytes_feature(image_b_raw),
-                    FLOW_RAW: tf_bytes_feature(flow_raw)
-                }))
-        writer.write(example.SerializeToString())
+        for j in range(len(images) - sequence_len + 1):
+
+            # Write to tf record.
+            sequence = np.asarray([images[k] for k in range(j, j + sequence_len)])
+            H = images[0].shape[0]
+            W = images[0].shape[1]
+            sequence_raw = sequence.to_string()
+            example = tf.train.Example(
+                features=tf.train.Features(
+                    feature={
+                        SEQUENCE_LEN: tf_int64_feature(sequence_len),
+                        HEIGHT: tf_int64_feature(H),
+                        WIDTH: tf_int64_feature(W),
+                        SEQUENCE: tf_bytes_feature(sequence_raw),
+                    }))
+            writer.write(example.SerializeToString())
     writer.close()
