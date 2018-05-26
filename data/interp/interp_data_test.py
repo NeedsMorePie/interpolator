@@ -3,7 +3,7 @@ import os
 import os.path
 import tensorflow as tf
 import unittest
-from data.interp.interp_data import InterpDataSet
+from data.interp.interp_data import InterpDataSet, sliding_window_slice
 
 
 class TestInterpDataSet(unittest.TestCase):
@@ -94,8 +94,6 @@ class TestInterpDataSet(unittest.TestCase):
         #     if os.path.isfile(output_path):
         #         os.remove(output_path)
 
-    #def test_sliding_window_slice(self):
-    #    x =
 
 if __name__ == '__main__':
     unittest.main()

@@ -7,6 +7,7 @@ from data.dataset import DataSet
 from joblib import Parallel, delayed
 from utils.data import *
 from utils.img import read_image
+from utils.misc import sliding_window_slice
 
 SHOT_LEN = 'shot_len'
 HEIGHT = 'height'
@@ -175,7 +176,7 @@ class InterpDataSet(DataSet):
 
             # Decompose each shot into sequences of consecutive images.
             slice_locations = [1] + sequence_inbetweens + [1]
-            return _sliding_window_slice(shot, parsed_features[SHOT_LEN], slice_locations)
+            return sliding_window_slice(shot, slice_locations)
 
         dataset = tf.data.TFRecordDataset(filenames)
         dataset = dataset.map(_parse_function)
@@ -184,19 +185,6 @@ class InterpDataSet(DataSet):
         if repeat:
             dataset = dataset.repeat()
         return dataset
-
-
-def _sliding_window_slice(x, total_len, slice_locations):
-    sequences = []
-    for i in range(total_len - len(slice_locations) + 1):
-        sequence = []
-        for j in range(len(slice_locations)):
-            if slice_locations[j] == 1:
-                sequence.append(x[i + j])
-        sequence = tf.concat(sequence)
-        sequences.append(sequence)
-    sequences = tf.concat(sequences)
-    return sequences
 
 
 def _write_shard(shard_id, shard_range, image_paths, filename, directory, verbose):

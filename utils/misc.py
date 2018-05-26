@@ -31,3 +31,16 @@ def prelu(_x):
         neg = alphas * (_x - abs(_x)) * 0.5
 
         return pos + neg
+
+def sliding_window_slice(x, slice_locations):
+    total_len = x.get_shape().as_list()[0]
+    sequences = []
+    for i in range(total_len - len(slice_locations) + 1):
+        sequence = []
+        for j in range(len(slice_locations)):
+            if slice_locations[j] == 1:
+                sequence.append(x[i + j])
+        sequence = tf.stack(sequence, axis=0)
+        sequences.append(sequence)
+    sequences = tf.stack(sequences, axis=0)
+    return sequences

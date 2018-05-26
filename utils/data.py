@@ -28,3 +28,4 @@ def tf_int64_feature(value):
 
 def tf_bytes_feature(value):
     return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
+
