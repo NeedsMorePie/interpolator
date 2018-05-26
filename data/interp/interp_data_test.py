@@ -10,7 +10,7 @@ class TestInterpDataSet(unittest.TestCase):
     def setUp(self):
         cur_dir = os.path.dirname(__file__)
         self.data_directory = os.path.join(cur_dir, 'test_data')
-        self.data_set = InterpDataSet(self.data_directory, batch_size=2)
+        self.data_set = InterpDataSet(self.data_directory, batch_size=0)
 
         # Test paths.
         self.expected_image_paths_0 = [
@@ -48,7 +48,7 @@ class TestInterpDataSet(unittest.TestCase):
         [self.assertTrue(os.path.isfile(output_path)) for output_path in output_paths]
 
         # For a shard size of 1 the number of files is the number of video shots (or the number of sub-folders).
-        self.assertEquals(len(output_paths), 2)
+        self.assertEqual(len(output_paths), 2)
 
         #
         # self.data_set.load(self.sess)
@@ -88,11 +88,11 @@ class TestInterpDataSet(unittest.TestCase):
         #     end_of_dataset = True
         # self.assertTrue(end_of_dataset)
 
-    # def tearDown(self):
-        # output_paths = self.data_set.get_train_file_names() + self.data_set.get_validation_file_names()
-        # for output_path in output_paths:
-        #     if os.path.isfile(output_path):
-        #         os.remove(output_path)
+    def tearDown(self):
+        output_paths = self.data_set.get_train_file_names() + self.data_set.get_validation_file_names()
+        for output_path in output_paths:
+            if os.path.isfile(output_path):
+                os.remove(output_path)
 
 
 if __name__ == '__main__':

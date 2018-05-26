@@ -32,7 +32,14 @@ def prelu(_x):
 
         return pos + neg
 
+
 def sliding_window_slice(x, slice_locations):
+    """
+    :param x: The tensor to window slice.
+    :param slice_locations: A list. The locations at which we gather values. Values are either 0 or 1.
+                            E.g [1, 0, 1] means that at each window offset j, we form [x[j], x[j + 2]].
+    :return: The window sliced tensor. Is 1 rank higher than x.
+    """
     total_len = x.get_shape().as_list()[0]
     sequences = []
     for i in range(total_len - len(slice_locations) + 1):
@@ -42,5 +49,4 @@ def sliding_window_slice(x, slice_locations):
                 sequence.append(x[i + j])
         sequence = tf.stack(sequence, axis=0)
         sequences.append(sequence)
-    sequences = tf.stack(sequences, axis=0)
-    return sequences
+    return tf.stack(sequences, axis=0)

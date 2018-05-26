@@ -17,7 +17,7 @@ SHOT = 'shot'
 
 class InterpDataSet(DataSet):
     def __init__(self, directory, batch_size=1):
-        super().__init__(directory, batch_size, 0)
+        super().__init__(directory, batch_size, batch_size)
 
         # Initialized during load().
         self.train_dataset = None  # Tensorflow DataSet object.
@@ -28,9 +28,7 @@ class InterpDataSet(DataSet):
         self.iterator = None  # Iterator for getting the next batch.
         self.train_iterator = None  # Iterator for getting just the train data.
         self.validation_iterator = None  # Iterator for getting just the validation data.
-        self.next_images_a = None  # Data iterator batch.
-        self.next_images_b = None  # Data iterator batch.
-        self.next_flows = None  # Data iterator batch.
+        self.next_sequences = None  # Data iterator batch.
 
         self.train_filename = 'interp_dataset_train.tfrecords'
         self.valid_filename = 'interp_dataset_valid.tfrecords'
@@ -69,7 +67,7 @@ class InterpDataSet(DataSet):
             self.handle_placeholder = tf.placeholder(tf.string, shape=[])
             self.iterator = tf.data.Iterator.from_string_handle(
                 self.handle_placeholder, self.train_dataset.output_types, self.train_dataset.output_shapes)
-            self.next_images_a, self.next_images_b, self.next_flows = self.iterator.get_next()
+            self.next_sequences = self.iterator.get_next()
 
             self.train_iterator = self.train_dataset.make_one_shot_iterator()
             self.validation_iterator = self.valid_dataset.make_initializable_iterator()
@@ -180,6 +178,11 @@ class InterpDataSet(DataSet):
 
         dataset = tf.data.TFRecordDataset(filenames)
         dataset = dataset.map(_parse_function)
+
+        # Each element in the dataset is currently a video shot, so we need to 'unbatch' them first.
+        dataset = dataset.apply(tf.contrib.data.unbatch())
+
+        # Shuffle the sequences and batch them.
         dataset = dataset.shuffle(buffer_size=250)
         dataset = dataset.batch(self.batch_size)
         if repeat:
