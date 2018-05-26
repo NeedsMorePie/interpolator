@@ -35,6 +35,7 @@ def main():
 
     print('Initializing variables...')
     session.run(tf.global_variables_initializer())
+    # TODO: support restoring from npz dict.
     trainer.restore()
 
     trainer.train(validate_every=args.validate_every)
