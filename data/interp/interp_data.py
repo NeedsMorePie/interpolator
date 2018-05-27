@@ -138,13 +138,16 @@ class InterpDataSet(DataSet):
 
         # Compute the validation start idx.
         # We might not satisfy self.validation_size as the split granularity will be at the shot level.
-        cur_items = 0
-        validation_seq_size = 0
-        for i in range(len(image_paths)):
-            cur_items += len(image_paths[i])
-            validation_seq_size = i + 1
-            if cur_items >= self.validation_size:
-                break
+        if self.validation_size == 0:
+            validation_seq_size = 0
+        else:
+            cur_items = 0
+            validation_seq_size = 0
+            for i in range(len(image_paths)):
+                cur_items += len(image_paths[i])
+                validation_seq_size = i + 1
+                if cur_items >= self.validation_size:
+                    break
 
         valid_start_idx = len(image_paths) - validation_seq_size
         _write(self.train_filename, range(0, valid_start_idx))

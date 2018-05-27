@@ -3,6 +3,7 @@ import os
 import os.path
 import tensorflow as tf
 import unittest
+from utils.img import show_image
 from data.interp.interp_data import InterpDataSet
 
 
@@ -53,11 +54,12 @@ class TestInterpDataSet(unittest.TestCase):
         self.assertEqual(len(output_paths), 2)
 
         self.data_set.load(self.sess)
-        next_sequence_tensor = self.data_set.get_next_batch()
-        next_sequence = self.sess.run([next_sequence_tensor], feed_dict=self.data_set.get_train_feed_dict())
 
-        print(next_sequence)
-        #self.assertTupleEqual(next_sequence.shape, (2, 3, ))
+        next_sequence_tensor = self.data_set.get_next_batch()
+        for i in range(3):
+            next_sequence = self.sess.run(next_sequence_tensor, feed_dict=self.data_set.get_train_feed_dict())
+            self.assertTupleEqual(np.shape(next_sequence), (2, 3, 264, 470, 3))
+
         # images_1_a, images_1_b, flows = self.sess.run([next_images_a, next_images_b, next_flows],
         #                                               feed_dict=self.data_set.get_train_feed_dict())
         # self.assertTupleEqual(images_1_a.shape, (2, 436, 1024, 3))

@@ -55,9 +55,10 @@ def sliding_window_slice(x, slice_locations):
         return tf.zeros(tf.concat([[1, sequence_len], tf.shape(x)[1:]], axis=0))
 
     def get_slice(slice_indices_tensor, num_offsets, x):
+
+        # Compute the gather indices for forming sequences.
         tiled = tf.tile(slice_indices_tensor, [num_offsets])
         tiled = tf.expand_dims(tiled, axis=0)
-
         tiled = tf.reshape(tiled, [num_offsets, -1])
         offsets = tf.expand_dims(tf.range(0, num_offsets), axis=1)
         indices = tiled + offsets
