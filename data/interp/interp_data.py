@@ -84,8 +84,8 @@ class InterpDataSet(DataSet):
                     self.train_dataset = train_dataset
                     self.valid_dataset = valid_dataset
                 else:
-                    self.train_dataset.concatenate(train_dataset)
-                    self.valid_dataset.concatenate(valid_dataset)
+                    self.train_dataset = self.train_dataset.concatenate(train_dataset)
+                    self.valid_dataset = self.valid_dataset.concatenate(valid_dataset)
 
             self.train_dataset = self.train_dataset.shuffle(buffer_size=250).repeat()
             self.valid_dataset = self.valid_dataset.shuffle(buffer_size=250)
