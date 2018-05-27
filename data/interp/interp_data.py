@@ -16,7 +16,7 @@ SHOT = 'shot'
 
 
 class InterpDataSet(DataSet):
-    def __init__(self, directory, inbetween_locations, batch_size=1, validation_size=0):
+    def __init__(self, directory, inbetween_locations, batch_size=1):
         """
         :param inbetween_locations: A list of lists. Each element specifies where inbetweens will be placed,
                                     and each configuration will appear with uniform probability.
@@ -25,22 +25,18 @@ class InterpDataSet(DataSet):
                                     where the middle (inbetween) frame is 2 frames away from the first and last frames.
                                     The number of 1s must be the same for each list in this argument.
         """
-        super().__init__(directory, batch_size, validation_size)
+        super().__init__(directory, batch_size, validation_size=0)
 
         # Initialized during load().
-        self.train_dataset = None  # Tensorflow DataSet object.
-        self.valid_dataset = None  # Tensorflow DataSet object.
+        self.dataset = None  # Tensorflow DataSet object.
         self.handle_placeholder = None  # Handle placeholder for switching between datasets.
-        self.train_handle = None  # Handle to feed for the training dataset.
-        self.validation_handle = None  # Handle to feed for the validation dataset.
+        self.handle = None  # Handle to feed for the dataset.
         self.iterator = None  # Iterator for getting the next batch.
-        self.train_iterator = None  # Iterator for getting just the train data.
-        self.validation_iterator = None  # Iterator for getting just the validation data.
+        self.iterator = None  # Iterator for getting data.
         self.next_sequences = None  # Data iterator batch.
         self.next_sequence_timing = None  # Data iterator batch.
 
-        self.train_filename = 'interp_dataset_train.tfrecords'
-        self.valid_filename = 'interp_dataset_valid.tfrecords'
+        self.tf_record_name = 'interp_dataset.tfrecords'
 
         self.inbetween_locations = inbetween_locations
 
@@ -50,17 +46,8 @@ class InterpDataSet(DataSet):
             if (np.asarray(self.inbetween_locations[i]) == 1).sum() != num_ones:
                 raise ValueError('The number of ones for each element in inbetween_locations must be the same.')
 
-    def get_train_file_names(self):
-        """
-        Overridden.
-        """
-        return glob.glob(os.path.join(self.directory, '*' + self.train_filename))
-
-    def get_validation_file_names(self):
-        """
-        :return: List of string.
-        """
-        return glob.glob(os.path.join(self.directory, '*' + self.valid_filename))
+    def get_tf_record_names(self):
+        return glob.glob(os.path.join(self.directory, '*' + self.tf_record_name))
 
     def preprocess_raw(self, shard_size):
         """
@@ -71,35 +58,32 @@ class InterpDataSet(DataSet):
         image_paths = self._get_data_paths()
         self._convert_to_tf_record(image_paths, shard_size)
 
-    def load(self, session):
+    def load(self, session, repeat=False, shuffle=False):
         """
         Overridden.
         """
         with tf.name_scope('dataset_ops'):
             for i in range(len(self.inbetween_locations)):
                 inbetween_locations = self.inbetween_locations[i]
-                train_dataset = self._load_dataset(self.get_train_file_names(), inbetween_locations)
-                valid_dataset = self._load_dataset(self.get_validation_file_names(), inbetween_locations)
+                dataset = self._load_dataset(self.get_tf_record_names(), inbetween_locations)
                 if i == 0:
-                    self.train_dataset = train_dataset
-                    self.valid_dataset = valid_dataset
+                    self.dataset = dataset
                 else:
-                    self.train_dataset = self.train_dataset.concatenate(train_dataset)
-                    self.valid_dataset = self.valid_dataset.concatenate(valid_dataset)
+                    self.dataset = self.dataset.concatenate(dataset)
 
-            self.train_dataset = self.train_dataset.shuffle(buffer_size=250).repeat()
-            self.valid_dataset = self.valid_dataset.shuffle(buffer_size=250)
+            if shuffle:
+                self.dataset = self.dataset.shuffle(buffer_size=250)
+            if repeat:
+                self.dataset = self.dataset.repeat()
 
             self.handle_placeholder = tf.placeholder(tf.string, shape=[])
             self.iterator = tf.data.Iterator.from_string_handle(
-                self.handle_placeholder, self.train_dataset.output_types, self.train_dataset.output_shapes)
+                self.handle_placeholder, self.dataset.output_types, self.dataset.output_shapes)
             self.next_sequences, self.next_sequence_timing = self.iterator.get_next()
 
-            self.train_iterator = self.train_dataset.make_one_shot_iterator()
-            self.validation_iterator = self.valid_dataset.make_initializable_iterator()
+            self.iterator = self.dataset.make_one_shot_iterator()
 
-        self.train_handle = session.run(self.train_iterator.string_handle())
-        self.validation_handle = session.run(self.validation_iterator.string_handle())
+        self.handle = session.run(self.iterator.string_handle())
 
     def get_next_batch(self):
         """
@@ -107,23 +91,11 @@ class InterpDataSet(DataSet):
         """
         return self.next_sequences, self.next_sequence_timing
 
-    def get_train_feed_dict(self):
+    def get_feed_dict(self):
         """
         Overridden.
         """
-        return {self.handle_placeholder: self.train_handle}
-
-    def get_validation_feed_dict(self):
-        """
-        Overridden.
-        """
-        return {self.handle_placeholder: self.validation_handle}
-
-    def init_validation_data(self, session):
-        """
-        Overridden
-        """
-        session.run(self.validation_iterator.initializer)
+        return {self.handle_placeholder: self.handle}
 
     def _get_data_paths(self):
         """
@@ -162,22 +134,7 @@ class InterpDataSet(DataSet):
                 for shard_id, shard_range in enumerate(sharded_iter_ranges)
             )
 
-        # Compute the validation start idx.
-        # We might not satisfy self.validation_size as the split granularity will be at the shot level.
-        if self.validation_size == 0:
-            validation_seq_size = 0
-        else:
-            cur_items = 0
-            validation_seq_size = 0
-            for i in range(len(image_paths)):
-                cur_items += len(image_paths[i])
-                validation_seq_size = i + 1
-                if cur_items >= self.validation_size:
-                    break
-
-        valid_start_idx = len(image_paths) - validation_seq_size
-        _write(self.train_filename, range(0, valid_start_idx))
-        _write(self.valid_filename, range(valid_start_idx, len(image_paths)))
+        _write(self.tf_record_name, range(0, len(image_paths)))
 
     def _load_dataset(self, filenames, inbetween_locations):
         """

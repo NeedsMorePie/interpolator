@@ -38,18 +38,16 @@ class TestInterpDataSet(unittest.TestCase):
         """
         Test that the data paths make sense.
         """
-        data_set = InterpDataSet(self.data_directory, [[1]], batch_size=2, validation_size=0)
+        data_set = InterpDataSet(self.data_directory, [[1]], batch_size=2)
         image_paths = data_set._get_data_paths()
         self.assertListEqual(image_paths[0], self.expected_image_paths_0)
         self.assertListEqual(image_paths[1], self.expected_image_paths_1)
 
     def test_data_read_write(self):
-        
-        # A non-zero validation size is extremely sketchy and not nice to implement well.
-        data_set = InterpDataSet(self.data_directory, [[1]], batch_size=2, validation_size=0)
+        data_set = InterpDataSet(self.data_directory, [[1]], batch_size=2)
         data_set.preprocess_raw(shard_size=1)
 
-        output_paths = data_set.get_train_file_names() + data_set.get_validation_file_names()
+        output_paths = data_set.get_tf_record_names()
         [self.assertTrue(os.path.isfile(output_path)) for output_path in output_paths]
 
         # For a shard size of 1 the number of files is the number of video shots (or the number of sub-folders).
@@ -63,7 +61,7 @@ class TestInterpDataSet(unittest.TestCase):
         for i in range(3):
             query = [next_sequence_tensor, next_sequence_timing_tensor]
             next_sequence, next_sequence_timing = self.sess.run(query,
-                                                                feed_dict=data_set.get_train_feed_dict())
+                                                                feed_dict=data_set.get_feed_dict())
 
             self.assertListEqual(next_sequence_timing[0].tolist(), [0.0, 0.5, 1.0])
             self.assertListEqual(next_sequence_timing[1].tolist(), [0.0, 0.5, 1.0])
@@ -73,11 +71,10 @@ class TestInterpDataSet(unittest.TestCase):
         """
         Tests for the case where multiple inbetween_location configs are provided.
         """
-        # A non-zero validation size is extremely sketchy and not nice to implement well.
-        data_set = InterpDataSet(self.data_directory, [[1], [1, 0, 0]], batch_size=1, validation_size=0)
+        data_set = InterpDataSet(self.data_directory, [[1], [1, 0, 0]], batch_size=1)
         data_set.preprocess_raw(shard_size=1)
 
-        output_paths = data_set.get_train_file_names() + data_set.get_validation_file_names()
+        output_paths = data_set.get_tf_record_names()
         [self.assertTrue(os.path.isfile(output_path)) for output_path in output_paths]
 
         # For a shard size of 1 the number of files is the number of video shots (or the number of sub-folders).
@@ -95,7 +92,7 @@ class TestInterpDataSet(unittest.TestCase):
         for i in range(10):
             query = [next_sequence_tensor, next_sequence_timing_tensor]
             next_sequence, next_sequence_timing = self.sess.run(query,
-                                                                feed_dict=data_set.get_train_feed_dict())
+                                                                feed_dict=data_set.get_feed_dict())
 
             if next_sequence_timing[0].tolist() == [0.0, 0.5, 1.0]:
                 num_dense_sequences += 1
@@ -117,8 +114,8 @@ class TestInterpDataSet(unittest.TestCase):
         self.assertEqual(num_sparse_sequences, 4)
 
     def tearDown(self):
-        data_set = InterpDataSet(self.data_directory, [[1]], batch_size=2, validation_size=0)
-        output_paths = data_set.get_train_file_names() + data_set.get_validation_file_names()
+        data_set = InterpDataSet(self.data_directory, [[1]], batch_size=2)
+        output_paths = data_set.get_tf_record_names()
         for output_path in output_paths:
             if os.path.isfile(output_path):
                 os.remove(output_path)
