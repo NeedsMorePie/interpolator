@@ -56,11 +56,16 @@ class TestInterpDataSet(unittest.TestCase):
 
         self.data_set.load(self.sess)
 
-        next_sequence_tensor = self.data_set.get_next_batch()
+        next_sequence_tensor, next_sequence_timing_tensor = self.data_set.get_next_batch()
 
         # There are 6 valid sequences in total, and we are using a batch size of 2.
         for i in range(3):
-            next_sequence = self.sess.run(next_sequence_tensor, feed_dict=self.data_set.get_train_feed_dict())
+            query = [next_sequence_tensor, next_sequence_timing_tensor]
+            next_sequence, next_sequence_timing = self.sess.run(query,
+                                                               feed_dict=self.data_set.get_train_feed_dict())
+
+            self.assertListEqual(next_sequence_timing[0].tolist(), [0.0, 0.5, 1.0])
+            self.assertListEqual(next_sequence_timing[1].tolist(), [0.0, 0.5, 1.0])
             self.assertTupleEqual(np.shape(next_sequence), (2, 3, 264, 470, 3))
             if VISUALIZE:
                 for j in range(3):

@@ -16,7 +16,7 @@ SHOT = 'shot'
 
 
 class InterpDataSet(DataSet):
-    def __init__(self, directory, batch_size=1, validation_size=1):
+    def __init__(self, directory, batch_size=1, validation_size=0):
         super().__init__(directory, batch_size, validation_size)
 
         # Initialized during load().
@@ -29,6 +29,7 @@ class InterpDataSet(DataSet):
         self.train_iterator = None  # Iterator for getting just the train data.
         self.validation_iterator = None  # Iterator for getting just the validation data.
         self.next_sequences = None  # Data iterator batch.
+        self.next_sequence_timing = None # Data iterator batch.
 
         self.train_filename = 'interp_dataset_train.tfrecords'
         self.valid_filename = 'interp_dataset_valid.tfrecords'
@@ -67,7 +68,7 @@ class InterpDataSet(DataSet):
             self.handle_placeholder = tf.placeholder(tf.string, shape=[])
             self.iterator = tf.data.Iterator.from_string_handle(
                 self.handle_placeholder, self.train_dataset.output_types, self.train_dataset.output_shapes)
-            self.next_sequences = self.iterator.get_next()
+            self.next_sequences, self.next_sequence_timing = self.iterator.get_next()
 
             self.train_iterator = self.train_dataset.make_one_shot_iterator()
             self.validation_iterator = self.valid_dataset.make_initializable_iterator()
@@ -79,7 +80,7 @@ class InterpDataSet(DataSet):
         """
         Overridden.
         """
-        return self.next_sequences
+        return self.next_sequences, self.next_sequence_timing
 
     def get_train_feed_dict(self):
         """
@@ -159,7 +160,6 @@ class InterpDataSet(DataSet):
         :param repeat: Whether to repeat the dataset indefinitely.
         :return: Tensorflow dataset object.
         """
-
         sequence_inbetweens = self.sequence_inbetweens
         def _parse_function(example_proto):
             features = {
@@ -185,6 +185,18 @@ class InterpDataSet(DataSet):
         # Each element in the dataset is currently a group of sequences (grouped by video shot),
         # so we need to 'unbatch' them first.
         dataset = dataset.apply(tf.contrib.data.unbatch())
+
+        # Add timing information.
+        slice_locations = [1] + sequence_inbetweens + [1]
+        slice_times = []
+        for i in range(len(slice_locations)):
+            if slice_locations[i] == 1:
+                slice_times.append(i * 1.0 / (len(slice_locations) - 1))
+
+        def add_timing(sequence):
+            return sequence, slice_times
+
+        dataset = dataset.map(add_timing)
 
         # Shuffle the sequences and batch them.
         dataset = dataset.shuffle(buffer_size=250)
