@@ -18,6 +18,8 @@ class Trainer:
         self.session = session
         self.config = config
         self.verbose = verbose
+        # To save and restore from npz, this needs to be called first.
+        self.model.init_assign_ops()
 
     def restore(self):
         raise NotImplementedError('restore() is not implemented.')

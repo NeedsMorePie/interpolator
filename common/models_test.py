@@ -24,7 +24,7 @@ class TestModels(unittest.TestCase):
 
         # Create and initialize model.
         input_placeholder = tf.placeholder(shape=[None, 16, 16, 2], dtype=tf.float32)
-        output, _ = conv_net.get_forward(input_placeholder)
+        output, _ = conv_net.get_forward_conv(input_placeholder)
         global_initializer = tf.global_variables_initializer()
         self.sess.run(global_initializer)
 
@@ -62,7 +62,7 @@ class TestModels(unittest.TestCase):
 
         # Create and initialize model.
         input_placeholder = tf.placeholder(shape=[None, 4, 4, 2], dtype=tf.float32)
-        output, _ = conv_net.get_forward(input_placeholder)
+        output, _ = conv_net.get_forward_conv(input_placeholder)
         global_initializer = tf.global_variables_initializer()
         self.sess.run(global_initializer)
 
@@ -94,9 +94,9 @@ class TestModels(unittest.TestCase):
 
         # Create and initialize models.
         input_small = tf.placeholder(shape=[None, 8, 8, 2], dtype=tf.float32)
-        output_small, _ = conv_net_small.get_forward(input_small)
+        output_small, _ = conv_net_small.get_forward_conv(input_small)
         input_large = tf.placeholder(shape=[None, 16, 16, 2], dtype=tf.float32)
-        output_large, _ = conv_net_large.get_forward(input_large)
+        output_large, _ = conv_net_large.get_forward_conv(input_large)
         global_initializer = tf.global_variables_initializer()
         self.sess.run(global_initializer)
 

@@ -60,16 +60,25 @@ class RestorableNetwork():
         :param sess: Tensorflow session.
         :return: Nothing
         """
+        trainable_vars = tf.trainable_variables(self.name)
+        for var in trainable_vars:
+            var_name = var.name
+            var_np = var_dict[var_name]
+            # Restore the variable.
+            assign_op, placeholder = self.get_assign_op(var)
+            sess.run(assign_op, feed_dict={placeholder: var_np})
+
+    def init_assign_ops(self):
+        """
+        Initializes all the assign ops for the graph.
+        :return: Nothing.
+        """
         with tf.name_scope(self.name + '_assign_ops'):
             trainable_vars = tf.trainable_variables(self.name)
             for var in trainable_vars:
-                var_name = var.name
-                var_np = var_dict[var_name]
-                # Restore the variable.
-                assign_op, placeholder = self._get_assign_op(var)
-                sess.run(assign_op, feed_dict={placeholder: var_np})
+                _, _ = self.get_assign_op(var)
 
-    def _get_assign_op(self, var):
+    def get_assign_op(self, var):
         """
         :param var: Tensorflow variable.
         :return: Operation, placeholder.
@@ -172,8 +181,9 @@ class ConvNetwork(RestorableNetwork):
         final_output = previous_output
         return final_output, layer_outputs
 
-    def get_forward(self, features, reuse_variables=tf.AUTO_REUSE):
+    def get_forward_conv(self, features, reuse_variables=tf.AUTO_REUSE):
         """
+        Public API for getting the forward ops.
         :param features: Feature map or images.
         :param reuse_variables: Whether to reuse the variables under the scope.
         :return: final_output, layer_outputs.
