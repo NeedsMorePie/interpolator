@@ -9,7 +9,6 @@ from tensorflow.contrib.layers import l2_regularizer
 VERBOSE = False
 
 
-# TODO: Dump weights into npz dict of numpy arrays and reload from it.
 class PWCNet(RestorableNetwork):
     def __init__(self, name='pwc_net', regularizer=l2_regularizer(4e-4),
                  flow_layer_loss_weights=None, flow_scaling=0.05):
