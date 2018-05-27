@@ -28,7 +28,9 @@ class PWCNetTrainer(Trainer):
 
         # Checkpoint saving.
         self.saver = tf.train.Saver()
+        self.npz_save_file = os.path.join(self.config['checkpoint_directory'], 'pwcnet_weights.npz')
 
+        # Summary variables.
         self.merged_summ = None
         self.train_writer = None
         self.valid_writer = None
@@ -41,6 +43,9 @@ class PWCNetTrainer(Trainer):
         if tf.train.latest_checkpoint(self.config['checkpoint_directory']) is not None:
             print('Restoring checkpoint...')
             self.saver.restore(self.session, os.path.join(self.config['checkpoint_directory'], 'model.ckpt'))
+        if os.path.isfile(self.npz_save_file):
+            print('Restoring weights from npz...')
+            self.model.restore_from(self.npz_save_file)
 
     def train_for(self, iterations):
         """
@@ -57,6 +62,7 @@ class PWCNetTrainer(Trainer):
                 global_step = self._eval_global_step()
                 self.train_writer.add_run_metadata(run_metadata, 'step%d' % global_step, global_step=global_step)
                 self.train_writer.add_summary(summ, global_step=global_step)
+                self.model.save_to(self.npz_save_file, self.session)
             else:
                 loss, _ = self.session.run([self.loss, self.train_op], feed_dict=self.dataset.get_train_feed_dict())
 
