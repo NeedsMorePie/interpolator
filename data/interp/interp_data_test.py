@@ -14,7 +14,7 @@ class TestInterpDataSet(unittest.TestCase):
         self.data_directory = os.path.join(cur_dir, 'test_data')
 
         # A non-zero validation size is extremely sketchy and not nice to implement well.
-        self.data_set = InterpDataSet(self.data_directory, batch_size=2, validation_size=0)
+        self.data_set = InterpDataSet(self.data_directory, [[1]], batch_size=2, validation_size=0)
 
         # Test paths.
         self.expected_image_paths_0 = [

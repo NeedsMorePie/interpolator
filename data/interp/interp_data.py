@@ -16,7 +16,15 @@ SHOT = 'shot'
 
 
 class InterpDataSet(DataSet):
-    def __init__(self, directory, batch_size=1, validation_size=0):
+    def __init__(self, directory, inbetween_locations, batch_size=1, validation_size=0):
+        """
+        :param inbetween_locations: A list of lists. Each element specifies where inbetweens will be placed,
+                                    and each configuration will appear with uniform probability.
+                                    For example, let a single element in the list be [0, 1, 0].
+                                    With this, dataset elements will be sequences of 3 ordered frames,
+                                    where the middle (inbetween) frame is 2 frames away from the first and last frames.
+                                    The number of 1s must be the same for each list in this argument.
+        """
         super().__init__(directory, batch_size, validation_size)
 
         # Initialized during load().
@@ -29,12 +37,12 @@ class InterpDataSet(DataSet):
         self.train_iterator = None  # Iterator for getting just the train data.
         self.validation_iterator = None  # Iterator for getting just the validation data.
         self.next_sequences = None  # Data iterator batch.
-        self.next_sequence_timing = None # Data iterator batch.
+        self.next_sequence_timing = None  # Data iterator batch.
 
         self.train_filename = 'interp_dataset_train.tfrecords'
         self.valid_filename = 'interp_dataset_valid.tfrecords'
 
-        self.sequence_inbetweens = [1]
+        self.inbetween_locations = inbetween_locations
 
     def get_train_file_names(self):
         """
@@ -62,8 +70,21 @@ class InterpDataSet(DataSet):
         Overridden.
         """
         with tf.name_scope('dataset_ops'):
-            self.train_dataset = self._load_dataset(self.get_train_file_names(), True)
-            self.valid_dataset = self._load_dataset(self.get_validation_file_names(), False)
+
+            train_datasets, valid_datasets = [], []
+            for i in range(len(self.inbetween_locations)):
+                inbetween_locations = self.inbetween_locations[i]
+                train_dataset = self._load_dataset(self.get_train_file_names(), inbetween_locations)
+                valid_dataset = self._load_dataset(self.get_validation_file_names(), inbetween_locations)
+                if i == 0:
+                    self.train_dataset = train_dataset
+                    self.valid_dataset = valid_dataset
+                else:
+                    self.train_dataset.concatenate(train_dataset)
+                    self.valid_dataset.concatenate(valid_dataset)
+
+            self.train_dataset = self.train_dataset.shuffle(buffer_size=250).repeat()
+            self.valid_dataset = self.valid_dataset.shuffle(buffer_size=250)
 
             self.handle_placeholder = tf.placeholder(tf.string, shape=[])
             self.iterator = tf.data.Iterator.from_string_handle(
@@ -154,13 +175,12 @@ class InterpDataSet(DataSet):
         _write(self.train_filename, range(0, valid_start_idx))
         _write(self.valid_filename, range(valid_start_idx, len(image_paths)))
 
-    def _load_dataset(self, filenames, repeat):
+    def _load_dataset(self, filenames, inbetween_locations):
         """
         :param filenames: List of strings.
-        :param repeat: Whether to repeat the dataset indefinitely.
+        :param inbetween_locations: An element of self.inbetween_locations.
         :return: Tensorflow dataset object.
         """
-        sequence_inbetweens = self.sequence_inbetweens
         def _parse_function(example_proto):
             features = {
                 SHOT_LEN: tf.FixedLenFeature((), tf.int64, default_value=0),
@@ -176,7 +196,7 @@ class InterpDataSet(DataSet):
             shot = tf.reshape(shot, [shot_len, H, W, 3])
 
             # Decompose each shot into sequences of consecutive images.
-            slice_locations = [1] + sequence_inbetweens + [1]
+            slice_locations = [1] + inbetween_locations + [1]
             return sliding_window_slice(shot, slice_locations)
 
         dataset = tf.data.TFRecordDataset(filenames)
@@ -187,22 +207,17 @@ class InterpDataSet(DataSet):
         dataset = dataset.apply(tf.contrib.data.unbatch())
 
         # Add timing information.
-        slice_locations = [1] + sequence_inbetweens + [1]
+        slice_indices = [1] + inbetween_locations + [1]
         slice_times = []
-        for i in range(len(slice_locations)):
-            if slice_locations[i] == 1:
-                slice_times.append(i * 1.0 / (len(slice_locations) - 1))
+        for i in range(len(slice_indices)):
+            if slice_indices[i] == 1:
+                slice_times.append(i * 1.0 / (len(slice_indices) - 1))
 
         def add_timing(sequence):
             return sequence, slice_times
 
         dataset = dataset.map(add_timing)
-
-        # Shuffle the sequences and batch them.
-        dataset = dataset.shuffle(buffer_size=250)
         dataset = dataset.batch(self.batch_size)
-        if repeat:
-            dataset = dataset.repeat()
         return dataset
 
 
