@@ -79,7 +79,7 @@ class InterpDataSet(DataSet):
         """
         Overridden.
         """
-        return self.next_images_a, self.next_images_b, self.next_flows
+        return self.next_sequences
 
     def get_train_feed_dict(self):
         """

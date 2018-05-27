@@ -54,7 +54,7 @@ class TestInterpDataSet(unittest.TestCase):
 
         self.data_set.load(self.sess)
         next_sequence_tensor = self.data_set.get_next_batch()
-        next_sequence = self.sess.run([next_sequence_tensor])
+        next_sequence = self.sess.run([next_sequence_tensor], feed_dict=self.data_set.get_train_feed_dict())
 
         print(next_sequence)
         #self.assertTupleEqual(next_sequence.shape, (2, 3, ))

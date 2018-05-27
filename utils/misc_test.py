@@ -41,3 +41,15 @@ class TestMiscUtils(unittest.TestCase):
         sliced = sliding_window_slice(x, slice_locations)
         sliced_list = self.sess.run(sliced).tolist()
         self.assertListEqual(sliced_list, expected)
+
+    def test_sliding_window_slice_small(self):
+        x = tf.constant([
+            [1, 2.4]
+        ])
+        expected = [
+            [[0, 0], [0, 0], [0, 0]]
+        ]
+        slice_locations = [1, 1, 1]
+        sliced = sliding_window_slice(x, slice_locations)
+        sliced_list = self.sess.run(sliced).tolist()
+        self.assertListEqual(sliced_list, expected)

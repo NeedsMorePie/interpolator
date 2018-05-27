@@ -49,18 +49,30 @@ def sliding_window_slice(x, slice_locations):
 
     # Get the sliding window indices.
     slice_indices_tensor = tf.constant(slice_indices)
-    num_offsets = tf.shape(x)[0] - tf.cast(sequence_len + 1, tf.int32)
-    tiled = tf.tile(slice_indices_tensor, [num_offsets])
-    tiled = tf.expand_dims(tiled, axis=0)
+    num_offsets = tf.shape(x)[0] - tf.cast(len(slice_locations) - 1, tf.int32)
 
-    tiled = tf.reshape(tiled, [num_offsets, -1])
-    offsets = tf.expand_dims(tf.range(0, num_offsets), axis=1)
-    indices = tiled + offsets
-    indices = tf.reshape(indices, [-1])
+    def get_zeros(sequence_len, x):
+        return tf.zeros(tf.concat([[1, sequence_len], tf.shape(x)[1:]], axis=0))
 
-    # Gather and reshape.
-    images = tf.gather(x, indices)
-    images = tf.expand_dims(images, axis=0)
-    final_shape = tf.concat([[num_offsets, sequence_len], tf.shape(images)[2:]], axis=0)
-    images = tf.reshape(images, final_shape)
-    return images
+    def get_slice(slice_indices_tensor, num_offsets, x):
+        tiled = tf.tile(slice_indices_tensor, [num_offsets])
+        tiled = tf.expand_dims(tiled, axis=0)
+
+        tiled = tf.reshape(tiled, [num_offsets, -1])
+        offsets = tf.expand_dims(tf.range(0, num_offsets), axis=1)
+        indices = tiled + offsets
+        indices = tf.reshape(indices, [-1])
+
+        # Gather and reshape.
+        images = tf.gather(x, indices)
+        images = tf.expand_dims(images, axis=0)
+        final_shape = tf.concat([[num_offsets, sequence_len], tf.shape(images)[2:]], axis=0)
+        images = tf.reshape(images, final_shape)
+        return tf.cast(images, tf.float32)
+
+    slices = tf.cond(
+        num_offsets > 0,
+        true_fn=lambda: get_slice(slice_indices_tensor, num_offsets, x),
+        false_fn=lambda: get_zeros(sequence_len, x)
+    )
+    return slices
