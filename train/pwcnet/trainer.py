@@ -45,7 +45,7 @@ class PWCNetTrainer(Trainer):
             self.saver.restore(self.session, os.path.join(self.config['checkpoint_directory'], 'model.ckpt'))
         if os.path.isfile(self.npz_save_file):
             print('Restoring weights from npz...')
-            self.model.restore_from(self.npz_save_file)
+            self.model.restore_from(self.npz_save_file, self.session)
 
     def train_for(self, iterations):
         """
