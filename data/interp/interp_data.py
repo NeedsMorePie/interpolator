@@ -44,6 +44,12 @@ class InterpDataSet(DataSet):
 
         self.inbetween_locations = inbetween_locations
 
+        # Check for number of ones, as the number of elements per-sequence must be the same.
+        num_ones = (np.asarray(self.inbetween_locations[0]) == 1).sum()
+        for i in range(1, len(self.inbetween_locations)):
+            if (np.asarray(self.inbetween_locations[i]) == 1).sum() != num_ones:
+                raise ValueError('The number of ones for each element in inbetween_locations must be the same.')
+
     def get_train_file_names(self):
         """
         Overridden.
@@ -70,8 +76,6 @@ class InterpDataSet(DataSet):
         Overridden.
         """
         with tf.name_scope('dataset_ops'):
-
-            train_datasets, valid_datasets = [], []
             for i in range(len(self.inbetween_locations)):
                 inbetween_locations = self.inbetween_locations[i]
                 train_dataset = self._load_dataset(self.get_train_file_names(), inbetween_locations)
