@@ -214,7 +214,7 @@ class FlowDataSet(DataSet):
             dataset = dataset.shuffle(buffer_size=len(filenames))
         dataset = dataset.map(_parse_function, num_parallel_calls=multiprocessing.cpu_count())
         dataset = dataset.batch(self.batch_size)
-        dataset = dataset.prefetch(self.batch_size)
+        dataset = dataset.prefetch(1)
         return dataset
 
 
