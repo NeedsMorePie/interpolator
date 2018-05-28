@@ -71,9 +71,12 @@ class InterpDataSet(DataSet):
                 else:
                     self.dataset = self.dataset.concatenate(dataset)
 
-            if shuffle:
-                self.dataset = self.dataset.shuffle(buffer_size=250)
-            if repeat:
+            buffer_size = 250
+            if shuffle and repeat:
+                self.dataset = self.dataset.apply(tf.contrib.data.shuffle_and_repeat(buffer_size=buffer_size))
+            elif shuffle:
+                self.dataset = self.dataset.shuffle(buffer_size=buffer_size)
+            elif repeat:
                 self.dataset = self.dataset.repeat()
 
             self.handle_placeholder = tf.placeholder(tf.string, shape=[])
@@ -161,7 +164,7 @@ class InterpDataSet(DataSet):
             return sliding_window_slice(shot, slice_locations)
 
         dataset = tf.data.TFRecordDataset(filenames)
-        dataset = dataset.map(_parse_function)
+        dataset = dataset.map(_parse_function, num_parallel_calls=multiprocessing.cpu_count())
 
         # Each element in the dataset is currently a group of sequences (grouped by video shot),
         # so we need to 'unbatch' them first.
@@ -174,11 +177,11 @@ class InterpDataSet(DataSet):
             if slice_indices[i] == 1:
                 slice_times.append(i * 1.0 / (len(slice_indices) - 1))
 
-        def add_timing(sequence):
-            return sequence, slice_times
+        def _add_timing(sequence):
+            return sequence, tf.constant(slice_times)
 
-        dataset = dataset.map(add_timing)
-        dataset = dataset.batch(self.batch_size)
+        dataset = dataset.apply(tf.contrib.data.map_and_batch(_add_timing, self.batch_size))
+        dataset = dataset.prefetch(buffer_size=1)
         return dataset
 
 

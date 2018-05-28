@@ -104,7 +104,7 @@ class TestInterpDataSet(unittest.TestCase):
             self.assertTupleEqual(np.shape(next_sequence), (1, 3, 264, 470, 3))
             if VISUALIZE:
                 if is_sparse:
-                    print('Showing sparse sequence with timings [0.0, 0.2, 1.0] ...')
+                    print('Showing sparse sequence with timings [0.0, 0.25, 1.0] ...')
                 else:
                     print('Showing dense sequence with timings [0.0, 0.5, 1.0] ...')
                 for j in range(3):
