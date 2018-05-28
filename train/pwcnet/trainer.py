@@ -26,23 +26,24 @@ class PWCNetTrainer(Trainer):
             self.train_op = tf.train.AdamOptimizer(config['learning_rate']).minimize(
                 self.loss, global_step=self.global_step)
 
-        # Checkpoint saving.
-        self.saver = tf.train.Saver()
-        self.npz_save_file = os.path.join(self.config['checkpoint_directory'], 'pwcnet_weights.npz')
-
         # Summary variables.
         self.merged_summ = None
         self.train_writer = None
         self.valid_writer = None
         self._make_summaries()
 
+        # Checkpoint saving.
+        self.saver = tf.train.Saver()
+        self.npz_save_file = os.path.join(self.config['checkpoint_directory'], 'pwcnet_weights.npz')
+
     def restore(self):
         """
         Overridden.
         """
-        if tf.train.latest_checkpoint(self.config['checkpoint_directory']) is not None:
+        latest_checkpoint = tf.train.latest_checkpoint(self.config['checkpoint_directory'])
+        if latest_checkpoint is not None:
             print('Restoring checkpoint...')
-            self.saver.restore(self.session, os.path.join(self.config['checkpoint_directory'], 'model.ckpt'))
+            self.saver.restore(self.session, latest_checkpoint)
         if os.path.isfile(self.npz_save_file):
             print('Restoring weights from npz...')
             self.model.restore_from(self.npz_save_file, self.session)

@@ -183,11 +183,13 @@ class FlowDataSet(DataSet):
             return image_a, image_b, flow
 
         dataset = tf.data.TFRecordDataset(filenames)
-        dataset = dataset.map(_parse_function)
-        dataset = dataset.shuffle(buffer_size=250)
-        dataset = dataset.batch(self.batch_size)
         if repeat:
-            dataset = dataset.repeat()
+            dataset = dataset.apply(tf.contrib.data.shuffle_and_repeat(buffer_size=len(filenames)))
+        else:
+            dataset = dataset.shuffle(buffer_size=len(filenames))
+        dataset = dataset.map(_parse_function, num_parallel_calls=multiprocessing.cpu_count())
+        dataset = dataset.batch(self.batch_size)
+        dataset = dataset.prefetch(self.batch_size)
         return dataset
 
 

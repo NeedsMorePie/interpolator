@@ -60,23 +60,18 @@ class RestorableNetwork():
         :param sess: Tensorflow session.
         :return: Nothing
         """
-        trainable_vars = tf.trainable_variables(self.name)
-        for var in trainable_vars:
-            var_name = var.name
-            var_np = var_dict[var_name]
-            # Restore the variable.
-            assign_op, placeholder = self.get_assign_op(var)
-            sess.run(assign_op, feed_dict={placeholder: var_np})
-
-    def init_assign_ops(self):
-        """
-        Initializes all the assign ops for the graph.
-        :return: Nothing.
-        """
         with tf.name_scope(self.name + '_assign_ops'):
             trainable_vars = tf.trainable_variables(self.name)
+            feed_dict = {}
+            assign_ops = []
             for var in trainable_vars:
-                _, _ = self.get_assign_op(var)
+                var_name = var.name
+                var_np = var_dict[var_name]
+                assign_op, placeholder = self.get_assign_op(var)
+                assign_ops.append(assign_op)
+                assert placeholder not in feed_dict
+                feed_dict[placeholder] = var_np
+            sess.run(assign_ops, feed_dict=feed_dict)
 
     def get_assign_op(self, var):
         """
