@@ -17,7 +17,14 @@ FLOW_RAW = 'flow_raw'
 
 
 class FlowDataSet(DataSet):
-    def __init__(self, directory, batch_size=1, validation_size=1):
+    def __init__(self, directory, batch_size=1, validation_size=1, crop_size=None):
+        """
+        :param directory: Str. Directory of the dataset file structure and tf records.
+        :param batch_size: Int.
+        :param validation_size: Int. Number of examples to reserve for validation
+        :param crop_size: Tuple of (int (H), int (W)). Size to crop the training examples to before feeding to network.
+                          If None, then no cropping will be performed.
+        """
         super().__init__(directory, batch_size, validation_size)
 
         # Initialized during load().
@@ -32,6 +39,8 @@ class FlowDataSet(DataSet):
         self.next_images_a = None  # Data iterator batch.
         self.next_images_b = None  # Data iterator batch.
         self.next_flows = None  # Data iterator batch.
+
+        self.crop_size = crop_size
 
         self.train_filename = 'flowdataset_train.tfrecords'
         self.valid_filename = 'flowdataset_valid.tfrecords'
@@ -180,6 +189,20 @@ class FlowDataSet(DataSet):
             image_b = tf.reshape(image_b, [H, W, 3])
             flow = tf.decode_raw(parsed_features[FLOW_RAW], tf.float32)
             flow = tf.reshape(flow, [H, W, 2])
+
+            if self.crop_size is not None:
+                crop_height = self.crop_size[0]
+                crop_width = self.crop_size[1]
+                assert crop_height > 0 and crop_width > 0
+                rand_y_start = tf.random_uniform((), 0, (H - crop_height) - 1, dtype=tf.int32)
+                rand_x_start = tf.random_uniform((), 0, (W - crop_width) - 1, dtype=tf.int32)
+                rand_y_end = rand_y_start + crop_height
+                rand_x_end = rand_x_start + crop_width
+
+                image_a = image_a[rand_y_start:rand_y_end, rand_x_start:rand_x_end, :]
+                image_b = image_b[rand_y_start:rand_y_end, rand_x_start:rand_x_end, :]
+                flow = flow[rand_y_start:rand_y_end, rand_x_start:rand_x_end, :]
+
             return image_a, image_b, flow
 
         dataset = tf.data.TFRecordDataset(filenames)

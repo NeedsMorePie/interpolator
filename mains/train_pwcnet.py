@@ -18,17 +18,20 @@ def main():
     if not os.path.exists(args.checkpoint_directory):
         os.makedirs(args.checkpoint_directory)
 
+    # TODO: config read from json.
+    config = {
+        'learning_rate': 1e-4,
+        'checkpoint_directory': args.checkpoint_directory,
+        'crop_width': 448,
+        'crop_height': 384
+    }
+
     print('Creating network...')
     model = PWCNet()
 
     print('Creating dataset...')
-    dataset = FlowDataSet(args.directory, batch_size=args.batch_size)
-
-    # TODO: config read from json.
-    config = {
-        'learning_rate': 1e-4,
-        'checkpoint_directory': args.checkpoint_directory
-    }
+    dataset = FlowDataSet(args.directory, batch_size=args.batch_size,
+                          crop_size=(config['crop_height'], config['crop_width']))
 
     print('Initializing trainer...')
     trainer = PWCNetTrainer(model, dataset, session, config)
