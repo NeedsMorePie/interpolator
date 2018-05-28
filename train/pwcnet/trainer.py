@@ -18,7 +18,10 @@ class PWCNetTrainer(Trainer):
         # Get the train network.
         self.final_flow, self.previous_flows = self.model.get_forward(self.images_a, self.images_b,
                                                                       reuse_variables=tf.AUTO_REUSE)
-        self.loss, self.layer_losses = self.model.get_training_loss(self.previous_flows, self.flows)
+        if self.config['fine_tune']:
+            self.loss, self.layer_losses = self.model.get_fine_tuning_loss(self.previous_flows, self.flows)
+        else:
+            self.loss, self.layer_losses = self.model.get_training_loss(self.previous_flows, self.flows)
 
         # Get the optimizer.
         with tf.variable_scope('train'):

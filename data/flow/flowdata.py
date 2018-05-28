@@ -6,7 +6,7 @@ from data.dataset import DataSet
 from joblib import Parallel, delayed
 from utils.data import *
 from utils.flow import read_flow_file
-from utils.img import read_image
+from utils.img import read_image, tf_random_crop, tf_image_augmentation
 
 
 HEIGHT = 'height'
@@ -71,8 +71,8 @@ class FlowDataSet(DataSet):
         Overridden.
         """
         with tf.name_scope('dataset_ops'):
-            self.train_dataset = self._load_dataset(self.get_train_file_names(), True)
-            self.valid_dataset = self._load_dataset(self.get_validation_file_names(), False)
+            self.train_dataset = self._load_dataset(self.get_train_file_names(), True, do_augmentations=True)
+            self.valid_dataset = self._load_dataset(self.get_validation_file_names(), False, do_augmentations=False)
 
             self.handle_placeholder = tf.placeholder(tf.string, shape=[])
             self.iterator = tf.data.Iterator.from_string_handle(
@@ -166,10 +166,11 @@ class FlowDataSet(DataSet):
         _write(self.train_filename, range(0, valid_start_idx))
         _write(self.valid_filename, range(valid_start_idx, len(image_a_paths)))
 
-    def _load_dataset(self, filenames, repeat):
+    def _load_dataset(self, filenames, repeat, do_augmentations=False):
         """
         :param filenames: List of strings.
         :param repeat: Whether to repeat the dataset indefinitely.
+        :param do_augmentations: Bool. Whether to do image augmentations.
         :return: Tensorflow dataset object.
         """
         def _parse_function(example_proto):
@@ -190,18 +191,19 @@ class FlowDataSet(DataSet):
             flow = tf.decode_raw(parsed_features[FLOW_RAW], tf.float32)
             flow = tf.reshape(flow, [H, W, 2])
 
-            if self.crop_size is not None:
-                crop_height = self.crop_size[0]
-                crop_width = self.crop_size[1]
-                assert crop_height > 0 and crop_width > 0
-                rand_y_start = tf.random_uniform((), 0, H - crop_height, dtype=tf.int32)
-                rand_x_start = tf.random_uniform((), 0, W - crop_width, dtype=tf.int32)
-                rand_y_end = rand_y_start + crop_height
-                rand_x_end = rand_x_start + crop_width
+            # Cropping augmentation.
+            image_a, image_b, flow = tf_random_crop([image_a, image_b, flow], self.crop_size)
 
-                image_a = image_a[rand_y_start:rand_y_end, rand_x_start:rand_x_end, :]
-                image_b = image_b[rand_y_start:rand_y_end, rand_x_start:rand_x_end, :]
-                flow = flow[rand_y_start:rand_y_end, rand_x_start:rand_x_end, :]
+            if do_augmentations:
+                config = {
+                    'contrast_min': 0.8, 'contrast_max': 1.3,
+                    'gamma_min': 0.7, 'gamma_max': 1.5,
+                    'gain_min': 0.8, 'gain_max': 1.25,
+                    'brightness_stddev': 0.2,
+                    'hue_min': -0.3, 'hue_max': 0.3,
+                    'noise_stddev': 0.04
+                }
+                image_a, image_b = tf_image_augmentation([image_a, image_b], config)
 
             return image_a, image_b, flow
 

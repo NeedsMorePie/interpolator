@@ -22,8 +22,9 @@ def main():
     config = {
         'learning_rate': 1e-4,
         'checkpoint_directory': args.checkpoint_directory,
-        'crop_width': 448,
-        'crop_height': 384
+        'crop_width':  768,
+        'crop_height': 384,
+        'fine_tune': args.fine_tune
     }
 
     print('Creating network...')
@@ -52,6 +53,8 @@ def add_args(parser):
                         help='Size of the batch.')
     parser.add_argument('-c', '--checkpoint_directory', type=str,
                         help='Directory of saved checkpoints.')
+    parser.add_argument('-f', '--fine_tune', type=bool, default=False,
+                        help='Whether to use fine tuning loss.')
 
 
 if __name__ == "__main__":
