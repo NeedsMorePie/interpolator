@@ -150,13 +150,16 @@ class InterpDataSet(DataSet):
                 SHOT_LEN: tf.FixedLenFeature((), tf.int64, default_value=0),
                 HEIGHT: tf.FixedLenFeature((), tf.int64, default_value=0),
                 WIDTH: tf.FixedLenFeature((), tf.int64, default_value=0),
-                SHOT: tf.FixedLenFeature((), tf.string),
+                SHOT: tf.VarLenFeature(tf.string),
             }
             parsed_features = tf.parse_single_example(example_proto, features)
             shot_len = tf.reshape(tf.cast(parsed_features[SHOT_LEN], tf.int32), ())
             H = tf.reshape(tf.cast(parsed_features[HEIGHT], tf.int32), ())
             W = tf.reshape(tf.cast(parsed_features[WIDTH], tf.int32), ())
-            shot = tf.decode_raw(parsed_features[SHOT], tf.float32)
+
+            shot_bytes = tf.sparse_tensor_to_dense(parsed_features[SHOT], default_value=tf.as_string(0))
+            shot = tf.map_fn(lambda bytes: tf.image.decode_image(bytes), shot_bytes, dtype=(tf.uint8))
+            shot = tf.image.convert_image_dtype(shot, tf.float32)
             shot = tf.reshape(shot, [shot_len, H, W, 3])
 
             # Decompose each shot into sequences of consecutive images.
@@ -197,24 +200,31 @@ def _write_shard(shard_id, shard_range, image_paths, filename, directory, verbos
     if verbose and len(shard_range) > 0:
         print('Writing to shard', shard_id, 'data points', shard_range[0], 'to', shard_range[-1])
 
-    writer = tf.python_io.TFRecordWriter(os.path.join(directory, str(shard_id) + '_' + filename))
+    path = os.path.join(directory, str(shard_id) + '_' + filename)
+    writer = tf.python_io.TFRecordWriter(path)
     for i in shard_range:
+        if len(image_paths[i]) <= 0:
+            continue
 
         # Read sequence from file.
-        shot = [read_image(image_path, as_float=True) for image_path in image_paths[i]]
-        shot = np.asarray(shot)
-        H = shot[0].shape[0]
-        W = shot[0].shape[1]
+        reference_image = read_image(image_paths[i][0], as_float=True)
+
+        shot_raw = []
+        for image_path in image_paths[i]:
+            with open(image_path, 'rb') as fp:
+                shot_raw.append(fp.read())
+
+        H = reference_image.shape[0]
+        W = reference_image.shape[1]
 
         # Write to tf record.
-        shot_raw = shot.tostring()
         example = tf.train.Example(
             features=tf.train.Features(
                 feature={
-                    SHOT_LEN: tf_int64_feature(len(shot)),
+                    SHOT_LEN: tf_int64_feature(len(shot_raw)),
                     HEIGHT: tf_int64_feature(H),
                     WIDTH: tf_int64_feature(W),
-                    SHOT: tf_bytes_feature(shot_raw),
+                    SHOT: tf_bytes_list_feature(shot_raw),
                 }))
         writer.write(example.SerializeToString())
     writer.close()
