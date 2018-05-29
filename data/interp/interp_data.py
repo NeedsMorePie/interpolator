@@ -17,7 +17,7 @@ SHOT = 'shot'
 
 
 class InterpDataSet(DataSet):
-    def __init__(self, directory, inbetween_locations, batch_size=1, validation_size=1):
+    def __init__(self, directory, inbetween_locations, batch_size=1, validation_size=0):
         """
         :param inbetween_locations: A list of lists. Each element specifies where inbetweens will be placed,
                                     and each configuration will appear with uniform probability.
@@ -32,14 +32,18 @@ class InterpDataSet(DataSet):
         out_dir = directory
         self.output_directory = out_dir
 
-        self.tf_record_name = 'interp_dataset_train.tfrecords'
+        self.train_tf_record_name = 'interp_dataset_train.tfrecords'
+        self.validation_tf_record_name = 'interp_dataset_validation.tfrecords'
         self.train_data = InterpDataSetReader(out_dir, inbetween_locations,
-                                              'interp_dataset_train.tfrecords', batch_size=batch_size)
+                                              self.train_tf_record_name, batch_size=batch_size)
         self.validation_data = InterpDataSetReader(out_dir, inbetween_locations,
-                                              'interp_dataset_validation.tfrecords', batch_size=batch_size)
+                                              self.validation_tf_record_name, batch_size=batch_size)
 
     def get_tf_record_names(self):
-        return self.get_train_file_names()
+        """
+        :return: All the tf record names that were saved with this instance.
+        """
+        return self.get_train_file_names() + self.get_validation_file_names()
 
     def get_train_file_names(self):
         """
@@ -118,7 +122,9 @@ class InterpDataSet(DataSet):
                 for shard_id, shard_range in enumerate(sharded_iter_ranges)
             )
 
-        _write(self.tf_record_name, range(0, len(image_paths)))
+        valid_start_idx = len(image_paths) - self.validation_size
+        _write(self.train_tf_record_name, range(0, valid_start_idx))
+        _write(self.validation_tf_record_name, range(valid_start_idx, len(image_paths)))
 
     def _load_dataset(self, filenames, inbetween_locations):
         """
