@@ -8,7 +8,6 @@ from data.interp.interp_data_reader import InterpDataSetReader
 from joblib import Parallel, delayed
 from utils.data import *
 from utils.img import read_image
-from utils.misc import sliding_window_slice
 
 SHOT_LEN = 'shot_len'
 HEIGHT = 'height'
@@ -109,22 +108,9 @@ class InterpDataSet(DataSet):
 
     def _get_data_paths(self):
         """
-        Gets the paths of images from a directory that is organized with each video shot in its own folder.
-        The image order for each sequence must be obtainable by sorting their names.
         :return: List of list of image names, where image_paths[0][0] is the first image in the first video shot.
         """
-        image_names = []
-        extensions = ['*.jpg']
-        for item in os.listdir(self.directory):
-            path = os.path.join(self.directory, item)
-            if os.path.isdir(path):
-                cur_names = []
-                for ext in extensions:
-                    cur_names += glob.glob(os.path.join(path, '**', ext), recursive=True)
-                if len(cur_names) > 0:
-                    cur_names.sort()
-                    image_names.append(cur_names)
-        return image_names
+        raise NotImplementedError
 
     def _convert_to_tf_record(self, image_paths, shard_size):
         """
@@ -200,9 +186,6 @@ class InterpDataSet(DataSet):
         train_split += image_paths[i+1:]
 
         return val_split, train_split
-
-
-
 
 
 def _write_shard(shard_id, shard_range, image_paths, filename, directory, verbose):

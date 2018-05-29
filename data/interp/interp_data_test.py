@@ -5,14 +5,19 @@ import tensorflow as tf
 import unittest
 import shutil
 from utils.img import show_image
-from data.interp.interp_data import InterpDataSet
+from data.interp.davis.davis_data import DavisDataSet
 
 VISUALIZE = False
 
+
 class TestInterpDataSet(unittest.TestCase):
+    """
+    DavisDataSet is used here to test functions in InterpDataSet, which is an abstract class.
+    """
+
     def setUp(self):
         cur_dir = os.path.dirname(__file__)
-        self.data_directory = os.path.join(cur_dir, 'test_data')
+        self.data_directory = os.path.join(cur_dir, 'davis', 'test_data')
 
         # Test paths.
         self.expected_image_paths_0 = [
@@ -35,19 +40,10 @@ class TestInterpDataSet(unittest.TestCase):
         config.gpu_options.allow_growth = True
         self.sess = tf.Session(config=config)
 
-    def test_data_paths(self):
-        """
-        Test that the data paths make sense.
-        """
-        data_set = InterpDataSet(self.data_directory, [[1]], batch_size=2)
-        image_paths = data_set._get_data_paths()
-        self.assertListEqual(image_paths[0], self.expected_image_paths_0)
-        self.assertListEqual(image_paths[1], self.expected_image_paths_1)
-
     def test_val_split(self):
 
         # Sequences of lengths 3, 4, 5.
-        data_set = InterpDataSet(self.data_directory, [[1], [1, 0], [1, 0, 0]], validation_size=4)
+        data_set = DavisDataSet(self.data_directory, [[1], [1, 0], [1, 0, 0]], validation_size=4)
         image_paths = [
             ['a0', 'a1', 'a2'],
             ['b0', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6'],
@@ -68,7 +64,7 @@ class TestInterpDataSet(unittest.TestCase):
     def test_val_split_all(self):
 
         # Sequences of lengths 3, 4, 5.
-        data_set = InterpDataSet(self.data_directory, [[1], [1, 0], [1, 0, 0]], validation_size=200)
+        data_set = DavisDataSet(self.data_directory, [[1], [1, 0], [1, 0, 0]], validation_size=200)
         image_paths = [
             ['a0', 'a1', 'a2'],
             ['b0', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6'],
@@ -85,7 +81,7 @@ class TestInterpDataSet(unittest.TestCase):
         self.assertListEqual(train, expected_train)
 
     def test_data_read_write(self):
-        data_set = InterpDataSet(self.data_directory, [[1]], batch_size=2)
+        data_set = DavisDataSet(self.data_directory, [[1]], batch_size=2)
         data_set.preprocess_raw(shard_size=1)
 
         output_paths = data_set.get_tf_record_names()
@@ -109,7 +105,7 @@ class TestInterpDataSet(unittest.TestCase):
             self.assertTupleEqual(np.shape(next_sequence), (2, 3, 264, 470, 3))
 
     def test_val_data_read_write(self):
-        data_set = InterpDataSet(self.data_directory, [[1]], batch_size=2, validation_size=2)
+        data_set = DavisDataSet(self.data_directory, [[1]], batch_size=2, validation_size=2)
         data_set.preprocess_raw(shard_size=5)
 
         output_paths = data_set.get_tf_record_names()
@@ -143,7 +139,7 @@ class TestInterpDataSet(unittest.TestCase):
         """
         Tests for the case where multiple inbetween_location configs are provided.
         """
-        data_set = InterpDataSet(self.data_directory, [[1], [1, 0, 0]], batch_size=1)
+        data_set = DavisDataSet(self.data_directory, [[1], [1, 0, 0]], batch_size=1)
         data_set.preprocess_raw(shard_size=1)
 
         output_paths = data_set.get_tf_record_names()
@@ -186,7 +182,7 @@ class TestInterpDataSet(unittest.TestCase):
         self.assertEqual(num_sparse_sequences, 4)
 
     def tearDown(self):
-        data_set = InterpDataSet(self.data_directory, [[1]], batch_size=2)
+        data_set = DavisDataSet(self.data_directory, [[1]], batch_size=2)
         dir = data_set.get_tf_record_dir()
         if os.path.exists(dir):
             shutil.rmtree(data_set.get_tf_record_dir())
