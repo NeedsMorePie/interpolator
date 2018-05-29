@@ -16,7 +16,7 @@ SHOT = 'shot'
 
 
 class InterpDataSetReader:
-    def __init__(self, directory, inbetween_locations, tf_record_name, batch_size=1):
+    def __init__(self, directory, inbetween_locations, tf_record_name, batch_size=1, max_num_elements=None):
         """
         :param inbetween_locations: A list of lists. Each element specifies where inbetweens will be placed,
                                     and each configuration will appear with uniform probability.
@@ -35,6 +35,7 @@ class InterpDataSetReader:
         self.next_sequences = None  # Data iterator batch.
         self.next_sequence_timing = None  # Data iterator batch.
 
+        self.max_num_elements = max_num_elements
         self.batch_size = batch_size
         self.directory = directory
         self.tf_record_name = tf_record_name
@@ -50,9 +51,6 @@ class InterpDataSetReader:
         return glob.glob(os.path.join(self.directory, '*' + self.tf_record_name))
 
     def load(self, session, repeat=False, shuffle=False):
-        """
-        Overridden.
-        """
         with tf.name_scope(self.tf_record_name + '_dataset_ops'):
             for i in range(len(self.inbetween_locations)):
                 inbetween_locations = self.inbetween_locations[i]
@@ -61,6 +59,9 @@ class InterpDataSetReader:
                     self.dataset = dataset
                 else:
                     self.dataset = self.dataset.concatenate(dataset)
+
+            if self.max_num_elements is not None:
+                self.dataset = self.dataset.take(self.max_num_elements)
 
             buffer_size = 250
             if shuffle and repeat:
@@ -80,15 +81,9 @@ class InterpDataSetReader:
         self.handle = session.run(self.iterator.string_handle())
 
     def get_next_batch(self):
-        """
-        Overridden.
-        """
         return self.next_sequences, self.next_sequence_timing
 
     def get_feed_dict(self):
-        """
-        Overridden.
-        """
         return {self.handle_placeholder: self.handle}
 
     def _load_dataset(self, filenames, inbetween_locations):

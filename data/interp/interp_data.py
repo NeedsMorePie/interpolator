@@ -37,7 +37,8 @@ class InterpDataSet(DataSet):
         self.train_data = InterpDataSetReader(out_dir, inbetween_locations,
                                               self.train_tf_record_name, batch_size=batch_size)
         self.validation_data = InterpDataSetReader(out_dir, inbetween_locations,
-                                              self.validation_tf_record_name, batch_size=batch_size)
+                                                   self.validation_tf_record_name, batch_size=batch_size,
+                                                   max_num_elements=self.validation_size)
 
     def get_tf_record_names(self):
         """
@@ -110,7 +111,7 @@ class InterpDataSet(DataSet):
         :return: Nothing.
         """
         random.shuffle(image_paths)
-        def _write(filename, iter_range):
+        def _write(filename, iter_range, image_paths):
             if self.verbose:
                 print('Writing', len(iter_range), 'data examples to the', filename, 'dataset.')
 
@@ -122,9 +123,11 @@ class InterpDataSet(DataSet):
                 for shard_id, shard_range in enumerate(sharded_iter_ranges)
             )
 
-        valid_start_idx = len(image_paths) - self.validation_size
-        _write(self.train_tf_record_name, range(0, valid_start_idx))
-        _write(self.validation_tf_record_name, range(valid_start_idx, len(image_paths)))
+        val_paths, train_paths = self._split_for_validation(image_paths)
+        image_paths = val_paths + train_paths
+        train_start_idx = len(val_paths)
+        _write(self.validation_tf_record_name, range(0, train_start_idx), image_paths)
+        _write(self.train_tf_record_name, range(train_start_idx, len(image_paths)), image_paths)
 
     def _split_for_validation(self, image_paths):
         """
@@ -132,6 +135,8 @@ class InterpDataSet(DataSet):
                             where image_paths[0][0] is the first image in the first video shot.
         :return: (validation_image_paths, train_image_paths), where both have the same structure as image_paths.
         """
+        if self.validation_size == 0:
+            return [], image_paths
 
         # Count the number of lengths less than a certain length.
         max_len = 0
@@ -145,6 +150,7 @@ class InterpDataSet(DataSet):
         for i in range(1, len(a)):
             a[i] += a[i-1]
 
+        # Find the split indices.
         cur_samples = 0
         split_indices = (len(image_paths)-1, len(image_paths[-1])-1)
         for i in range(len(image_paths)):
@@ -159,10 +165,12 @@ class InterpDataSet(DataSet):
         i, j = split_indices
         val_split = []
         val_split += image_paths[:i]
-        val_split.append(image_paths[i][:j+1])
+        if len(image_paths[i][:j+1]) > 0:
+            val_split.append(image_paths[i][:j+1])
 
         train_split = []
-        train_split.append(image_paths[i][j+1:])
+        if len(image_paths[i][j+1:]) > 0:
+            train_split.append(image_paths[i][j+1:])
         train_split += image_paths[i+1:]
 
         return val_split, train_split
