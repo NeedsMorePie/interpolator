@@ -28,12 +28,8 @@ class InterpDataSetReader:
 
         # Initialized during load().
         self.dataset = None  # Tensorflow DataSet object.
-        self.handle_placeholder = None  # Handle placeholder for switching between datasets.
         self.handle = None  # Handle to feed for the dataset.
         self.iterator = None  # Iterator for getting the next batch.
-        self.iterator = None  # Iterator for getting data.
-        self.next_sequences = None  # Data iterator batch.
-        self.next_sequence_timing = None  # Data iterator batch.
 
         self.max_num_elements = max_num_elements
         self.batch_size = batch_size
@@ -50,7 +46,18 @@ class InterpDataSetReader:
     def get_tf_record_names(self):
         return glob.glob(os.path.join(self.directory, '*' + self.tf_record_name))
 
-    def load(self, session, repeat=False, shuffle=False):
+    def init_data(self, session):
+        session.run(self.iterator.initializer)
+
+    def load(self, session, repeat=False, shuffle=False, initializable=False):
+        """
+        :param session: tf Session.
+        :param repeat: Whether to call repeat on the tf DataSet.
+        :param shuffle: Whether to shuffle on the tf DataSet.
+        :param initializable: Whether to use an initializable or a one_shot iterator.
+                              If True, init_data must be called to use the DataSet.
+        :return:
+        """
         with tf.name_scope(self.tf_record_name + '_dataset_ops'):
             for i in range(len(self.inbetween_locations)):
                 inbetween_locations = self.inbetween_locations[i]
@@ -71,20 +78,21 @@ class InterpDataSetReader:
             elif repeat:
                 self.dataset = self.dataset.repeat()
 
-            self.handle_placeholder = tf.placeholder(tf.string, shape=[])
-            self.iterator = tf.data.Iterator.from_string_handle(
-                self.handle_placeholder, self.dataset.output_types, self.dataset.output_shapes)
-            self.next_sequences, self.next_sequence_timing = self.iterator.get_next()
-
-            self.iterator = self.dataset.make_one_shot_iterator()
+            if initializable:
+                self.iterator = self.dataset.make_initializable_iterator()
+            else:
+                self.iterator = self.dataset.make_one_shot_iterator()
 
         self.handle = session.run(self.iterator.string_handle())
 
-    def get_next_batch(self):
-        return self.next_sequences, self.next_sequence_timing
+    def get_output_shapes(self):
+        return self.dataset.output_shapes
 
-    def get_feed_dict(self):
-        return {self.handle_placeholder: self.handle}
+    def get_output_types(self):
+        return self.dataset.output_types
+
+    def get_feed_dict_value(self):
+        return self.handle
 
     def _load_dataset(self, filenames, inbetween_locations):
         """

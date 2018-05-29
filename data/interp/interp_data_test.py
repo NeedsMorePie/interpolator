@@ -101,11 +101,42 @@ class TestInterpDataSet(unittest.TestCase):
         for i in range(3):
             query = [next_sequence_tensor, next_sequence_timing_tensor]
             next_sequence, next_sequence_timing = self.sess.run(query,
-                                                                feed_dict=data_set.get_feed_dict())
+                                                                feed_dict=data_set.get_train_feed_dict())
 
             self.assertListEqual(next_sequence_timing[0].tolist(), [0.0, 0.5, 1.0])
             self.assertListEqual(next_sequence_timing[1].tolist(), [0.0, 0.5, 1.0])
             self.assertTupleEqual(np.shape(next_sequence), (2, 3, 264, 470, 3))
+
+    def test_val_data_read_write(self):
+        data_set = InterpDataSet(self.data_directory, [[1]], batch_size=2, validation_size=2)
+        data_set.preprocess_raw(shard_size=5)
+
+        output_paths = data_set.get_tf_record_names()
+        [self.assertTrue(os.path.isfile(output_path)) for output_path in output_paths]
+
+        # We're using a larger shard size, so there should be 1 path for val and 1 for train.
+        self.assertEqual(len(output_paths), 2)
+        data_set.load(self.sess)
+
+        data_set.init_validation_data(self.sess)
+        next_sequence_tensor, next_sequence_timing_tensor = data_set.get_next_batch()
+
+        query = [next_sequence_tensor, next_sequence_timing_tensor]
+        next_sequence, next_sequence_timing = self.sess.run(query,
+                                                            feed_dict=data_set.get_validation_feed_dict())
+
+        self.assertListEqual(next_sequence_timing[0].tolist(), [0.0, 0.5, 1.0])
+        self.assertListEqual(next_sequence_timing[1].tolist(), [0.0, 0.5, 1.0])
+        self.assertTupleEqual(np.shape(next_sequence), (2, 3, 264, 470, 3))
+
+        end_of_val = False
+        try:
+            next_sequence, next_sequence_timing = self.sess.run(query,
+                                                                feed_dict=data_set.get_validation_feed_dict())
+        except tf.errors.OutOfRangeError:
+            end_of_val = True
+
+        self.assertTrue(end_of_val)
 
     def test_data_read_write_multi(self):
         """
@@ -132,7 +163,7 @@ class TestInterpDataSet(unittest.TestCase):
         for i in range(10):
             query = [next_sequence_tensor, next_sequence_timing_tensor]
             next_sequence, next_sequence_timing = self.sess.run(query,
-                                                                feed_dict=data_set.get_feed_dict())
+                                                                feed_dict=data_set.get_train_feed_dict())
 
             if next_sequence_timing[0].tolist() == [0.0, 0.5, 1.0]:
                 num_dense_sequences += 1

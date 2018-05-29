@@ -28,6 +28,11 @@ class InterpDataSet(DataSet):
         """
         super().__init__(directory, batch_size, validation_size=validation_size)
 
+        # Initialized during load().
+        self.handle_placeholder = None  # Handle placeholder for switching between datasets.
+        self.next_sequences = None  # Data iterator batch.
+        self.next_sequence_timing = None  # Data iterator batch.
+
         #out_dir = os.path.join(directory, 'tfrecords')
         out_dir = directory
         self.output_directory = out_dir
@@ -71,20 +76,35 @@ class InterpDataSet(DataSet):
         """
         Overridden.
         """
-        self.train_data.load(session, repeat=True, shuffle=True)
-        self.validation_data.load(session, repeat=False, shuffle=False)
+        with tf.name_scope('interp_data'):
+            self.train_data.load(session, repeat=True, shuffle=True)
+            self.validation_data.load(session, repeat=False, shuffle=False, initializable=True)
+
+            self.handle_placeholder = tf.placeholder(tf.string, shape=[])
+            self.iterator = tf.data.Iterator.from_string_handle(
+                self.handle_placeholder, self.train_data.get_output_types(), self.train_data.get_output_shapes())
+            self.next_sequences, self.next_sequence_timing = self.iterator.get_next()
 
     def get_next_batch(self):
-        """
-        Overridden.
-        """
-        return self.train_data.get_next_batch()
+        return self.next_sequences, self.next_sequence_timing
 
-    def get_feed_dict(self):
+    def get_train_feed_dict(self):
         """
         Overridden.
         """
-        return self.train_data.get_feed_dict()
+        return {self.handle_placeholder: self.train_data.get_feed_dict_value()}
+
+    def get_validation_feed_dict(self):
+        """
+        Overriden.
+        """
+        return {self.handle_placeholder: self.validation_data.get_feed_dict_value()}
+
+    def init_validation_data(self, session):
+        """
+        Overridden
+        """
+        self.validation_data.init_data(session)
 
     def _get_data_paths(self):
         """
