@@ -3,6 +3,7 @@ import os
 import os.path
 import tensorflow as tf
 import unittest
+import shutil
 from utils.img import show_image
 from data.interp.interp_data import InterpDataSet
 
@@ -186,10 +187,9 @@ class TestInterpDataSet(unittest.TestCase):
 
     def tearDown(self):
         data_set = InterpDataSet(self.data_directory, [[1]], batch_size=2)
-        output_paths = data_set.get_tf_record_names()
-        for output_path in output_paths:
-            if os.path.isfile(output_path):
-                os.remove(output_path)
+        dir = data_set.get_tf_record_dir()
+        if os.path.exists(dir):
+            shutil.rmtree(data_set.get_tf_record_dir())
 
 
 if __name__ == '__main__':

@@ -33,9 +33,8 @@ class InterpDataSet(DataSet):
         self.next_sequences = None  # Data iterator batch.
         self.next_sequence_timing = None  # Data iterator batch.
 
-        #out_dir = os.path.join(directory, 'tfrecords')
-        out_dir = directory
-        self.output_directory = out_dir
+        out_dir = os.path.join(directory, '..', 'tfrecords')
+        self.tf_record_directory = out_dir
         self.inbetween_locations = inbetween_locations
         self.train_tf_record_name = 'interp_dataset_train.tfrecords'
         self.validation_tf_record_name = 'interp_dataset_validation.tfrecords'
@@ -44,6 +43,8 @@ class InterpDataSet(DataSet):
         self.validation_data = InterpDataSetReader(out_dir, inbetween_locations,
                                                    self.validation_tf_record_name, batch_size=batch_size,
                                                    max_num_elements=self.validation_size)
+    def get_tf_record_dir(self):
+        return self.tf_record_directory
 
     def get_tf_record_names(self):
         """
@@ -120,8 +121,9 @@ class InterpDataSet(DataSet):
                 cur_names = []
                 for ext in extensions:
                     cur_names += glob.glob(os.path.join(path, '**', ext), recursive=True)
-                cur_names.sort()
-                image_names.append(cur_names)
+                if len(cur_names) > 0:
+                    cur_names.sort()
+                    image_names.append(cur_names)
         return image_names
 
     def _convert_to_tf_record(self, image_paths, shard_size):
@@ -131,6 +133,10 @@ class InterpDataSet(DataSet):
         :return: Nothing.
         """
         random.shuffle(image_paths)
+
+        if not os.path.exists(self.tf_record_directory):
+            os.mkdir(self.tf_record_directory)
+
         def _write(filename, iter_range, image_paths):
             if self.verbose:
                 print('Writing', len(iter_range), 'data examples to the', filename, 'dataset.')
@@ -139,7 +145,7 @@ class InterpDataSet(DataSet):
 
             Parallel(n_jobs=multiprocessing.cpu_count(), backend="threading")(
                 delayed(_write_shard)(shard_id, shard_range, image_paths,
-                                      filename, self.directory, self.verbose)
+                                      filename, self.tf_record_directory, self.verbose)
                 for shard_id, shard_range in enumerate(sharded_iter_ranges)
             )
 
