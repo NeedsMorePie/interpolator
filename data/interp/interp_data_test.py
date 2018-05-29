@@ -43,6 +43,46 @@ class TestInterpDataSet(unittest.TestCase):
         self.assertListEqual(image_paths[0], self.expected_image_paths_0)
         self.assertListEqual(image_paths[1], self.expected_image_paths_1)
 
+    def test_val_split(self):
+
+        # Sequences of lengths 3, 4, 5.
+        data_set = InterpDataSet(self.data_directory, [[1], [1, 0], [1, 0, 0]], validation_size=4)
+        image_paths = [
+            ['a0', 'a1', 'a2'],
+            ['b0', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6'],
+            ['c1', 'c2', 'c3', 'c4']
+        ]
+        expected_val = [
+            ['a0', 'a1', 'a2'],
+            ['b0', 'b1', 'b2', 'b3']
+        ]
+        expected_train = [
+            ['b4', 'b5', 'b6'],
+            ['c1', 'c2', 'c3', 'c4']
+        ]
+        val, train = data_set._split_for_validation(image_paths)
+        self.assertListEqual(val, expected_val)
+        self.assertListEqual(train, expected_train)
+
+    def test_val_split_all(self):
+
+        # Sequences of lengths 3, 4, 5.
+        data_set = InterpDataSet(self.data_directory, [[1], [1, 0], [1, 0, 0]], validation_size=200)
+        image_paths = [
+            ['a0', 'a1', 'a2'],
+            ['b0', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6'],
+            ['c1', 'c2', 'c3', 'c4']
+        ]
+        expected_val = [
+            ['a0', 'a1', 'a2'],
+            ['b0', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6'],
+            ['c1', 'c2', 'c3', 'c4']
+        ]
+        expected_train = [[]]
+        val, train = data_set._split_for_validation(image_paths)
+        self.assertListEqual(val, expected_val)
+        self.assertListEqual(train, expected_train)
+
     def test_data_read_write(self):
         data_set = InterpDataSet(self.data_directory, [[1]], batch_size=2)
         data_set.preprocess_raw(shard_size=1)

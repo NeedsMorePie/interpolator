@@ -31,7 +31,7 @@ class InterpDataSet(DataSet):
         #out_dir = os.path.join(directory, 'tfrecords')
         out_dir = directory
         self.output_directory = out_dir
-
+        self.inbetween_locations = inbetween_locations
         self.train_tf_record_name = 'interp_dataset_train.tfrecords'
         self.validation_tf_record_name = 'interp_dataset_validation.tfrecords'
         self.train_data = InterpDataSetReader(out_dir, inbetween_locations,
@@ -126,53 +126,49 @@ class InterpDataSet(DataSet):
         _write(self.train_tf_record_name, range(0, valid_start_idx))
         _write(self.validation_tf_record_name, range(valid_start_idx, len(image_paths)))
 
-    def _load_dataset(self, filenames, inbetween_locations):
+    def _split_for_validation(self, image_paths):
         """
-        :param filenames: List of strings.
-        :param inbetween_locations: An element of self.inbetween_locations.
-        :return: Tensorflow dataset object.
+        :param image_paths: List of list of image names,
+                            where image_paths[0][0] is the first image in the first video shot.
+        :return: (validation_image_paths, train_image_paths), where both have the same structure as image_paths.
         """
-        def _parse_function(example_proto):
-            features = {
-                SHOT_LEN: tf.FixedLenFeature((), tf.int64, default_value=0),
-                HEIGHT: tf.FixedLenFeature((), tf.int64, default_value=0),
-                WIDTH: tf.FixedLenFeature((), tf.int64, default_value=0),
-                SHOT: tf.VarLenFeature(tf.string),
-            }
-            parsed_features = tf.parse_single_example(example_proto, features)
-            shot_len = tf.reshape(tf.cast(parsed_features[SHOT_LEN], tf.int32), ())
-            H = tf.reshape(tf.cast(parsed_features[HEIGHT], tf.int32), ())
-            W = tf.reshape(tf.cast(parsed_features[WIDTH], tf.int32), ())
 
-            shot_bytes = tf.sparse_tensor_to_dense(parsed_features[SHOT], default_value=tf.as_string(0))
-            shot = tf.map_fn(lambda bytes: tf.image.decode_image(bytes), shot_bytes, dtype=(tf.uint8))
-            shot = tf.image.convert_image_dtype(shot, tf.float32)
-            shot = tf.reshape(shot, [shot_len, H, W, 3])
+        # Count the number of lengths less than a certain length.
+        max_len = 0
+        for spec in self.inbetween_locations:
+            max_len = max(2 + len(spec), max_len)
 
-            # Decompose each shot into sequences of consecutive images.
-            slice_locations = [1] + inbetween_locations + [1]
-            return sliding_window_slice(shot, slice_locations)
+        a = np.zeros(max_len + 1)
+        for spec in self.inbetween_locations:
+            a[2 + len(spec)] += 1
 
-        dataset = tf.data.TFRecordDataset(filenames)
-        dataset = dataset.map(_parse_function, num_parallel_calls=multiprocessing.cpu_count())
+        for i in range(1, len(a)):
+            a[i] += a[i-1]
 
-        # Each element in the dataset is currently a group of sequences (grouped by video shot),
-        # so we need to 'unbatch' them first.
-        dataset = dataset.apply(tf.contrib.data.unbatch())
+        cur_samples = 0
+        split_indices = (len(image_paths)-1, len(image_paths[-1])-1)
+        for i in range(len(image_paths)):
+            for j in range(len(image_paths[i])):
+                cur_samples += a[min(j + 1, len(a) - 1)]
+                if cur_samples >= self.validation_size:
+                    split_indices = (i, j)
+                    break
+            if cur_samples >= self.validation_size:
+                break
 
-        # Add timing information.
-        slice_indices = [1] + inbetween_locations + [1]
-        slice_times = []
-        for i in range(len(slice_indices)):
-            if slice_indices[i] == 1:
-                slice_times.append(i * 1.0 / (len(slice_indices) - 1))
+        i, j = split_indices
+        val_split = []
+        val_split += image_paths[:i]
+        val_split.append(image_paths[i][:j+1])
 
-        def _add_timing(sequence):
-            return sequence, tf.constant(slice_times)
+        train_split = []
+        train_split.append(image_paths[i][j+1:])
+        train_split += image_paths[i+1:]
 
-        dataset = dataset.apply(tf.contrib.data.map_and_batch(_add_timing, self.batch_size))
-        dataset = dataset.prefetch(buffer_size=1)
-        return dataset
+        return val_split, train_split
+
+
+
 
 
 def _write_shard(shard_id, shard_range, image_paths, filename, directory, verbose):
