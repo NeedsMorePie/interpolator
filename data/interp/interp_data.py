@@ -4,6 +4,7 @@ import os.path
 import random
 import numpy as np
 from data.dataset import DataSet
+from data.interp.interp_data_reader import InterpDataSetReader
 from joblib import Parallel, delayed
 from utils.data import *
 from utils.img import read_image
@@ -16,7 +17,7 @@ SHOT = 'shot'
 
 
 class InterpDataSet(DataSet):
-    def __init__(self, directory, inbetween_locations, batch_size=1):
+    def __init__(self, directory, inbetween_locations, batch_size=1, validation_size=1):
         """
         :param inbetween_locations: A list of lists. Each element specifies where inbetweens will be placed,
                                     and each configuration will appear with uniform probability.
@@ -25,29 +26,32 @@ class InterpDataSet(DataSet):
                                     where the middle (inbetween) frame is 2 frames away from the first and last frames.
                                     The number of 1s must be the same for each list in this argument.
         """
-        super().__init__(directory, batch_size, validation_size=0)
+        super().__init__(directory, batch_size, validation_size=validation_size)
 
-        # Initialized during load().
-        self.dataset = None  # Tensorflow DataSet object.
-        self.handle_placeholder = None  # Handle placeholder for switching between datasets.
-        self.handle = None  # Handle to feed for the dataset.
-        self.iterator = None  # Iterator for getting the next batch.
-        self.iterator = None  # Iterator for getting data.
-        self.next_sequences = None  # Data iterator batch.
-        self.next_sequence_timing = None  # Data iterator batch.
+        #out_dir = os.path.join(directory, 'tfrecords')
+        out_dir = directory
+        self.output_directory = out_dir
 
-        self.tf_record_name = 'interp_dataset.tfrecords'
-
-        self.inbetween_locations = inbetween_locations
-
-        # Check for number of ones, as the number of elements per-sequence must be the same.
-        num_ones = (np.asarray(self.inbetween_locations[0]) == 1).sum()
-        for i in range(1, len(self.inbetween_locations)):
-            if (np.asarray(self.inbetween_locations[i]) == 1).sum() != num_ones:
-                raise ValueError('The number of ones for each element in inbetween_locations must be the same.')
+        self.tf_record_name = 'interp_dataset_train.tfrecords'
+        self.train_data = InterpDataSetReader(out_dir, inbetween_locations,
+                                              'interp_dataset_train.tfrecords', batch_size=batch_size)
+        self.validation_data = InterpDataSetReader(out_dir, inbetween_locations,
+                                              'interp_dataset_validation.tfrecords', batch_size=batch_size)
 
     def get_tf_record_names(self):
-        return glob.glob(os.path.join(self.directory, '*' + self.tf_record_name))
+        return self.get_train_file_names()
+
+    def get_train_file_names(self):
+        """
+        Overriden.
+        """
+        return self.train_data.get_tf_record_names()
+
+    def get_validation_file_names(self):
+        """
+        Overriden.
+        """
+        return self.validation_data.get_tf_record_names()
 
     def preprocess_raw(self, shard_size):
         """
@@ -62,43 +66,20 @@ class InterpDataSet(DataSet):
         """
         Overridden.
         """
-        with tf.name_scope('dataset_ops'):
-            for i in range(len(self.inbetween_locations)):
-                inbetween_locations = self.inbetween_locations[i]
-                dataset = self._load_dataset(self.get_tf_record_names(), inbetween_locations)
-                if i == 0:
-                    self.dataset = dataset
-                else:
-                    self.dataset = self.dataset.concatenate(dataset)
-
-            buffer_size = 250
-            if shuffle and repeat:
-                self.dataset = self.dataset.apply(tf.contrib.data.shuffle_and_repeat(buffer_size=buffer_size))
-            elif shuffle:
-                self.dataset = self.dataset.shuffle(buffer_size=buffer_size)
-            elif repeat:
-                self.dataset = self.dataset.repeat()
-
-            self.handle_placeholder = tf.placeholder(tf.string, shape=[])
-            self.iterator = tf.data.Iterator.from_string_handle(
-                self.handle_placeholder, self.dataset.output_types, self.dataset.output_shapes)
-            self.next_sequences, self.next_sequence_timing = self.iterator.get_next()
-
-            self.iterator = self.dataset.make_one_shot_iterator()
-
-        self.handle = session.run(self.iterator.string_handle())
+        self.train_data.load(session, repeat=True, shuffle=True)
+        self.validation_data.load(session, repeat=False, shuffle=False)
 
     def get_next_batch(self):
         """
         Overridden.
         """
-        return self.next_sequences, self.next_sequence_timing
+        return self.train_data.get_next_batch()
 
     def get_feed_dict(self):
         """
         Overridden.
         """
-        return {self.handle_placeholder: self.handle}
+        return self.train_data.get_feed_dict()
 
     def _get_data_paths(self):
         """
