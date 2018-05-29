@@ -53,7 +53,8 @@ class ConvNetwork:
             if self.dense_net and i != 0:
                 # Dense-net layer input consists of all previous layer outputs.
                 assert previous_output == layer_outputs[-1]
-                inputs = tf.concat(layer_outputs, axis=-1)
+                assert features not in layer_outputs
+                inputs = tf.concat(layer_outputs + [features], axis=-1)
             else:
                 inputs = previous_output
 

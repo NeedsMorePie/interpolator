@@ -97,3 +97,19 @@ python -m unittest pwcnet.warp.warp_test
         ...
         n_flowdataset_valid.tfrecords
     ```
+    
+#### Training a PWCNet
+
+1.  Have your tf records prepared.
+
+2.  Run the following command:
+
+    ```
+    python -m mains.train_pwcnet --directory="<path>/<to>/<tf_records>" --checkpoint_directory="<path>/<to>/<checkpoint_output>"
+    ```
+
+3.  Launch tensorboard.
+
+    ```
+    tensorboard --logdir="<path>/<to>/<checkpoint_output>"
+    ```

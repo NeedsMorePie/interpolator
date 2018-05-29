@@ -16,7 +16,8 @@ class ContextNetwork(ConvNetwork):
         :param dense_net: Bool.
         """
         super().__init__(layer_specs=layer_specs,
-                         activation_fn=activation_fn, regularizer=regularizer, padding='SAME', dense_net=dense_net)
+                         activation_fn=activation_fn, last_activation_fn=None,
+                         regularizer=regularizer, padding='SAME', dense_net=dense_net)
 
         self.name = name
         if layer_specs is None:
@@ -26,7 +27,8 @@ class ContextNetwork(ConvNetwork):
                                 [3, 128, 4, 1],
                                 [3, 96, 8, 1],
                                 [3, 64, 16, 1],
-                                [3, 32, 1, 1]]
+                                [3, 32, 1, 1],
+                                [3, 2, 1, 1]]  # last_activation_fn is linear.
         else:
             self.layer_specs = layer_specs
 
@@ -37,8 +39,6 @@ class ContextNetwork(ConvNetwork):
               [LAYER 0]    |
                  ...       |
              [LAYER N-1]   |
-                  |        |
-            [Output layer] |
                   |        |
               delta_flow   |
                   +       /
@@ -55,20 +55,7 @@ class ContextNetwork(ConvNetwork):
             # Initial input has shape [batch_size, H, W, num_features + 2].
             initial_input = tf.concat([features, optical_flow], axis=-1)
 
-            previous_output, layer_outputs = self._get_conv_tower(initial_input)
-
-            # Create the last convolution layer that outputs the delta flow.
-            previous_output = tf.layers.conv2d(inputs=previous_output,
-                                               filters=2,
-                                               kernel_size=[3, 3],
-                                               padding='SAME',
-                                               dilation_rate=(1, 1),
-                                               activation=None,
-                                               kernel_regularizer=self.regularizer,
-                                               bias_regularizer=self.regularizer,
-                                               name='delta_flow_conv')
-            layer_outputs.append(previous_output)
-            delta_flow = previous_output
+            delta_flow, layer_outputs = self._get_conv_tower(initial_input)
 
             # Final output is the delta
             final_flow = delta_flow + optical_flow
