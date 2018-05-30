@@ -16,7 +16,7 @@ SHOT = 'shot'
 
 
 class InterpDataSet(DataSet):
-    def __init__(self, directory, inbetween_locations, batch_size=1, validation_size=0):
+    def __init__(self, directory, inbetween_locations, batch_size=1, maximum_shot_len=10):
         """
         :param inbetween_locations: A list of lists. Each element specifies where inbetweens will be placed,
                                     and each configuration will appear with uniform probability.
@@ -24,8 +24,9 @@ class InterpDataSet(DataSet):
                                     With this, dataset elements will be sequences of 3 ordered frames,
                                     where the middle (inbetween) frame is 2 frames away from the first and last frames.
                                     The number of 1s must be the same for each list in this argument.
+        :param maximum_shot_len: Video shots larger than this value will be broken up.
         """
-        super().__init__(directory, batch_size, validation_size=validation_size)
+        super().__init__(directory, batch_size, validation_size=0)
 
         # Initialized during load().
         self.handle_placeholder = None  # Handle placeholder for switching between datasets.
@@ -34,14 +35,14 @@ class InterpDataSet(DataSet):
 
         out_dir = os.path.join(directory, '..', 'tfrecords')
         self.tf_record_directory = out_dir
+        self.maximum_shot_len = maximum_shot_len
         self.inbetween_locations = inbetween_locations
         self.train_tf_record_name = 'interp_dataset_train.tfrecords'
         self.validation_tf_record_name = 'interp_dataset_validation.tfrecords'
         self.train_data = InterpDataSetReader(out_dir, inbetween_locations,
                                               self.train_tf_record_name, batch_size=batch_size)
         self.validation_data = InterpDataSetReader(out_dir, inbetween_locations,
-                                                   self.validation_tf_record_name, batch_size=batch_size,
-                                                   max_num_elements=self.validation_size)
+                                                   self.validation_tf_record_name, batch_size=batch_size)
     def get_tf_record_dir(self):
         return self.tf_record_directory
 
@@ -63,22 +64,25 @@ class InterpDataSet(DataSet):
         """
         return self.validation_data.get_tf_record_names()
 
-    def preprocess_raw(self, shard_size):
+    def preprocess_raw(self, shard_size, validation_size=0):
         """
-        Overridden.
+        :param minimum_validation_size: The TfRecords will be partitioned such that, if possible,
+                                         this number of validation sequences can be used for validation.
         """
         if self.verbose:
             print('Checking directory for data.')
         image_paths = self._get_data_paths()
-        self._convert_to_tf_record(image_paths, shard_size)
+        self._convert_to_tf_record(image_paths, shard_size, validation_size)
 
-    def load(self, session, repeat=False, shuffle=False):
+    def load(self, session, maximum_validation_size=None):
         """
-        Overridden.
+        :param maximum_validation_size: The maximum number of validation sequences to use. The actual number
+                                         depends on how many were written with preprocess_raw.
         """
         with tf.name_scope('interp_data'):
             self.train_data.load(session, repeat=True, shuffle=True)
-            self.validation_data.load(session, repeat=False, shuffle=False, initializable=True)
+            self.validation_data.load(session, repeat=False, shuffle=False,
+                                      initializable=True, max_num_elements=maximum_validation_size)
 
             self.handle_placeholder = tf.placeholder(tf.string, shape=[])
             self.iterator = tf.data.Iterator.from_string_handle(
@@ -112,7 +116,7 @@ class InterpDataSet(DataSet):
         """
         raise NotImplementedError
 
-    def _convert_to_tf_record(self, image_paths, shard_size):
+    def _convert_to_tf_record(self, image_paths, shard_size, validation_size):
         """
         :param image_paths: List of list of image names,
                             where image_paths[0][0] is the first image in the first video shot.
@@ -135,19 +139,20 @@ class InterpDataSet(DataSet):
                 for shard_id, shard_range in enumerate(sharded_iter_ranges)
             )
 
-        val_paths, train_paths = self._split_for_validation(image_paths)
+        val_paths, train_paths = self._split_for_validation(image_paths, validation_size)
         image_paths = val_paths + train_paths
         train_start_idx = len(val_paths)
         _write(self.validation_tf_record_name, range(0, train_start_idx), image_paths)
         _write(self.train_tf_record_name, range(train_start_idx, len(image_paths)), image_paths)
 
-    def _split_for_validation(self, image_paths):
+    def _split_for_validation(self, image_paths, validation_size):
         """
         :param image_paths: List of list of image names,
                             where image_paths[0][0] is the first image in the first video shot.
+        :param validation_size: The split will guarantee that at there will be at least this many validation elements.
         :return: (validation_image_paths, train_image_paths), where both have the same structure as image_paths.
         """
-        if self.validation_size == 0:
+        if validation_size == 0:
             return [], image_paths
 
         # Count the number of lengths less than a certain length.
@@ -168,10 +173,10 @@ class InterpDataSet(DataSet):
         for i in range(len(image_paths)):
             for j in range(len(image_paths[i])):
                 cur_samples += a[min(j + 1, len(a) - 1)]
-                if cur_samples >= self.validation_size:
+                if cur_samples >= validation_size:
                     split_indices = (i, j)
                     break
-            if cur_samples >= self.validation_size:
+            if cur_samples >= validation_size:
                 break
 
         i, j = split_indices

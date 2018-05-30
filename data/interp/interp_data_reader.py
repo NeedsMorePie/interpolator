@@ -16,7 +16,7 @@ SHOT = 'shot'
 
 
 class InterpDataSetReader:
-    def __init__(self, directory, inbetween_locations, tf_record_name, batch_size=1, max_num_elements=None):
+    def __init__(self, directory, inbetween_locations, tf_record_name, batch_size=1):
         """
         :param inbetween_locations: A list of lists. Each element specifies where inbetweens will be placed,
                                     and each configuration will appear with uniform probability.
@@ -31,7 +31,6 @@ class InterpDataSetReader:
         self.handle = None  # Handle to feed for the dataset.
         self.iterator = None  # Iterator for getting the next batch.
 
-        self.max_num_elements = max_num_elements
         self.batch_size = batch_size
         self.directory = directory
         self.tf_record_name = tf_record_name
@@ -49,7 +48,7 @@ class InterpDataSetReader:
     def init_data(self, session):
         session.run(self.iterator.initializer)
 
-    def load(self, session, repeat=False, shuffle=False, initializable=False):
+    def load(self, session, repeat=False, shuffle=False, initializable=False, max_num_elements=None):
         """
         :param session: tf Session.
         :param repeat: Whether to call repeat on the tf DataSet.
@@ -67,16 +66,20 @@ class InterpDataSetReader:
                 else:
                     self.dataset = self.dataset.concatenate(dataset)
 
-            if self.max_num_elements is not None:
-                self.dataset = self.dataset.take(self.max_num_elements)
+            if max_num_elements is not None:
+                assert max_num_elements >= 0
+                self.dataset = self.dataset.take(max_num_elements)
 
-            buffer_size = 250
+            buffer_size = 30
             if shuffle and repeat:
                 self.dataset = self.dataset.apply(tf.contrib.data.shuffle_and_repeat(buffer_size=buffer_size))
             elif shuffle:
                 self.dataset = self.dataset.shuffle(buffer_size=buffer_size)
             elif repeat:
                 self.dataset = self.dataset.repeat()
+
+            self.dataset = self.dataset.batch(self.batch_size)
+            self.dataset = self.dataset.prefetch(buffer_size=1)
 
             if initializable:
                 self.iterator = self.dataset.make_initializable_iterator()
@@ -122,6 +125,7 @@ class InterpDataSetReader:
             return sliding_window_slice(shot, slice_locations)
 
         dataset = tf.data.TFRecordDataset(filenames)
+        dataset = dataset.shuffle(buffer_size=len(filenames))
         dataset = dataset.map(_parse_function, num_parallel_calls=multiprocessing.cpu_count())
 
         # Each element in the dataset is currently a group of sequences (grouped by video shot),
@@ -138,6 +142,5 @@ class InterpDataSetReader:
         def _add_timing(sequence):
             return sequence, tf.constant(slice_times)
 
-        dataset = dataset.apply(tf.contrib.data.map_and_batch(_add_timing, self.batch_size))
-        dataset = dataset.prefetch(buffer_size=1)
+        dataset = dataset.map(_add_timing, num_parallel_calls=multiprocessing.cpu_count())
         return dataset

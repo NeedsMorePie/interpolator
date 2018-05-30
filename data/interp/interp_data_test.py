@@ -43,7 +43,7 @@ class TestInterpDataSet(unittest.TestCase):
     def test_val_split(self):
 
         # Sequences of lengths 3, 4, 5.
-        data_set = DavisDataSet(self.data_directory, [[1], [1, 0], [1, 0, 0]], validation_size=4)
+        data_set = DavisDataSet(self.data_directory, [[1], [1, 0], [1, 0, 0]])
         image_paths = [
             ['a0', 'a1', 'a2'],
             ['b0', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6'],
@@ -57,14 +57,14 @@ class TestInterpDataSet(unittest.TestCase):
             ['b4', 'b5', 'b6'],
             ['c1', 'c2', 'c3', 'c4']
         ]
-        val, train = data_set._split_for_validation(image_paths)
+        val, train = data_set._split_for_validation(image_paths, 4)
         self.assertListEqual(val, expected_val)
         self.assertListEqual(train, expected_train)
 
     def test_val_split_all(self):
 
         # Sequences of lengths 3, 4, 5.
-        data_set = DavisDataSet(self.data_directory, [[1], [1, 0], [1, 0, 0]], validation_size=200)
+        data_set = DavisDataSet(self.data_directory, [[1], [1, 0], [1, 0, 0]])
         image_paths = [
             ['a0', 'a1', 'a2'],
             ['b0', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6'],
@@ -76,7 +76,7 @@ class TestInterpDataSet(unittest.TestCase):
             ['c1', 'c2', 'c3', 'c4']
         ]
         expected_train = []
-        val, train = data_set._split_for_validation(image_paths)
+        val, train = data_set._split_for_validation(image_paths, 200)
         self.assertListEqual(val, expected_val)
         self.assertListEqual(train, expected_train)
 
@@ -105,8 +105,8 @@ class TestInterpDataSet(unittest.TestCase):
             self.assertTupleEqual(np.shape(next_sequence), (2, 3, 264, 470, 3))
 
     def test_val_data_read_write(self):
-        data_set = DavisDataSet(self.data_directory, [[1]], batch_size=2, validation_size=2)
-        data_set.preprocess_raw(shard_size=5)
+        data_set = DavisDataSet(self.data_directory, [[1]], batch_size=2)
+        data_set.preprocess_raw(shard_size=5, validation_size=2)
 
         output_paths = data_set.get_tf_record_names()
         [self.assertTrue(os.path.isfile(output_path)) for output_path in output_paths]
