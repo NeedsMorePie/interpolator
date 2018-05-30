@@ -5,7 +5,7 @@ import random
 from data.dataset import DataSet
 from joblib import Parallel, delayed
 from utils.data import *
-from utils.flow import read_flow_file
+from utils.flow import read_flow_file, tf_random_flip_flow, tf_random_scale_flow
 from utils.img import read_image, tf_random_crop, tf_image_augmentation
 
 
@@ -196,14 +196,23 @@ class FlowDataSet(DataSet):
 
             if do_augmentations:
                 config = {
-                    'contrast_min': 0.8, 'contrast_max': 1.3,
-                    'gamma_min': 0.7, 'gamma_max': 1.5,
+                    'contrast_min': 0.8, 'contrast_max': 1.25,
+                    'gamma_min': 0.8, 'gamma_max': 1.25,
                     'gain_min': 0.8, 'gain_max': 1.25,
                     'brightness_stddev': 0.2,
                     'hue_min': -0.3, 'hue_max': 0.3,
-                    'noise_stddev': 0.04
+                    'noise_stddev': 0.04,
+                    'scale_min': 0.5, 'scale_max': 2.0
                 }
                 image_a, image_b = tf_image_augmentation([image_a, image_b], config)
+
+                # Flip randomly in unison.
+                flow, images = tf_random_flip_flow(flow, [image_a, image_b])
+                image_a, image_b = images
+
+                # Scale randomly in unison.
+                flow, images = tf_random_scale_flow(flow, [image_a, image_b], config)
+                image_a, image_b = images
 
             return image_a, image_b, flow
 

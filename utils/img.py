@@ -72,9 +72,9 @@ def tf_image_augmentation(images, config):
     """
     if len(images) > 0:
         shape = tf.shape(images[0])
-        H = shape[0]
-        W = shape[1]
-        C = shape[2]
+        H = shape[-3]
+        W = shape[-2]
+        C = shape[-1]
 
         # Contrast.
         rand_constrast = tf.random_uniform((), config['contrast_min'], config['contrast_max'], dtype=tf.float32)
