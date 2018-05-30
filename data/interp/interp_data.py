@@ -139,11 +139,30 @@ class InterpDataSet(DataSet):
                 for shard_id, shard_range in enumerate(sharded_iter_ranges)
             )
 
+        image_paths = self._enforce_maximum_shot_len(image_paths)
         val_paths, train_paths = self._split_for_validation(image_paths, validation_size)
         image_paths = val_paths + train_paths
         train_start_idx = len(val_paths)
         _write(self.validation_tf_record_name, range(0, train_start_idx), image_paths)
         _write(self.train_tf_record_name, range(train_start_idx, len(image_paths)), image_paths)
+
+    def _enforce_maximum_shot_len(self, image_paths):
+        """
+        :param image_paths: List of list of image names,
+                            where image_paths[0][0] is the first image in the first video shot.
+        :return: List in the same format as image_paths,
+                 where len(return_value)[i] for all i <= self.maximum_shot_len.
+        """
+        cur_len = len(image_paths)
+        i = 0
+        while i < cur_len:
+            if len(image_paths[i]) > self.maximum_shot_len:
+                part_1 = image_paths[i][:self.maximum_shot_len]
+                part_2 = image_paths[i][self.maximum_shot_len:]
+                image_paths = image_paths[:i] + [part_1] + [part_2] + image_paths[i+1:]
+                cur_len += 1
+            i += 1
+        return image_paths
 
     def _split_for_validation(self, image_paths, validation_size):
         """

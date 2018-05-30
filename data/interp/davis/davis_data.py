@@ -6,11 +6,11 @@ from utils.img import read_image
 
 class DavisDataSet(InterpDataSet):
 
-    def __init__(self, directory, inbetween_locations, batch_size=1):
+    def __init__(self, directory, inbetween_locations, batch_size=1, maximum_shot_len=10):
         """
         See InterpDataSet.
         """
-        super().__init__(directory, inbetween_locations, batch_size=batch_size)
+        super().__init__(directory, inbetween_locations, batch_size=batch_size, maximum_shot_len=maximum_shot_len)
 
     def _get_data_paths(self):
         """

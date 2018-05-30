@@ -40,6 +40,24 @@ class TestInterpDataSet(unittest.TestCase):
         config.gpu_options.allow_growth = True
         self.sess = tf.Session(config=config)
 
+    def test_maximum_shot_len(self):
+        data_set = DavisDataSet(self.data_directory, [[1]], maximum_shot_len=3)
+        image_paths = [
+            ['a0', 'a1', 'a2'],
+            ['b0', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6'],
+            ['c1', 'c2', 'c3', 'c4']
+        ]
+        expected_split = [
+            ['a0', 'a1', 'a2'],
+            ['b0', 'b1', 'b2'],
+            ['b3', 'b4', 'b5'],
+            ['b6'],
+            ['c1', 'c2', 'c3'],
+            ['c4']
+        ]
+        split_paths = data_set._enforce_maximum_shot_len(image_paths)
+        self.assertListEqual(split_paths, expected_split)
+
     def test_val_split(self):
 
         # Sequences of lengths 3, 4, 5.
