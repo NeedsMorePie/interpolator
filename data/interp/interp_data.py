@@ -16,7 +16,7 @@ SHOT = 'shot'
 
 
 class InterpDataSet(DataSet):
-    def __init__(self, directory, inbetween_locations, batch_size=1, maximum_shot_len=10):
+    def __init__(self, tf_record_directory, inbetween_locations, batch_size=1, maximum_shot_len=10):
         """
         :param inbetween_locations: A list of lists. Each element specifies where inbetweens will be placed,
                                     and each configuration will appear with uniform probability.
@@ -26,22 +26,21 @@ class InterpDataSet(DataSet):
                                     The number of 1s must be the same for each list in this argument.
         :param maximum_shot_len: Video shots larger than this value will be broken up.
         """
-        super().__init__(directory, batch_size, validation_size=0)
+        super().__init__('', batch_size, validation_size=0)
 
         # Initialized during load().
         self.handle_placeholder = None  # Handle placeholder for switching between datasets.
         self.next_sequences = None  # Data iterator batch.
         self.next_sequence_timing = None  # Data iterator batch.
 
-        out_dir = os.path.join(directory, '..', 'tfrecords')
-        self.tf_record_directory = out_dir
+        self.tf_record_directory = tf_record_directory
         self.maximum_shot_len = maximum_shot_len
         self.inbetween_locations = inbetween_locations
         self.train_tf_record_name = 'interp_dataset_train.tfrecords'
         self.validation_tf_record_name = 'interp_dataset_validation.tfrecords'
-        self.train_data = InterpDataSetReader(out_dir, inbetween_locations,
+        self.train_data = InterpDataSetReader(self.tf_record_directory, inbetween_locations,
                                               self.train_tf_record_name, batch_size=batch_size)
-        self.validation_data = InterpDataSetReader(out_dir, inbetween_locations,
+        self.validation_data = InterpDataSetReader(self.tf_record_directory, inbetween_locations,
                                                    self.validation_tf_record_name, batch_size=batch_size)
     def get_tf_record_dir(self):
         return self.tf_record_directory
@@ -64,14 +63,16 @@ class InterpDataSet(DataSet):
         """
         return self.validation_data.get_tf_record_names()
 
-    def preprocess_raw(self, shard_size, validation_size=0):
+    def preprocess_raw(self, raw_directory, shard_size, validation_size=0):
         """
+        Processes the data in raw_directory to the tf_record_directory.
+        :param raw_directory: The directory to the images to process.
         :param minimum_validation_size: The TfRecords will be partitioned such that, if possible,
                                          this number of validation sequences can be used for validation.
         """
         if self.verbose:
             print('Checking directory for data.')
-        image_paths = self._get_data_paths()
+        image_paths = self._get_data_paths(raw_directory)
         self._convert_to_tf_record(image_paths, shard_size, validation_size)
 
     def load(self, session, maximum_validation_size=None):
@@ -110,8 +111,9 @@ class InterpDataSet(DataSet):
         """
         self.validation_data.init_data(session)
 
-    def _get_data_paths(self):
+    def _get_data_paths(self, raw_directory):
         """
+        :param raw_directory: The directory to the images to process.
         :return: List of list of image names, where image_paths[0][0] is the first image in the first video shot.
         """
         raise NotImplementedError

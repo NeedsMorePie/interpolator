@@ -12,7 +12,7 @@ class DavisDataSet(InterpDataSet):
         """
         super().__init__(directory, inbetween_locations, batch_size=batch_size, maximum_shot_len=maximum_shot_len)
 
-    def _get_data_paths(self):
+    def _get_data_paths(self, raw_directory):
         """
         Overriden.
         Gets the paths of images from a directory that is organized with each video shot in its own folder.
@@ -21,8 +21,8 @@ class DavisDataSet(InterpDataSet):
         """
         image_names = []
         extensions = ['*.jpg']
-        for item in os.listdir(self.directory):
-            path = os.path.join(self.directory, item)
+        for item in os.listdir(raw_directory):
+            path = os.path.join(raw_directory, item)
             if os.path.isdir(path):
                 cur_names = []
                 for ext in extensions:

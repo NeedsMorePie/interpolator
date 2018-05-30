@@ -100,7 +100,7 @@ class TestInterpDataSet(unittest.TestCase):
 
     def test_data_read_write(self):
         data_set = DavisDataSet(self.data_directory, [[1]], batch_size=2)
-        data_set.preprocess_raw(shard_size=1)
+        data_set.preprocess_raw(self.data_directory, shard_size=1)
 
         output_paths = data_set.get_tf_record_names()
         [self.assertTrue(os.path.isfile(output_path)) for output_path in output_paths]
@@ -124,7 +124,7 @@ class TestInterpDataSet(unittest.TestCase):
 
     def test_val_data_read_write(self):
         data_set = DavisDataSet(self.data_directory, [[1]], batch_size=2)
-        data_set.preprocess_raw(shard_size=5, validation_size=2)
+        data_set.preprocess_raw(self.data_directory, shard_size=5, validation_size=2)
 
         output_paths = data_set.get_tf_record_names()
         [self.assertTrue(os.path.isfile(output_path)) for output_path in output_paths]
@@ -158,7 +158,7 @@ class TestInterpDataSet(unittest.TestCase):
         Tests for the case where multiple inbetween_location configs are provided.
         """
         data_set = DavisDataSet(self.data_directory, [[1], [1, 0, 0]], batch_size=1)
-        data_set.preprocess_raw(shard_size=1)
+        data_set.preprocess_raw(self.data_directory, shard_size=1)
 
         output_paths = data_set.get_tf_record_names()
         [self.assertTrue(os.path.isfile(output_path)) for output_path in output_paths]
@@ -201,8 +201,12 @@ class TestInterpDataSet(unittest.TestCase):
 
     def tearDown(self):
         data_set = DavisDataSet(self.data_directory, [[1]], batch_size=2)
-        dir = data_set.get_tf_record_dir()
-        if os.path.exists(dir):
+        output_paths = data_set.get_tf_record_names()
+        for output_path in output_paths:
+            if os.path.isfile(output_path):
+                os.remove(output_path)
+
+        if os.listdir(data_set.get_tf_record_dir()) == []:
             shutil.rmtree(data_set.get_tf_record_dir())
 
 
