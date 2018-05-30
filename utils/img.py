@@ -91,12 +91,11 @@ def tf_image_augmentation(images, config):
         randomized_images = []
         for image in images:
             new_image = (image ** rand_gamma) * rand_gain
-            new_image = tf.image.adjust_brightness(new_image, rand_brightness)
-            new_image = tf.image.adjust_hue(new_image, rand_hue)
             new_image = tf.image.adjust_contrast(new_image, rand_constrast)
+            new_image = tf.image.adjust_hue(new_image, rand_hue)
 
             # Gaussian noise is created per image.
-            rand_image = tf.random_normal((H, W, C), mean=0.0, stddev=rand_sigma, dtype=tf.float32)
+            rand_image = tf.random_normal((H, W, C), mean=rand_brightness, stddev=rand_sigma, dtype=tf.float32)
             new_image = new_image + rand_image
 
             randomized_images.append(new_image)
