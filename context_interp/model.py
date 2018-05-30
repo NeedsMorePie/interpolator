@@ -16,7 +16,7 @@ class ContextInterp:
         self.gridnet = GridNet([32, 64, 96], 6, num_output_channels=3)
         self.feature_extractor = Vgg19Features()
 
-    def get_forward(self, image_a, image_b, t):
+    def get_forward(self, image_a, image_b, t, reuse_variables=tf.AUTO_REUSE):
         """
         :param image_a: Tensor of shape [batch_size, H, W, 3].
         :param image_b: Tensor of shape [batch_size, H, W, 3].
@@ -27,7 +27,7 @@ class ContextInterp:
                  warped_b_a: Image and features from b forward-flowed towards a, before synthesis.
                              The first 3 channels are the image.
         """
-        with tf.variable_scope(self.name):
+        with tf.variable_scope(self.name, reuse=reuse_variables):
             image_a_contexts = self.feature_extractor.get_context_features(image_a)
             image_b_contexts = self.feature_extractor.get_context_features(image_b)
 

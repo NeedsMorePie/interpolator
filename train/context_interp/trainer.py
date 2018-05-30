@@ -19,7 +19,7 @@ class ContextInterpTrainer(Trainer):
         self.images_c = self.next_sequence_tensor[:, 2]
 
         # Get the train network.
-        self.images_b_pred, _, _ = self.model.get_forward(self.images_a, self.images_b,
+        self.images_b_pred, _, _ = self.model.get_forward(self.images_a, self.images_b, 0.5,
                                                                       reuse_variables=tf.AUTO_REUSE)
         self.loss = self.model.get_training_loss(self.images_b_pred, self.images_b)
 

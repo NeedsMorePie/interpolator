@@ -32,7 +32,7 @@ def add_args(parser):
                         help='Directory of the unzipped DAVIS dataset.')
     parser.add_argument('-v', '--num_validation', type=int, default=100,
                         help='Number of data examples to use for validation.')
-    parser.add_argument('-s', '--shard_size', type=int, default=25,
+    parser.add_argument('-s', '--shard_size', type=int, default=2,
                         help='Maximum number of data examples in a shard.')
 
 
