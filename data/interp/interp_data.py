@@ -130,6 +130,15 @@ class InterpDataSet(DataSet):
         """
         raise NotImplementedError
 
+    def _process_image(self, filename):
+        """
+        Reads from and processes the file.
+        :param filename: String. Full path to the image file.
+        :return: The bytes that will be saved to the TFRecords.
+                 Must be readable with tf.image.decode_image.
+        """
+        raise NotImplementedError
+
     def _convert_to_tf_record(self, image_paths, shard_size, validation_size):
         """
         :param image_paths: List of list of image names,
@@ -148,8 +157,8 @@ class InterpDataSet(DataSet):
             sharded_iter_ranges = create_shard_ranges(iter_range, shard_size)
 
             Parallel(n_jobs=multiprocessing.cpu_count(), backend="threading")(
-                delayed(_write_shard)(shard_id, shard_range, image_paths,
-                                      filename, self.tf_record_directory, self.verbose)
+                delayed(_write_shard)(shard_id, shard_range, image_paths, filename,
+                                      self.tf_record_directory, self._process_image, self.verbose)
                 for shard_id, shard_range in enumerate(sharded_iter_ranges)
             )
 
@@ -226,13 +235,14 @@ class InterpDataSet(DataSet):
         return val_split, train_split
 
 
-def _write_shard(shard_id, shard_range, image_paths, filename, directory, verbose):
+def _write_shard(shard_id, shard_range, image_paths, filename, directory, processor_fn, verbose):
     """
     :param shard_id: Index of the shard.
     :param shard_range: Iteration range of the shard.
     :param image_paths: List of list of image names.
     :param filename: Base name of the output shard.
     :param directory: Output directory.
+    :param processor_fn: Function to read and process from filename with before saving to TFRecords.
     :return: Nothing.
     """
     if verbose and len(shard_range) > 0:
@@ -249,8 +259,7 @@ def _write_shard(shard_id, shard_range, image_paths, filename, directory, verbos
 
         shot_raw = []
         for image_path in image_paths[i]:
-            with open(image_path, 'rb') as fp:
-                shot_raw.append(fp.read())
+            shot_raw.append(processor_fn(image_path))
 
         H = reference_image.shape[0]
         W = reference_image.shape[1]

@@ -12,6 +12,14 @@ class DavisDataSet(InterpDataSet):
         """
         super().__init__(directory, inbetween_locations, batch_size=batch_size, maximum_shot_len=maximum_shot_len)
 
+    def _process_image(self, filename):
+        """
+        Overriden.
+        TODO Consider cropping or downsizing the image first as they can be quite large.
+        """
+        with open(filename, 'rb') as fp:
+            return fp.read()
+
     def _get_data_paths(self, raw_directory):
         """
         Overriden.

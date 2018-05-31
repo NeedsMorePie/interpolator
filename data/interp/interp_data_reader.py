@@ -20,10 +20,11 @@ class InterpDataSetReader:
         """
         :param inbetween_locations: A list of lists. Each element specifies where inbetweens will be placed,
                                     and each configuration will appear with uniform probability.
-                                    For example, let a single element in the list be [0, 1, 0].
-                                    With this, dataset elements will be sequences of 3 ordered frames,
-                                    where the middle (inbetween) frame is 2 frames away from the first and last frames.
-                                    The number of 1s must be the same for each list in this argument.
+
+                                    For example, Let frame0 be the start of a sequence. Then:
+                                        [1] equates to [frame0, frame1, frame2]
+                                        [0, 1, 0] equates to [frame0, frame2, frame4]
+                                        [1, 0, 0] equates to [frame0, frame1, frame4]
         """
 
         # Initialized during load().
@@ -55,7 +56,6 @@ class InterpDataSetReader:
         :param shuffle: Whether to shuffle on the tf DataSet.
         :param initializable: Whether to use an initializable or a one_shot iterator.
                               If True, init_data must be called to use the DataSet.
-        :return:
         """
         with tf.name_scope(self.tf_record_name + '_dataset_ops'):
             for i in range(len(self.inbetween_locations)):
