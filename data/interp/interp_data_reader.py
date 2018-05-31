@@ -43,7 +43,7 @@ class InterpDataSetReader:
                 raise ValueError('The number of ones for each element in inbetween_locations must be the same.')
 
     def get_tf_record_names(self):
-        return glob.glob(os.path.join(self.directory, '*' + self.tf_record_name))
+        return glob.glob(self._get_tf_record_pattern())
 
     def init_data(self, session):
         session.run(self.iterator.initializer)
@@ -60,11 +60,8 @@ class InterpDataSetReader:
         with tf.name_scope(self.tf_record_name + '_dataset_ops'):
             for i in range(len(self.inbetween_locations)):
                 inbetween_locations = self.inbetween_locations[i]
-                dataset = self._load_dataset(self.get_tf_record_names(), inbetween_locations)
-                if i == 0:
-                    self.dataset = dataset
-                else:
-                    self.dataset = self.dataset.concatenate(dataset)
+                dataset = self._load_dataset(inbetween_locations)
+                self.dataset = dataset if i == 0 else self.dataset.concatenate(dataset)
 
             if max_num_elements is not None:
                 assert max_num_elements >= 0
@@ -97,9 +94,11 @@ class InterpDataSetReader:
     def get_feed_dict_value(self):
         return self.handle
 
-    def _load_dataset(self, filenames, inbetween_locations):
+    def _get_tf_record_pattern(self):
+        return os.path.join(self.directory, '*' + self.tf_record_name)
+
+    def _load_dataset(self, inbetween_locations):
         """
-        :param filenames: List of strings.
         :param inbetween_locations: An element of self.inbetween_locations.
         :return: Tensorflow dataset object.
         """
@@ -124,8 +123,14 @@ class InterpDataSetReader:
             slice_locations = [1] + inbetween_locations + [1]
             return sliding_window_slice(shot, slice_locations)
 
-        dataset = tf.data.TFRecordDataset(filenames)
-        dataset = dataset.shuffle(buffer_size=len(filenames))
+        # Shuffle filenames.
+        # Ideas taken from: https://github.com/tensorflow/tensorflow/issues/14857
+        num_shards = len(self.get_tf_record_names())
+        dataset = tf.data.Dataset.list_files(self._get_tf_record_pattern(), shuffle=True)
+        dataset = dataset.shuffle(buffer_size=num_shards)
+        dataset = tf.data.TFRecordDataset(dataset)
+
+        # Parse sequences.
         dataset = dataset.map(_parse_function, num_parallel_calls=multiprocessing.cpu_count())
 
         # Each element in the dataset is currently a group of sequences (grouped by video shot),
