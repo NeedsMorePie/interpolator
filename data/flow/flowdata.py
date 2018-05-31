@@ -207,12 +207,12 @@ class FlowDataSet(DataSet):
                 image_a, image_b = tf_image_augmentation([image_a, image_b], config)
 
                 # Flip randomly in unison.
-                flow, images = tf_random_flip_flow(flow, [image_a, image_b])
-                image_a, image_b = images
+                #flow, images = tf_random_flip_flow(flow, [image_a, image_b])
+                #image_a, image_b = images
 
                 # Scale randomly in unison.
-                #flow, images = tf_random_scale_flow(flow, [image_a, image_b], config)
-                #image_a, image_b = images
+                flow, images = tf_random_scale_flow(flow, [image_a, image_b], config)
+                image_a, image_b = images
 
             return image_a, image_b, flow
 
