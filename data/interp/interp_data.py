@@ -3,6 +3,7 @@ import multiprocessing
 import os.path
 import random
 import numpy as np
+import json
 from data.dataset import DataSet
 from data.interp.interp_data_reader import InterpDataSetReader
 from joblib import Parallel, delayed
@@ -26,7 +27,7 @@ class InterpDataSet(DataSet):
                                     The number of 1s must be the same for each list in this argument.
         :param maximum_shot_len: Video shots larger than this value will be broken up.
         """
-        super().__init__('', batch_size, validation_size=0)
+        super().__init__(tf_record_directory, batch_size, validation_size=0)
 
         # Initialized during load().
         self.handle_placeholder = None  # Handle placeholder for switching between datasets.
@@ -67,20 +68,31 @@ class InterpDataSet(DataSet):
         """
         Processes the data in raw_directory to the tf_record_directory.
         :param raw_directory: The directory to the images to process.
-        :param minimum_validation_size: The TfRecords will be partitioned such that, if possible,
-                                         this number of validation sequences can be used for validation.
+        :param validation_size: The TfRecords will be partitioned such that, if possible,
+                                this number of validation sequences can be used for validation.
         """
         if self.verbose:
             print('Checking directory for data.')
         image_paths = self._get_data_paths(raw_directory)
         self._convert_to_tf_record(image_paths, shard_size, validation_size)
 
-    def load(self, session, maximum_validation_size=None):
+        # Keep track of the validation size, as the amount of sequences that we write may allow slightly more.
+        json_path = os.path.join(self.tf_record_directory, 'val_split.json')
+        with open(json_path, 'w') as f:
+            json_data = {'validation_size': validation_size}
+            json.dump(json_data, f)
+
+    def load(self, session):
         """
-        :param maximum_validation_size: The maximum number of validation sequences to use. The actual number
-                                         depends on how many were written with preprocess_raw.
+        Overriden.
         """
         with tf.name_scope('interp_data'):
+
+            json_path = os.path.join(self.tf_record_directory, 'val_split.json')
+            with open(json_path) as f:
+                json_data = json.load(f)
+                maximum_validation_size = json_data['validation_size']
+
             self.train_data.load(session, repeat=True, shuffle=True)
             self.validation_data.load(session, repeat=False, shuffle=False,
                                       initializable=True, max_num_elements=maximum_validation_size)
@@ -176,7 +188,7 @@ class InterpDataSet(DataSet):
         if validation_size == 0:
             return [], image_paths
 
-        # Count the number of lengths less than a certain length.
+        # Count the number of sequences that exist for a certain shot length.
         max_len = 0
         for spec in self.inbetween_locations:
             max_len = max(2 + len(spec), max_len)
