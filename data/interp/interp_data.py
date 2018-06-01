@@ -11,8 +11,6 @@ from utils.data import *
 from utils.img import read_image
 
 SHOT_LEN = 'shot_len'
-HEIGHT = 'height'
-WIDTH = 'width'
 SHOT = 'shot'
 
 
@@ -269,8 +267,6 @@ def _write_shard(shard_id, shard_range, image_paths, filename, directory, proces
             features=tf.train.Features(
                 feature={
                     SHOT_LEN: tf_int64_feature(len(shot_raw)),
-                    HEIGHT: tf_int64_feature(H),
-                    WIDTH: tf_int64_feature(W),
                     SHOT: tf_bytes_list_feature(shot_raw),
                 }))
         writer.write(example.SerializeToString())

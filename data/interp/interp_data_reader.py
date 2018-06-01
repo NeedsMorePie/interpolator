@@ -9,9 +9,7 @@ from utils.data import *
 from utils.img import read_image
 from utils.misc import sliding_window_slice
 
-SHOT_LEN = 'shot_len'
-HEIGHT = 'height'
-WIDTH = 'width'
+SHOT_LEN = 'shot_len'  # Not actually necessary.
 SHOT = 'shot'
 
 
@@ -68,15 +66,14 @@ class InterpDataSetReader:
                 self.dataset = self.dataset.take(max_num_elements)
 
             buffer_size = 30
-            if shuffle and repeat:
-                self.dataset = self.dataset.apply(tf.contrib.data.shuffle_and_repeat(buffer_size=buffer_size))
-            elif shuffle:
+            if shuffle:
                 self.dataset = self.dataset.shuffle(buffer_size=buffer_size)
-            elif repeat:
-                self.dataset = self.dataset.repeat()
 
             self.dataset = self.dataset.batch(self.batch_size)
             self.dataset = self.dataset.prefetch(buffer_size=1)
+
+            if repeat:
+                self.dataset = self.dataset.repeat()
 
             if initializable:
                 self.iterator = self.dataset.make_initializable_iterator()
@@ -105,19 +102,13 @@ class InterpDataSetReader:
         def _parse_function(example_proto):
             features = {
                 SHOT_LEN: tf.FixedLenFeature((), tf.int64, default_value=0),
-                HEIGHT: tf.FixedLenFeature((), tf.int64, default_value=0),
-                WIDTH: tf.FixedLenFeature((), tf.int64, default_value=0),
                 SHOT: tf.VarLenFeature(tf.string),
             }
             parsed_features = tf.parse_single_example(example_proto, features)
-            shot_len = tf.reshape(tf.cast(parsed_features[SHOT_LEN], tf.int32), ())
-            H = tf.reshape(tf.cast(parsed_features[HEIGHT], tf.int32), ())
-            W = tf.reshape(tf.cast(parsed_features[WIDTH], tf.int32), ())
 
             shot_bytes = tf.sparse_tensor_to_dense(parsed_features[SHOT], default_value=tf.as_string(0))
             shot = tf.map_fn(lambda bytes: tf.image.decode_image(bytes), shot_bytes, dtype=(tf.uint8))
             shot = tf.image.convert_image_dtype(shot, tf.float32)
-            shot = tf.reshape(shot, [shot_len, H, W, 3])
 
             # Decompose each shot into sequences of consecutive images.
             slice_locations = [1] + inbetween_locations + [1]

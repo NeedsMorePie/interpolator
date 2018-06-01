@@ -22,9 +22,8 @@ def main():
     model = ContextInterp()
 
     print('Creating dataset...')
-    image_directory = os.path.join(args.directory, 'JPEGImages', '480p')
-    dataset = DavisDataSet(image_directory, [[1]],
-                           batch_size=args.batch_size, validation_size=args.num_validation)
+    dataset = DavisDataSet(args.directory, [[1]],
+                           batch_size=args.batch_size)
 
     # TODO: config read from json.
     config = {
@@ -45,14 +44,11 @@ def main():
 
 def add_args(parser):
     parser.add_argument('-d', '--directory', type=str,
-                        help='Directory of the unzipped DAVIS dataset.')
+                        help='Directory of the TFRecords.')
     parser.add_argument('-v', '--validate_every', type=int, default=20,
                         help='Defines the frequency of validation.')
     parser.add_argument('-b', '--batch_size', type=int, default=8,
                         help='Size of the batch.')
-    parser.add_argument('-n', '--num_validation', type=int, default=100,
-                        help='Maximum number of data examples to use for validation.\
-                              The actual validation size may be smaller depending on what was saved.')
     parser.add_argument('-c', '--checkpoint_directory', type=str,
                         help='Directory of saved checkpoints.')
 

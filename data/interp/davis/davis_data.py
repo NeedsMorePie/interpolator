@@ -2,6 +2,8 @@ import glob
 import os.path
 from data.interp.interp_data import InterpDataSet
 from utils.img import read_image
+from PIL import Image
+from io import BytesIO
 
 
 class DavisDataSet(InterpDataSet):
@@ -17,8 +19,21 @@ class DavisDataSet(InterpDataSet):
         Overriden.
         TODO Consider cropping or downsizing the image first as they can be quite large.
         """
-        with open(filename, 'rb') as fp:
-            return fp.read()
+        # with open(filename, 'rb') as fp:
+        #     return fp.read()
+
+        # https://stackoverflow.com/questions/31826335/how-to-convert-pil-image-image-object-to-base64-string
+        buffered = BytesIO()
+        im = Image.open(filename)
+        width, height = im.size
+        crop_width, crop_height = 224, 224
+        crop_left = int(width / 2 - crop_width / 2)
+        crop_top = int(height / 2 - crop_height / 2)
+        im = im.crop((crop_left, crop_top, crop_left + crop_width, crop_top + crop_height))
+        im.save(buffered, format='JPEG')
+        bytes = buffered.getvalue()
+        buffered.close()
+        return bytes
 
     def _get_data_paths(self, raw_directory):
         """
