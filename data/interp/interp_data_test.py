@@ -7,7 +7,7 @@ import shutil
 from utils.img import show_image
 from data.interp.davis.davis_data import DavisDataSet
 
-VISUALIZE = True
+VISUALIZE = False
 
 
 class TestInterpDataSet(unittest.TestCase):

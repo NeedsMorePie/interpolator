@@ -17,10 +17,7 @@ class DavisDataSet(InterpDataSet):
     def _process_image(self, filename):
         """
         Overriden.
-        TODO Consider cropping or downsizing the image first as they can be quite large.
         """
-        # with open(filename, 'rb') as fp:
-        #     return fp.read()
 
         # https://stackoverflow.com/questions/31826335/how-to-convert-pil-image-image-object-to-base64-string
         buffered = BytesIO()
@@ -33,7 +30,7 @@ class DavisDataSet(InterpDataSet):
         im.save(buffered, format='JPEG')
         bytes = buffered.getvalue()
         buffered.close()
-        return bytes
+        return bytes, crop_height, crop_width
 
     def _get_data_paths(self, raw_directory):
         """

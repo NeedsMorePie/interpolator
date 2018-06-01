@@ -19,7 +19,7 @@ class ContextInterpTrainer(Trainer):
         self.images_c = self.next_sequence_tensor[:, 2]
 
         # Get the train network.
-        self.images_b_pred, _, _ = self.model.get_forward(self.images_a, self.images_b, 0.5,
+        self.images_b_pred, _, _ = self.model.get_forward(self.images_a, self.images_c, 0.5,
                                                                       reuse_variables=tf.AUTO_REUSE)
         self.loss = self.model.get_training_loss(self.images_b_pred, self.images_b)
 
@@ -86,13 +86,13 @@ class ContextInterpTrainer(Trainer):
 
     def _make_summaries(self):
         with tf.name_scope('summaries'):
-            # tf.summary.scalar('total_loss', self.loss)
+            tf.summary.scalar('total_loss', self.loss)
             # for i, layer_loss in enumerate(self.layer_losses):
             #     tf.summary.scalar('layer_' + str(i) + '_loss', layer_loss)
             # for i, previous_flow in enumerate(self.previous_flows):
             #     tf.summary.image('flow_' + str(i), get_tf_flow_visualization(previous_flow))
-            # tf.summary.image('image_a', self.images_a)
-            # tf.summary.image('image_b', self.images_b)
+            #tf.summary.image('image_a', self.images_a)
+            #tf.summary.image('image_b', self.images_b)
             # tf.summary.image('final_flow', get_tf_flow_visualization(self.final_flow))
             # tf.summary.image('gt_flow', get_tf_flow_visualization(self.flows))
 

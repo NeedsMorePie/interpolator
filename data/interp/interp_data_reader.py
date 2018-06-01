@@ -9,7 +9,9 @@ from utils.data import *
 from utils.img import read_image
 from utils.misc import sliding_window_slice
 
-SHOT_LEN = 'shot_len'  # Not actually necessary.
+SHOT_LEN = 'shot_len'
+WIDTH = 'width'
+HEIGHT = 'height'
 SHOT = 'shot'
 
 
@@ -103,12 +105,18 @@ class InterpDataSetReader:
             features = {
                 SHOT_LEN: tf.FixedLenFeature((), tf.int64, default_value=0),
                 SHOT: tf.VarLenFeature(tf.string),
+                HEIGHT: tf.FixedLenFeature((), tf.int64, default_value=0),
+                WIDTH: tf.FixedLenFeature((), tf.int64, default_value=0)
             }
             parsed_features = tf.parse_single_example(example_proto, features)
+            shot_len = tf.reshape(tf.cast(parsed_features[SHOT_LEN], tf.int32), ())
+            H = tf.reshape(tf.cast(parsed_features[HEIGHT], tf.int32), ())
+            W = tf.reshape(tf.cast(parsed_features[WIDTH], tf.int32), ())
 
             shot_bytes = tf.sparse_tensor_to_dense(parsed_features[SHOT], default_value=tf.as_string(0))
             shot = tf.map_fn(lambda bytes: tf.image.decode_image(bytes), shot_bytes, dtype=(tf.uint8))
             shot = tf.image.convert_image_dtype(shot, tf.float32)
+            shot = tf.reshape(shot, (shot_len, H, W, 3))
 
             # Decompose each shot into sequences of consecutive images.
             slice_locations = [1] + inbetween_locations + [1]

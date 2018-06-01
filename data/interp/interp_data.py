@@ -11,8 +11,9 @@ from utils.data import *
 from utils.img import read_image
 
 SHOT_LEN = 'shot_len'
+WIDTH = 'width'
+HEIGHT = 'height'
 SHOT = 'shot'
-
 
 class InterpDataSet(DataSet):
     def __init__(self, tf_record_directory, inbetween_locations, batch_size=1, maximum_shot_len=10):
@@ -132,8 +133,10 @@ class InterpDataSet(DataSet):
         """
         Reads from and processes the file.
         :param filename: String. Full path to the image file.
-        :return: The bytes that will be saved to the TFRecords.
-                 Must be readable with tf.image.decode_image.
+        :return: bytes: The bytes that will be saved to the TFRecords.
+                        Must be readable with tf.image.decode_image.
+                 height: Height of the processed image.
+                 width: Width of the processed image.
         """
         raise NotImplementedError
 
@@ -257,10 +260,8 @@ def _write_shard(shard_id, shard_range, image_paths, filename, directory, proces
 
         shot_raw = []
         for image_path in image_paths[i]:
-            shot_raw.append(processor_fn(image_path))
-
-        H = reference_image.shape[0]
-        W = reference_image.shape[1]
+            bytes, h, w = processor_fn(image_path)
+            shot_raw.append(bytes)
 
         # Write to tf record.
         example = tf.train.Example(
@@ -268,6 +269,8 @@ def _write_shard(shard_id, shard_range, image_paths, filename, directory, proces
                 feature={
                     SHOT_LEN: tf_int64_feature(len(shot_raw)),
                     SHOT: tf_bytes_list_feature(shot_raw),
+                    HEIGHT: tf_int64_feature(h),
+                    WIDTH: tf_int64_feature(w)
                 }))
         writer.write(example.SerializeToString())
     writer.close()
