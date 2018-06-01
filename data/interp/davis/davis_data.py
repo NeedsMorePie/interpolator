@@ -6,13 +6,21 @@ from utils.img import read_image
 
 class DavisDataSet(InterpDataSet):
 
-    def __init__(self, directory, inbetween_locations, batch_size=1, validation_size=0):
+    def __init__(self, directory, inbetween_locations, batch_size=1, maximum_shot_len=10):
         """
         See InterpDataSet.
         """
-        super().__init__(directory, inbetween_locations, batch_size=batch_size, validation_size=validation_size)
+        super().__init__(directory, inbetween_locations, batch_size=batch_size, maximum_shot_len=maximum_shot_len)
 
-    def _get_data_paths(self):
+    def _process_image(self, filename):
+        """
+        Overriden.
+        TODO Consider cropping or downsizing the image first as they can be quite large.
+        """
+        with open(filename, 'rb') as fp:
+            return fp.read()
+
+    def _get_data_paths(self, raw_directory):
         """
         Overriden.
         Gets the paths of images from a directory that is organized with each video shot in its own folder.
@@ -21,8 +29,8 @@ class DavisDataSet(InterpDataSet):
         """
         image_names = []
         extensions = ['*.jpg']
-        for item in os.listdir(self.directory):
-            path = os.path.join(self.directory, item)
+        for item in os.listdir(raw_directory):
+            path = os.path.join(raw_directory, item)
             if os.path.isdir(path):
                 cur_names = []
                 for ext in extensions:

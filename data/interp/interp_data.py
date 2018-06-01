@@ -3,6 +3,7 @@ import multiprocessing
 import os.path
 import random
 import numpy as np
+import json
 from data.dataset import DataSet
 from data.interp.interp_data_reader import InterpDataSetReader
 from joblib import Parallel, delayed
@@ -16,7 +17,7 @@ SHOT = 'shot'
 
 
 class InterpDataSet(DataSet):
-    def __init__(self, directory, inbetween_locations, batch_size=1, validation_size=0):
+    def __init__(self, tf_record_directory, inbetween_locations, batch_size=1, maximum_shot_len=10):
         """
         :param inbetween_locations: A list of lists. Each element specifies where inbetweens will be placed,
                                     and each configuration will appear with uniform probability.
@@ -24,24 +25,24 @@ class InterpDataSet(DataSet):
                                     With this, dataset elements will be sequences of 3 ordered frames,
                                     where the middle (inbetween) frame is 2 frames away from the first and last frames.
                                     The number of 1s must be the same for each list in this argument.
+        :param maximum_shot_len: Video shots larger than this value will be broken up.
         """
-        super().__init__(directory, batch_size, validation_size=validation_size)
+        super().__init__(tf_record_directory, batch_size, validation_size=0)
 
         # Initialized during load().
         self.handle_placeholder = None  # Handle placeholder for switching between datasets.
         self.next_sequences = None  # Data iterator batch.
         self.next_sequence_timing = None  # Data iterator batch.
 
-        out_dir = os.path.join(directory, '..', 'tfrecords')
-        self.tf_record_directory = out_dir
+        self.tf_record_directory = tf_record_directory
+        self.maximum_shot_len = maximum_shot_len
         self.inbetween_locations = inbetween_locations
         self.train_tf_record_name = 'interp_dataset_train.tfrecords'
         self.validation_tf_record_name = 'interp_dataset_validation.tfrecords'
-        self.train_data = InterpDataSetReader(out_dir, inbetween_locations,
+        self.train_data = InterpDataSetReader(self.tf_record_directory, inbetween_locations,
                                               self.train_tf_record_name, batch_size=batch_size)
-        self.validation_data = InterpDataSetReader(out_dir, inbetween_locations,
-                                                   self.validation_tf_record_name, batch_size=batch_size,
-                                                   max_num_elements=self.validation_size)
+        self.validation_data = InterpDataSetReader(self.tf_record_directory, inbetween_locations,
+                                                   self.validation_tf_record_name, batch_size=batch_size)
     def get_tf_record_dir(self):
         return self.tf_record_directory
 
@@ -63,22 +64,38 @@ class InterpDataSet(DataSet):
         """
         return self.validation_data.get_tf_record_names()
 
-    def preprocess_raw(self, shard_size):
+    def preprocess_raw(self, raw_directory, shard_size, validation_size=0):
         """
-        Overridden.
+        Processes the data in raw_directory to the tf_record_directory.
+        :param raw_directory: The directory to the images to process.
+        :param validation_size: The TfRecords will be partitioned such that, if possible,
+                                this number of validation sequences can be used for validation.
         """
         if self.verbose:
             print('Checking directory for data.')
-        image_paths = self._get_data_paths()
-        self._convert_to_tf_record(image_paths, shard_size)
+        image_paths = self._get_data_paths(raw_directory)
+        self._convert_to_tf_record(image_paths, shard_size, validation_size)
 
-    def load(self, session, repeat=False, shuffle=False):
+        # Keep track of the validation size, as the amount of sequences that we write may allow slightly more.
+        json_path = os.path.join(self.tf_record_directory, 'val_split.json')
+        with open(json_path, 'w') as f:
+            json_data = {'validation_size': validation_size}
+            json.dump(json_data, f)
+
+    def load(self, session):
         """
-        Overridden.
+        Overriden.
         """
         with tf.name_scope('interp_data'):
+
+            json_path = os.path.join(self.tf_record_directory, 'val_split.json')
+            with open(json_path) as f:
+                json_data = json.load(f)
+                maximum_validation_size = json_data['validation_size']
+
             self.train_data.load(session, repeat=True, shuffle=True)
-            self.validation_data.load(session, repeat=False, shuffle=False, initializable=True)
+            self.validation_data.load(session, repeat=False, shuffle=False,
+                                      initializable=True, max_num_elements=maximum_validation_size)
 
             self.handle_placeholder = tf.placeholder(tf.string, shape=[])
             self.iterator = tf.data.Iterator.from_string_handle(
@@ -106,13 +123,23 @@ class InterpDataSet(DataSet):
         """
         self.validation_data.init_data(session)
 
-    def _get_data_paths(self):
+    def _get_data_paths(self, raw_directory):
         """
+        :param raw_directory: The directory to the images to process.
         :return: List of list of image names, where image_paths[0][0] is the first image in the first video shot.
         """
         raise NotImplementedError
 
-    def _convert_to_tf_record(self, image_paths, shard_size):
+    def _process_image(self, filename):
+        """
+        Reads from and processes the file.
+        :param filename: String. Full path to the image file.
+        :return: The bytes that will be saved to the TFRecords.
+                 Must be readable with tf.image.decode_image.
+        """
+        raise NotImplementedError
+
+    def _convert_to_tf_record(self, image_paths, shard_size, validation_size):
         """
         :param image_paths: List of list of image names,
                             where image_paths[0][0] is the first image in the first video shot.
@@ -130,27 +157,47 @@ class InterpDataSet(DataSet):
             sharded_iter_ranges = create_shard_ranges(iter_range, shard_size)
 
             Parallel(n_jobs=multiprocessing.cpu_count(), backend="threading")(
-                delayed(_write_shard)(shard_id, shard_range, image_paths,
-                                      filename, self.tf_record_directory, self.verbose)
+                delayed(_write_shard)(shard_id, shard_range, image_paths, filename,
+                                      self.tf_record_directory, self._process_image, self.verbose)
                 for shard_id, shard_range in enumerate(sharded_iter_ranges)
             )
 
-        val_paths, train_paths = self._split_for_validation(image_paths)
+        image_paths = self._enforce_maximum_shot_len(image_paths)
+        val_paths, train_paths = self._split_for_validation(image_paths, validation_size)
         image_paths = val_paths + train_paths
         train_start_idx = len(val_paths)
         _write(self.validation_tf_record_name, range(0, train_start_idx), image_paths)
         _write(self.train_tf_record_name, range(train_start_idx, len(image_paths)), image_paths)
 
-    def _split_for_validation(self, image_paths):
+    def _enforce_maximum_shot_len(self, image_paths):
         """
         :param image_paths: List of list of image names,
                             where image_paths[0][0] is the first image in the first video shot.
+        :return: List in the same format as image_paths,
+                 where len(return_value)[i] for all i <= self.maximum_shot_len.
+        """
+        cur_len = len(image_paths)
+        i = 0
+        while i < cur_len:
+            if len(image_paths[i]) > self.maximum_shot_len:
+                part_1 = image_paths[i][:self.maximum_shot_len]
+                part_2 = image_paths[i][self.maximum_shot_len:]
+                image_paths = image_paths[:i] + [part_1] + [part_2] + image_paths[i+1:]
+                cur_len += 1
+            i += 1
+        return image_paths
+
+    def _split_for_validation(self, image_paths, validation_size):
+        """
+        :param image_paths: List of list of image names,
+                            where image_paths[0][0] is the first image in the first video shot.
+        :param validation_size: The split will guarantee that at there will be at least this many validation elements.
         :return: (validation_image_paths, train_image_paths), where both have the same structure as image_paths.
         """
-        if self.validation_size == 0:
+        if validation_size == 0:
             return [], image_paths
 
-        # Count the number of lengths less than a certain length.
+        # Count the number of sequences that exist for a certain shot length.
         max_len = 0
         for spec in self.inbetween_locations:
             max_len = max(2 + len(spec), max_len)
@@ -168,10 +215,10 @@ class InterpDataSet(DataSet):
         for i in range(len(image_paths)):
             for j in range(len(image_paths[i])):
                 cur_samples += a[min(j + 1, len(a) - 1)]
-                if cur_samples >= self.validation_size:
+                if cur_samples >= validation_size:
                     split_indices = (i, j)
                     break
-            if cur_samples >= self.validation_size:
+            if cur_samples >= validation_size:
                 break
 
         i, j = split_indices
@@ -188,13 +235,14 @@ class InterpDataSet(DataSet):
         return val_split, train_split
 
 
-def _write_shard(shard_id, shard_range, image_paths, filename, directory, verbose):
+def _write_shard(shard_id, shard_range, image_paths, filename, directory, processor_fn, verbose):
     """
     :param shard_id: Index of the shard.
     :param shard_range: Iteration range of the shard.
     :param image_paths: List of list of image names.
     :param filename: Base name of the output shard.
     :param directory: Output directory.
+    :param processor_fn: Function to read and process from filename with before saving to TFRecords.
     :return: Nothing.
     """
     if verbose and len(shard_range) > 0:
@@ -211,8 +259,7 @@ def _write_shard(shard_id, shard_range, image_paths, filename, directory, verbos
 
         shot_raw = []
         for image_path in image_paths[i]:
-            with open(image_path, 'rb') as fp:
-                shot_raw.append(fp.read())
+            shot_raw.append(processor_fn(image_path))
 
         H = reference_image.shape[0]
         W = reference_image.shape[1]
