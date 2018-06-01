@@ -87,14 +87,10 @@ class ContextInterpTrainer(Trainer):
     def _make_summaries(self):
         with tf.name_scope('summaries'):
             tf.summary.scalar('total_loss', self.loss)
-            # for i, layer_loss in enumerate(self.layer_losses):
-            #     tf.summary.scalar('layer_' + str(i) + '_loss', layer_loss)
-            # for i, previous_flow in enumerate(self.previous_flows):
-            #     tf.summary.image('flow_' + str(i), get_tf_flow_visualization(previous_flow))
-            #tf.summary.image('image_a', self.images_a)
-            #tf.summary.image('image_b', self.images_b)
-            # tf.summary.image('final_flow', get_tf_flow_visualization(self.final_flow))
-            # tf.summary.image('gt_flow', get_tf_flow_visualization(self.flows))
+            tf.summary.image('image_a', self.images_a)
+            tf.summary.image('image_b', self.images_b)
+            tf.summary.image('image_c', self.images_c)
+            tf.summary.image('image_b_pred', self.images_b_pred)
 
             self.merged_summ = tf.summary.merge_all()
             self.train_writer = tf.summary.FileWriter(os.path.join(self.config['checkpoint_directory'], 'train'),

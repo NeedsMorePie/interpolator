@@ -41,7 +41,7 @@ class ContextInterp:
             features_b = tf.concat([image_b, image_b_contexts], axis=-1)
 
             # Warp images and their contexts from a->b and from b->a.
-            # @TODO Forward warp needs to be added. Currently no warp is applied.
+            # TODO Forward warp needs to be added. Currently no warp is applied.
             warped_a_b = features_a
             warped_b_a = features_b
 
@@ -61,10 +61,10 @@ class ContextInterp:
     def _get_feature_loss(self, prediction, expected):
         prediction_features = self.feature_extractor.get_perceptual_features(prediction)
         expected_features = self.feature_extractor.get_perceptual_features(expected)
-        return tf.reduce_sum(tf.squared_difference(prediction_features, expected_features))
+        return tf.reduce_mean(tf.squared_difference(prediction_features, expected_features))
 
     def _get_l1_loss(self, prediction, expected):
-        return tf.reduce_sum(tf.abs(prediction - expected))
+        return tf.reduce_mean(tf.abs(prediction - expected))
 
     def _get_laplacian_loss(self, prediction):
         raise NotImplementedError
