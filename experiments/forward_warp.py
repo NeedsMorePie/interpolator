@@ -29,3 +29,12 @@ def get_translated_pixels(features, translations):
              values: Tensor of shape [batch_size, num_indices, C]. The values to put at the corresponding indices.
     """
 
+    # Splat to top-left.
+
+    # Splat to top-right.
+
+    # Splat to bottom-right.
+
+    # Splat to bottom-left.
+
+

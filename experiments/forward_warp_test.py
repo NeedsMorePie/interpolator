@@ -36,14 +36,26 @@ class TestForwardWarp(unittest.TestCase):
         ]
 
         # Indices are in (y, x) order.
-        # As the pixels are splatted on at exact integer coordinates, there are only 4 resulting targets.
+        # As the pixels are splatted on at exact integer coordinates, there will be duplicates.
         expected_indices = [
-            [0, 1], [0, 1], [1, 1], [1, 1]
+            [0, 1], [0, 1], [0, 1], [0, 1],
+            [0, 1], [0, 1], [0, 1], [0, 1],
+            [1, 1], [1, 1], [1, 1], [1, 1],
+            [1, 1], [1, 1], [1, 1], [1, 1],
         ]
 
+        # We expect the duplicates to not splat anything.
         expected_values = [
-            [1, 0], [0, 0], [0, 1], [0, 0]
+            [1, 0], [0, 0], [0, 0], [0, 0]
+            [0, 0], [0, 0], [0, 0], [0, 0]
+            [0, 1], [0, 0], [0, 0], [0, 0]
+            [0, 0], [0, 0], [0, 0], [0, 0]
         ]
+
+        # Sort the expected outputs.
+        flattened_indices = [index[0] * width + index[1] for index in expected_indices]
+        _, sorted = sort_in_unison(flattened_indices, [expected_indices, expected_values])
+        expected_indices, expected_values = sorted
 
         features_tensor = tf.placeholder(tf.float32, shape=[1, height, width, 2])
         flow_tensor = tf.placeholder(tf.float32, shape=[1, height, width, 2])
@@ -52,6 +64,7 @@ class TestForwardWarp(unittest.TestCase):
         query = [indices_tensor, values_tensor]
         indices, values = self.sess.run(query, feed_dict={features_tensor: features, flow_tensor: flow})
 
+        # Sort the predictions.
         flattened_indices = [index[0] * width + index[1] for index in indices]
         _, sorted = sort_in_unison(flattened_indices, [indices, values])
         indices, values = sorted
@@ -75,14 +88,30 @@ class TestForwardWarp(unittest.TestCase):
         ]
 
         # Indices are in (y, x) order.
-        # As the pixels are splatted on at exact integer coordinates, there are only 4 resulting targets.
+        # As the pixels are splatted on at exact integer coordinates, there will be duplicates.
         expected_indices = [
-            [0, 1], [0, 1], [1, 2], [1, 1], [1, 1], [1, 2]
+            [0, 1], [0, 1], [0, 1], [0, 1],
+            [0, 1], [0, 1], [0, 1], [0, 1],
+            [1, 2], [1, 2], [1, 2], [1, 2],
+            [1, 1], [1, 1], [1, 1], [1, 1],
+            [1, 1], [1, 1], [1, 1], [1, 1],
+            [1, 2], [1, 2], [1, 2], [1, 2]
         ]
 
+        # We expect the duplicates to not splat anything.
         expected_values = [
-            [1, 0], [0, 0], [-1, 0], [0, 1], [0, 0], [-1, 0]
+            [1, 0], [0, 0], [0, 0], [0, 0],
+            [0, 0], [0, 0], [0, 0], [0, 0],
+            [-1, 0], [0, 0], [0, 0], [0, 0],
+            [0, 1], [0, 0], [0, 0], [0, 0],
+            [0, 0], [0, 0], [0, 0], [0, 0],
+            [-1, 0], [0, 0], [0, 0], [0, 0]
         ]
+
+        # Sort the expected outputs.
+        flattened_indices = [index[0] * width + index[1] for index in expected_indices]
+        _, sorted = sort_in_unison(flattened_indices, [expected_indices, expected_values])
+        expected_indices, expected_values = sorted
 
         features_tensor = tf.placeholder(tf.float32, shape=[1, height, width, 2])
         flow_tensor = tf.placeholder(tf.float32, shape=[1, height, width, 2])
@@ -91,6 +120,7 @@ class TestForwardWarp(unittest.TestCase):
         query = [indices_tensor, values_tensor]
         indices, values = self.sess.run(query, feed_dict={features_tensor: features, flow_tensor: flow})
 
+        # Sort the predictions.
         flattened_indices = [index[0] * width + index[1] for index in indices]
         _, sorted = sort_in_unison(flattened_indices, [indices, values])
         indices, values = sorted
