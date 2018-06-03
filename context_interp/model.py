@@ -9,7 +9,7 @@ from pwcnet.model import PWCNet
 
 class ContextInterp:
     def __init__(self, name='context_interp'):
-        # @TODO Think of what arguments to have ...
+        # TODO Think of what arguments to have ...
 
         self.name = name
         self.pwcnet = PWCNet()
@@ -56,7 +56,7 @@ class ContextInterp:
         :param expected: Tensor of shape [batch, H, W, num_features]. Ground truth image.
         :return: Tf scalar loss term.
         """
-        return self._get_feature_loss(prediction, expected)
+        return self._get_l1_loss(prediction, expected)
 
     def _get_feature_loss(self, prediction, expected):
         prediction_features = self.feature_extractor.get_perceptual_features(prediction)
@@ -66,6 +66,6 @@ class ContextInterp:
     def _get_l1_loss(self, prediction, expected):
         return tf.reduce_mean(tf.abs(prediction - expected))
 
-    def _get_laplacian_loss(self, prediction):
+    def _get_laplacian_loss(self, prediction, expected):
         raise NotImplementedError
 

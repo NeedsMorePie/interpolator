@@ -43,7 +43,8 @@ class ContextInterpTrainer(Trainer):
         """
         if tf.train.latest_checkpoint(self.config['checkpoint_directory']) is not None:
             print('Restoring checkpoint...')
-            self.saver.restore(self.session, os.path.join(self.config['checkpoint_directory'], 'model.ckpt'))
+            checkpoint_file = tf.train.latest_checkpoint(self.config['checkpoint_directory'])
+            self.saver.restore(self.session, os.path.join(self.config['checkpoint_directory'], checkpoint_file))
 
     def train_for(self, iterations):
         """
@@ -86,11 +87,16 @@ class ContextInterpTrainer(Trainer):
 
     def _make_summaries(self):
         with tf.name_scope('summaries'):
+
+            # Get overlays.
+            weight = 0.60
+            self.image_overlays = self.images_a * weight + self.images_c * (1 - weight)
+
+            max_outputs = 1
             tf.summary.scalar('total_loss', self.loss)
-            tf.summary.image('image_a', self.images_a)
-            tf.summary.image('image_b', self.images_b)
-            tf.summary.image('image_c', self.images_c)
-            tf.summary.image('image_b_pred', self.images_b_pred)
+            tf.summary.image('overlay', self.image_overlays, max_outputs=max_outputs)
+            tf.summary.image('inbetween_gt', self.images_b, max_outputs=max_outputs)
+            tf.summary.image('inbetween_pred', self.images_b_pred, max_outputs=max_outputs)
 
             self.merged_summ = tf.summary.merge_all()
             self.train_writer = tf.summary.FileWriter(os.path.join(self.config['checkpoint_directory'], 'train'),
