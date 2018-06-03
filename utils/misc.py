@@ -9,8 +9,8 @@ def sort_in_unison(key_list, lists):
     :param lists: A list of lists, each of which will be sorted in unison with key_list.
     :return: (sorted_key_list, sorted_lists)
     """
-    indexes = range(len(key_list))
-    indexes.sort(key=key_list.__get_item__)
+    indexes = [*range(len(key_list))]
+    indexes.sort(key=key_list.__getitem__)
     sorted_lists = []
     sorted_key_list = [key_list[indexes[i]] for i in range(len(key_list))]
     for list in lists:

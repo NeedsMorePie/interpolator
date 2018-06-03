@@ -4,7 +4,7 @@ from utils.flow import read_flow_file
 from utils.img import read_image, show_image
 from utils.misc import sort_in_unison
 from experiments.forward_warp_np import forward_warp_np
-from experiments.forward_warp import forward_warp, get_pushed_pixels
+from experiments.forward_warp import forward_warp, get_translated_pixels
 import matplotlib.image as mpimg
 import numpy as np
 import tensorflow as tf
@@ -23,110 +23,102 @@ class TestForwardWarp(unittest.TestCase):
     def test_push_pixels_whole_1(self):
         height = 2
         width = 2
-        features = [
+        features = [[
             [[1, 0], [0, 0]],
             [[0, 1], [0, 0]]
-        ]
+        ]]
 
-        # Flow is in (x, y) order.
-        # Flows first column to second column.
-        flow = [
-            [[1, 0], [0, 0]],
-            [[1, 0], [0, 0]]
-        ]
+        # Translation is in (y, x) order.
+        # Translates first column to second column.
+        translations = [[
+            [[0, 1], [0, 0]],
+            [[0, 1], [0, 0]]
+        ]]
 
         # Indices are in (y, x) order.
         # As the pixels are splatted on at exact integer coordinates, there will be duplicates.
-        expected_indices = [
+        expected_indices = [[
             [0, 1], [0, 1], [0, 1], [0, 1],
             [0, 1], [0, 1], [0, 1], [0, 1],
             [1, 1], [1, 1], [1, 1], [1, 1],
             [1, 1], [1, 1], [1, 1], [1, 1],
-        ]
+        ]]
 
         # We expect the duplicates to not splat anything.
-        expected_values = [
-            [1, 0], [0, 0], [0, 0], [0, 0]
+        expected_values = [[
+            [1, 0], [0, 0], [0, 0], [0, 0],
+            [0, 0], [0, 0], [0, 0], [0, 0],
+            [0, 1], [0, 0], [0, 0], [0, 0],
             [0, 0], [0, 0], [0, 0], [0, 0]
-            [0, 1], [0, 0], [0, 0], [0, 0]
-            [0, 0], [0, 0], [0, 0], [0, 0]
-        ]
+        ]]
 
-        # Sort the expected outputs.
-        flattened_indices = [index[0] * width + index[1] for index in expected_indices]
-        _, sorted = sort_in_unison(flattened_indices, [expected_indices, expected_values])
-        expected_indices, expected_values = sorted
+        expected_indices, expected_values = np.squeeze(expected_indices), np.squeeze(expected_values)
+        expected = np.stack([expected_indices, expected_values], axis=-1).tolist()
 
         features_tensor = tf.placeholder(tf.float32, shape=[1, height, width, 2])
-        flow_tensor = tf.placeholder(tf.float32, shape=[1, height, width, 2])
-        indices_tensor, values_tensor = get_pushed_pixels(features_tensor, flow_tensor, 1.0)
+        translations_tensor = tf.placeholder(tf.float32, shape=[1, height, width, 2])
+        indices_tensor, values_tensor = get_translated_pixels(features_tensor, translations_tensor)
 
         query = [indices_tensor, values_tensor]
-        indices, values = self.sess.run(query, feed_dict={features_tensor: features, flow_tensor: flow})
+        indices, values = self.sess.run(query, feed_dict={features_tensor: features, 
+                                                          translations_tensor: translations})
 
-        # Sort the predictions.
-        flattened_indices = [index[0] * width + index[1] for index in indices]
-        _, sorted = sort_in_unison(flattened_indices, [indices, values])
-        indices, values = sorted
-
-        self.assertListEqual(indices.tolist(), expected_indices)
-        self.assertListEqual(values.tolist(), expected_values)
+        indices, values = indices.tolist(), values.tolist()
+        indices, values = np.squeeze(indices), np.squeeze(values)
+        predicted = np.stack([indices, values], axis=-1).tolist()
+        self.assertCountEqual(expected, predicted)
 
     def test_push_pixels_whole_2(self):
         height = 2
         width = 3
-        features = [
+        features = [[
             [[1, 0], [0, 0], [-1, 0]],
             [[0, 1], [0, 0], [-1, 0]]
-        ]
+        ]]
 
-        # Flow is in (x, y) order.
-        # Flows first column to second column.
-        flow = [
-            [[1, 0], [0, 0], [0, 1]],
-            [[1, 0], [0, 0], [0, 0]]
-        ]
+        # Translation is in (y, x) order.
+        # Translates first column to second column.
+        translations = [[
+            [[0, 1], [0, 0], [1, 0]],
+            [[0, 1], [0, 0], [0, 0]]
+        ]]
 
         # Indices are in (y, x) order.
         # As the pixels are splatted on at exact integer coordinates, there will be duplicates.
-        expected_indices = [
+        expected_indices = [[
             [0, 1], [0, 1], [0, 1], [0, 1],
             [0, 1], [0, 1], [0, 1], [0, 1],
             [1, 2], [1, 2], [1, 2], [1, 2],
             [1, 1], [1, 1], [1, 1], [1, 1],
             [1, 1], [1, 1], [1, 1], [1, 1],
             [1, 2], [1, 2], [1, 2], [1, 2]
-        ]
+        ]]
 
         # We expect the duplicates to not splat anything.
-        expected_values = [
+        expected_values = [[
             [1, 0], [0, 0], [0, 0], [0, 0],
             [0, 0], [0, 0], [0, 0], [0, 0],
             [-1, 0], [0, 0], [0, 0], [0, 0],
             [0, 1], [0, 0], [0, 0], [0, 0],
             [0, 0], [0, 0], [0, 0], [0, 0],
             [-1, 0], [0, 0], [0, 0], [0, 0]
-        ]
+        ]]
 
-        # Sort the expected outputs.
-        flattened_indices = [index[0] * width + index[1] for index in expected_indices]
-        _, sorted = sort_in_unison(flattened_indices, [expected_indices, expected_values])
-        expected_indices, expected_values = sorted
+        expected_indices, expected_values = np.squeeze(expected_indices), np.squeeze(expected_values)
+        expected = np.stack([expected_indices, expected_values], axis=-1).tolist()
 
         features_tensor = tf.placeholder(tf.float32, shape=[1, height, width, 2])
-        flow_tensor = tf.placeholder(tf.float32, shape=[1, height, width, 2])
-        indices_tensor, values_tensor = get_pushed_pixels(features_tensor, flow_tensor, 1.0)
+        translations_tensor = tf.placeholder(tf.float32, shape=[1, height, width, 2])
+        indices_tensor, values_tensor = get_translated_pixels(features_tensor, translations_tensor)
 
         query = [indices_tensor, values_tensor]
-        indices, values = self.sess.run(query, feed_dict={features_tensor: features, flow_tensor: flow})
+        indices, values = self.sess.run(query, feed_dict={features_tensor: features,
+                                                          translations_tensor: translations})
 
-        # Sort the predictions.
-        flattened_indices = [index[0] * width + index[1] for index in indices]
-        _, sorted = sort_in_unison(flattened_indices, [indices, values])
-        indices, values = sorted
-
-        self.assertListEqual(indices.tolist(), expected_indices)
-        self.assertListEqual(values.tolist(), expected_values)
+        indices, values = indices.tolist(), values.tolist()
+        indices, values = np.squeeze(indices), np.squeeze(values)
+        predicted = np.stack([indices, values], axis=-1).tolist()
+        self.assertCountEqual(expected, predicted)
 
 
     def test_visualization(self):
