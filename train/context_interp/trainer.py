@@ -3,6 +3,7 @@ import tensorflow as tf
 from data.interp.interp_data import InterpDataSet
 from context_interp.model import ContextInterp
 from train.trainer import Trainer
+from utils.misc import print_progress_bar
 
 
 class ContextInterpTrainer(Trainer):
@@ -44,7 +45,7 @@ class ContextInterpTrainer(Trainer):
         if tf.train.latest_checkpoint(self.config['checkpoint_directory']) is not None:
             print('Restoring checkpoint...')
             checkpoint_file = tf.train.latest_checkpoint(self.config['checkpoint_directory'])
-            self.saver.restore(self.session, os.path.join(self.config['checkpoint_directory'], checkpoint_file))
+            self.saver.restore(self.session, checkpoint_file)
 
     def train_for(self, iterations):
         """
@@ -63,6 +64,7 @@ class ContextInterpTrainer(Trainer):
                 self.train_writer.add_summary(summ, global_step=global_step)
             else:
                 loss, _ = self.session.run([self.loss, self.train_op], feed_dict=self.dataset.get_train_feed_dict())
+            print_progress_bar(i + 1, iterations, prefix='Train Steps', suffix='Complete', use_percentage=False)
 
         print('Saving model checkpoint...')
         save_path = self.saver.save(self.session, os.path.join(self.config['checkpoint_directory'], 'model.ckpt'),

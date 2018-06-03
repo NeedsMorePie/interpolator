@@ -77,3 +77,31 @@ def sliding_window_slice(x, slice_locations):
         false_fn=lambda: get_zeros(sequence_len, x)
     )
     return slices
+
+
+# Initially copied from https://stackoverflow.com/questions/3173320/text-progress-bar-in-the-console
+def print_progress_bar(iteration, total, prefix= '', suffix='', decimals=1, length=100, fill='█', use_percentage=True):
+    """
+    Call in a loop to create terminal progress bar.
+    :param iteration: Current iteration (Int)
+    :param total: Total iterations (Int)
+    :param prefix: Prefix string (Str)
+    :param suffix: Suffix string (Str)
+    :param decimals: Positive number of decimals in percent complete (Int)
+    :param length: Character length of bar (Int)
+    :param fill: Bar fill character (Str)
+    :param use_percentage: Whether to print percentage, or 'iter of total'.
+    """
+    filled_length = int(length * iteration // total)
+    bar = fill * filled_length + '-' * (length - filled_length)
+
+    if use_percentage:
+        percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+        print('\r%s |%s| %s%% %s' % (prefix, bar, percent, suffix), end='\r')
+    else:
+        ratio = '%d of %d' % (iteration, total)
+        print('\r%s |%s| %s %s' % (prefix, bar, ratio, suffix), end='\r')
+
+    # Print New Line on Complete
+    if iteration == total:
+        print()
