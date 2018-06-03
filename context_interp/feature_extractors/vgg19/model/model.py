@@ -189,7 +189,7 @@ class Vgg19:
 
         return var
 
-    def save_npy(self, sess, npy_path="./vgg19-save.npy"):
+    def save_npy(self, sess, npy_path="vgg19-save.npy"):
         """
         This will save the model's variables in a .npy file, defined by the most recent get_forward.
         :param sess: tf Session.

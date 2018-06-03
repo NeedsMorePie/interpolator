@@ -28,8 +28,8 @@ cur_dir = os.path.dirname(os.path.realpath(__file__))
 # if args.data_path == "":
 #     parser.error('--data-path argument must be provided.')
 
-data_path = cur_dir + '/vgg19.npy'
-output_path = cur_dir + '/vgg19_conv4_4.npy'
+data_path = os.path.join(cur_dir, 'vgg19.npy')
+output_path = os.path.join(cur_dir, 'vgg19_conv4_4.npy')
 config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
 sess = tf.Session(config=config)

@@ -54,7 +54,8 @@ class TestVgg19Features(unittest.TestCase):
 
         # Load image.
         cur_dir = os.path.dirname(os.path.realpath(__file__))
-        img = read_image(cur_dir + '/../test_data/hamid.jpg', as_float=True)
+        img_path = os.path.join(cur_dir, '..', 'test_data', 'hamid.jpg')
+        img = read_image(img_path, as_float=True)
 
         height = img.shape[0]
         width = img.shape[1]
