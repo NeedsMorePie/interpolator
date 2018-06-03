@@ -3,7 +3,7 @@ import tensorflow as tf
 
 def forward_warp(features, flow, t, max_image_area=1280*720):
     """
-    See section 3 in https://arxiv.org/pdf/1711.05890.pdf.
+    For an algorithm that gives the same end result, see section 3 in https://arxiv.org/pdf/1711.05890.pdf.
     Note that the actual implementation here is not n^2, and should be linear in GPU memory.
     :param features: A Tensor. Features to be warped, of shape [batch_size, H, W, C].
     :param flow: A Tensor. Un-normalized flow in image pixel units, of shape [batch_size, H, W, 2].
@@ -21,9 +21,11 @@ def forward_warp(features, flow, t, max_image_area=1280*720):
     # Scatter into output.
 
 
-def get_pushed_pixels(features):
+def get_translated_pixels(features, translations):
     """
     :param features: A Tensor. Of shape [batch_size, H, W, C].
-    :return:
+    :param translations: A Tensor. Translations in image pixel units, of shape [batch_size, H, W, 2].
+    :return: indices: Tensor of shape [batch_size, num_indices, 2]. The indices to target.
+             values: Tensor of shape [batch_size, num_indices, C]. The values to put at the corresponding indices.
     """
 
