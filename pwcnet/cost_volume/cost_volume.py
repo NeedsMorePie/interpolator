@@ -11,16 +11,13 @@ def cost_volume(c1, c2, search_range=4):
     :param c1: Tensor. Feature map of shape [batch_size, H, W, num_features].
     :param c2: Input tensor with the exact same shape as c1.
     :param search_range: The search square's side length is equal to 2 * search_range + 1.
-    :return: A tensor with shape (batch, height, width, s * s), where s is equal to search_range.
+    :return: Cost volume tensor, of shape [batch_size, H, W, s * s], where s is equal to 2 * search_range + 1.
     """
     with tf.name_scope('cost_volume'):
         square_len = 2 * search_range + 1
-
-        # cv is cost volume, not OpenCV.
         square_area = square_len ** 2
         cv_shape = tf.shape(c1)[:-1]
         cv_shape = tf.concat([cv_shape, [square_area]], axis=0)
-        cv = tf.zeros(cv_shape)
 
         # Form an index matrix to help us update sparsely later on.
         cv_height, cv_width = cv_shape[1], cv_shape[2]
