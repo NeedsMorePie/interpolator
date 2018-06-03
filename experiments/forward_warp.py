@@ -1,36 +1,29 @@
-import numpy as np
-import cv2
-from utils.flow import read_flow_file, show_flow_image
-from utils.img import read_image, show_image
+import tensorflow as tf
 
 
-def forward_warp(image, flow, t):
+def forward_warp(features, flow, t, max_image_area=1280*720):
     """
-    See section 3 in https://arxiv.org/pdf/1711.05890.pdf
-    :param image: Image to be warped, of shape [H, W, channels].
-    :param flow: Un-normalized flow (in image pixel units), of shape [H, W, 2].
+    See section 3 in https://arxiv.org/pdf/1711.05890.pdf.
+    Note that the actual implementation here is not n^2, and should be linear in GPU memory.
+    :param features: A Tensor. Features to be warped, of shape [batch_size, H, W, C].
+    :param flow: A Tensor. Un-normalized flow in image pixel units, of shape [batch_size, H, W, 2].
     :param t: Float that specifies interpolation degree. 0 for not flowed, 1 for flow at full optical flow length.
+    :param max_image_area: The maximum value for width * height of the input features. It is ok to specify a value
+                           larger than the actual area (at the expense of performance), but it cannot be any less.
     """
-    height, width, channels = image.shape
-    warped = np.zeros(image.shape)
-    for y in range(height):
-        for x in range(width):
-            for c in range(channels):
-                v = t * flow[y][x]
-                l = np.array([v[1], v[0]]) + np.array([y, x])
 
-                # Inverse bi-linear interpolation.
-                top_left = [np.floor(l[0]), np.floor(l[1])]
-                top_right = [np.floor(l[0]), np.ceil(l[1])]
-                bot_right = [np.ceil(l[0]), np.ceil(l[1])]
-                bot_left = [np.ceil(l[0]), np.floor(l[1])]
-                locations = [top_left, top_right, bot_right, bot_left]
-                for location in locations:
-                    if location[0] < 0 or location[0] >= height or location[1] < 0 or location[1] >= width:
-                        continue
+    # Get target indices along with corresponding values to add.
 
-                    weight = (1.0 - np.abs(l[0] - location[0])) * (1.0 - np.abs(l[1] - location[1]))
-                    location = np.array(location).astype(np.int32)
-                    warped[location[0]][location[1]][c] += weight * image[y][x][c]
+    # Partition based on target index.
 
-    return warped
+    # Aggregate for each index.
+
+    # Scatter into output.
+
+
+def get_pushed_pixels(features):
+    """
+    :param features: A Tensor. Of shape [batch_size, H, W, C].
+    :return:
+    """
+
