@@ -44,7 +44,6 @@ def forward_warp(features, flow, max_image_area=1280*720):
             values.append(value)
         values = tf.stack(values, axis=0)
         values = values[:height * width]
-        values = tf.reshape(values, (height, width, channels))
 
         # map_fn requires us to return the same number of things as arguments (nested structure must match).
         # See: https://stackoverflow.com/questions/47984876/tensorflow-tf-map-fn-parameters
@@ -58,7 +57,7 @@ def forward_warp(features, flow, max_image_area=1280*720):
     x_2d, y_2d = tf.meshgrid(x_1d, y_1d)
     indices_2d = tf.stack([y_2d, x_2d], axis=-1)
     ordered_indices = tf.reshape(indices_2d, (-1, 2))
-    values = tf.transpose(values, [1, 2, 3, 0])
+    values = tf.transpose(values, [1, 2, 0])
     transposed_features = tf.transpose(features, [1, 2, 3, 0])
     warped = tf.scatter_nd(ordered_indices, values, tf.shape(transposed_features))
     warped = tf.transpose(warped, [3, 0, 1, 2])
