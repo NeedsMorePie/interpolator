@@ -1,4 +1,5 @@
 import tensorflow as tf
+from utils.misc import print_tensor_shape
 
 
 def forward_warp(features, flow, max_image_area=1280*720):
@@ -11,13 +12,57 @@ def forward_warp(features, flow, max_image_area=1280*720):
                            larger than the actual area (at the expense of performance), but it cannot be any less.
     """
 
+    # Flip (x, y) to (y, x) for flow, to avoid further confusion.
+    flow = tf.reverse(flow, axis=[-1])
+
     # Get target indices along with corresponding values to add.
+    indices, splat_values = get_translated_pixels(features, flow)
 
-    # Partition based on target index.
+    # Mask out out-of-bounds splat values
+    height, width, channels = tf.shape(features)[1], tf.shape(features)[2], tf.shape(features)[3]
+    greater_than_zero = tf.greater_equal(indices, 0)
+    greater_than_zero = tf.cast(tf.reduce_all(greater_than_zero, axis=-1), tf.float32)
+    less_than_height = tf.cast(tf.less(indices[..., 0], height), tf.float32)
+    less_than_width = tf.cast(tf.less(indices[..., 1], width), tf.float32)
+    within_bounds = greater_than_zero * less_than_height * less_than_width
+    splat_values *= tf.expand_dims(within_bounds, axis=-1)
 
-    # Aggregate for each index.
+    # Clip indices and flatten.
+    y_indices = tf.clip_by_value(indices[..., 0], 0, height)
+    x_indices = tf.clip_by_value(indices[..., 1], 0, width)
+    flattened_indices = y_indices * width + x_indices
 
-    # Scatter into output.
+    # Partition and aggregate based on target index.
+    def _aggregate_to_target(elems):
+        vals, indices = elems
+        partitions = tf.dynamic_partition(vals, indices, max_image_area)
+        values = []
+        for i in range(len(partitions)):
+            value = tf.where(tf.size(partitions[i]) > 0,
+                             x=tf.reduce_sum(partitions[i], axis=0),
+                             y=tf.zeros(tf.shape(partitions[i])[1:]))
+            values.append(value)
+        values = tf.stack(values, axis=0)
+        values = values[:height * width]
+        values = tf.reshape(values, (height, width, channels))
+
+        # map_fn requires us to return the same number of things as arguments (nested structure must match).
+        # See: https://stackoverflow.com/questions/47984876/tensorflow-tf-map-fn-parameters
+        return values, values
+
+    # After this, values has shape [batch_size, height, width, 1].
+    values, _ = tf.map_fn(_aggregate_to_target, (splat_values, flattened_indices), back_prop=True)
+
+    # Scatter into output. A bunch of transposing to work around the batch dimension is involved.
+    x_1d, y_1d = tf.range(0, width), tf.range(0, height)
+    x_2d, y_2d = tf.meshgrid(x_1d, y_1d)
+    indices_2d = tf.stack([y_2d, x_2d], axis=-1)
+    ordered_indices = tf.reshape(indices_2d, (-1, 2))
+    values = tf.transpose(values, [1, 2, 3, 0])
+    transposed_features = tf.transpose(features, [1, 2, 3, 0])
+    warped = tf.scatter_nd(ordered_indices, values, tf.shape(transposed_features))
+    warped = tf.transpose(warped, [3, 0, 1, 2])
+    return warped
 
 
 def get_translated_pixels(features, translations):

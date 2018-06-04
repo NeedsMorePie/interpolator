@@ -217,6 +217,31 @@ class TestForwardWarp(unittest.TestCase):
         predicted = np.stack([indices, values], axis=-2).tolist()
         self.assertCountEqual(expected, predicted)
 
+    def test_forward_warp(self):
+        height = 2
+        width = 2
+
+        # Flow is in (x, y) order.
+        # Splats the top-left pixel right in the center.
+        flow = [[
+            [[0.5, 0.5], [0, 0]],
+            [[0, 0], [0, 0]]
+        ]]
+        features = [[
+            [[4, 0], [0, 0]],
+            [[1, 1], [0, 0]]
+        ]]
+        expected_warp = [[
+            [[1, 0], [1, 0]],
+            [[2, 1], [1, 0]]
+        ]]
+
+        flow_tensor = tf.placeholder(tf.float32, (1, height, width, 2))
+        features_tensor = tf.placeholder(tf.float32, (1, height, width, 2))
+        warp_tensor = forward_warp(features_tensor, flow_tensor, max_image_area=8)
+        warp = self.sess.run(warp_tensor, feed_dict={flow_tensor: flow, features_tensor: features})
+        print(warp)
+
     def test_visualization(self):
         if not VISUALIZE:
             return
