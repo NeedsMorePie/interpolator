@@ -120,6 +120,55 @@ class TestForwardWarp(unittest.TestCase):
         predicted = np.stack([indices, values], axis=-1).tolist()
         self.assertCountEqual(expected, predicted)
 
+    def test_push_pixels_partial_1(self):
+        """
+        X or y coordinate are integers, but only 1 of them at a time.
+        """
+        height = 2
+        width = 2
+        features = [[
+            [[1, 0], [0, 0]],
+            [[0, 1], [0, 0]]
+        ]]
+
+        # Translation is in (y, x) order.
+        translations = [[
+            [[0.5, 0], [0, 0]],
+            [[0, 0.5], [0, 0]]
+        ]]
+
+        # Indices are in (y, x) order.
+        # As the pixels are splatted on at exact integer coordinates, there will be duplicates.
+        expected_indices = [[
+            [0, 0], [0, 0], [1, 0], [1, 0],
+            [0, 1], [0, 1], [0, 1], [0, 1],
+            [1, 0], [1, 0], [1, 1], [1, 1],
+            [1, 1], [1, 1], [1, 1], [1, 1],
+        ]]
+
+        # We expect the duplicates to not splat anything.
+        expected_values = [[
+            [0.5, 0], [0, 0], [0.5, 0], [0, 0],
+            [0, 0], [0, 0], [0, 0], [0, 0],
+            [0, 0.5], [0, 0], [0, 0.5], [0, 0],
+            [0, 0], [0, 0], [0, 0], [0, 0]
+        ]]
+
+        expected_indices, expected_values = np.squeeze(expected_indices), np.squeeze(expected_values)
+        expected = np.stack([expected_indices, expected_values], axis=-1).tolist()
+
+        features_tensor = tf.placeholder(tf.float32, shape=[1, height, width, 2])
+        translations_tensor = tf.placeholder(tf.float32, shape=[1, height, width, 2])
+        indices_tensor, values_tensor = get_translated_pixels(features_tensor, translations_tensor)
+
+        query = [indices_tensor, values_tensor]
+        indices, values = self.sess.run(query, feed_dict={features_tensor: features,
+                                                          translations_tensor: translations})
+
+        indices, values = indices.tolist(), values.tolist()
+        indices, values = np.squeeze(indices), np.squeeze(values)
+        predicted = np.stack([indices, values], axis=-1).tolist()
+        self.assertCountEqual(expected, predicted)
 
     def test_visualization(self):
         if not VISUALIZE:

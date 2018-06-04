@@ -54,14 +54,13 @@ def get_translated_pixels(features, translations):
     br_vals = features * (1.0 - br_diff[..., 0, :]) * (1.0 - br_diff[..., 1, :])
     bl_vals = features * (1.0 - bl_diff[..., 0, :]) * (1.0 - bl_diff[..., 1, :])
 
-    # Zero out splat values for everything other than the first one,
-    # if target has integer coordinates (ceil and floor are the same).
+    # Zero out certain splat values if x and y have integer coordinates (ceil and floor are the same).
     # Otherwise we get incorrect duplication.
-    tl_indices_compare = tf.cast(tl_indices, tf.float32)
-    not_duplicated = 1.0 - tf.cast(tf.equal(tl_indices_compare, translated_indices), tf.float32)
-    tr_vals *= not_duplicated
-    br_vals *= not_duplicated
-    bl_vals *= not_duplicated
+    ceiled_compare = tf.cast(ceiled, tf.float32)
+    not_duplicated = 1.0 - tf.cast(tf.equal(ceiled_compare, translated_indices), tf.float32)
+    tr_vals *= tf.expand_dims(not_duplicated[..., 1], axis=-1)
+    br_vals *= tf.expand_dims(not_duplicated[..., 0], axis=-1)
+    bl_vals *= tf.expand_dims(not_duplicated[..., 0] * not_duplicated[..., 1], axis=-1)
 
     # Combine and flatten shape.
     all_indices = tf.stack([tl_indices, tr_indices, br_indices, bl_indices], axis=0)
