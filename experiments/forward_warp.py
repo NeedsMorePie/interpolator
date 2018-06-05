@@ -35,7 +35,7 @@ def forward_warp(features, flow, max_image_area=1280 * 720):
     # Scatter into output. A bunch of transposing to work around the batch dimension is involved.
     # To mitigate scatter conflicts, we split the scattering into a number of sections.
     # The more sections, the smaller the chance of a splatter conflict, and the worse the performance.
-    scatter_sections = 32
+    scatter_sections = 64
     all_warped = []
 
     def _scatter(elms):
@@ -173,8 +173,8 @@ def get_translated_pixels(features, translations):
     bl_vals *= tf.expand_dims(not_duplicated[..., 0] * not_duplicated[..., 1], axis=-1)
 
     # Combine and flatten shape.
-    all_indices = tf.stack([tl_indices, tr_indices, br_indices, bl_indices], axis=0)
-    all_vals = tf.stack([tl_vals, tr_vals, br_vals, bl_vals], axis=0)
+    all_indices = tf.stack([tl_indices, tr_indices, br_indices, bl_indices], axis=1)
+    all_vals = tf.stack([tl_vals, tr_vals, br_vals, bl_vals], axis=1)
     all_indices = tf.reshape(all_indices, (batch_size, -1, 2))
     all_vals = tf.reshape(all_vals, (batch_size, -1, channels))
     return all_indices, all_vals

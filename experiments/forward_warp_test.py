@@ -14,8 +14,6 @@ VISUALIZE = False
 
 
 class TestForwardWarp(unittest.TestCase):
-    # TODO Add batch size tests.
-
     def setUp(self):
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
@@ -218,6 +216,84 @@ class TestForwardWarp(unittest.TestCase):
         predicted = np.stack([indices, values], axis=-2).tolist()
         self.assertCountEqual(predicted, expected)
 
+    def test_push_pixels_batch(self):
+        height = 2
+        width = 2
+        features = [
+            [
+                [[1, 0], [0, 0]],
+                [[0, 1], [0, 0]]
+            ],
+            [
+                [[1, 0], [0, 0]],
+                [[0, 1], [0, 0]]
+            ]
+        ]
+
+        # Translation is in (y, x) order.
+        # Translates first column to second column.
+        translations = [
+            [
+                [[0, 1], [0, 0]],
+                [[0, 1], [0, 0]]
+            ],
+            [
+                [[0.5, 0], [0, 0]],
+                [[0, 0.5], [0, 0]]
+            ]
+        ]
+
+        # Indices are in (y, x) order.
+        # As the pixels are splatted on at exact integer coordinates, there will be duplicates.
+        expected_indices = [
+            [
+                [0, 1], [0, 1], [0, 1], [0, 1],
+                [0, 1], [0, 1], [0, 1], [0, 1],
+                [1, 1], [1, 1], [1, 1], [1, 1],
+                [1, 1], [1, 1], [1, 1], [1, 1]
+            ],
+            [
+                [0, 0], [0, 0], [1, 0], [1, 0],
+                [0, 1], [0, 1], [0, 1], [0, 1],
+                [1, 0], [1, 0], [1, 1], [1, 1],
+                [1, 1], [1, 1], [1, 1], [1, 1],
+            ]
+        ]
+
+        # We expect the duplicates to not splat anything.
+        expected_values = [
+            [
+                [1, 0], [0, 0], [0, 0], [0, 0],
+                [0, 0], [0, 0], [0, 0], [0, 0],
+                [0, 1], [0, 0], [0, 0], [0, 0],
+                [0, 0], [0, 0], [0, 0], [0, 0]
+            ],
+            [
+                [0.5, 0], [0, 0], [0.5, 0], [0, 0],
+                [0, 0], [0, 0], [0, 0], [0, 0],
+                [0, 0.5], [0, 0], [0, 0.5], [0, 0],
+                [0, 0], [0, 0], [0, 0], [0, 0]
+            ]
+        ]
+
+        expected_indices, expected_values = np.squeeze(expected_indices), np.squeeze(expected_values)
+        expected = np.stack([expected_indices, expected_values], axis=-2).tolist()
+
+        features_tensor = tf.placeholder(tf.float32, shape=[2, height, width, 2])
+        translations_tensor = tf.placeholder(tf.float32, shape=[2, height, width, 2])
+        indices_tensor, values_tensor = get_translated_pixels(features_tensor, translations_tensor)
+
+        query = [indices_tensor, values_tensor]
+        indices, values = self.sess.run(query, feed_dict={features_tensor: features,
+                                                          translations_tensor: translations})
+
+        indices, values = indices.tolist(), values.tolist()
+        indices, values = np.squeeze(indices), np.squeeze(values)
+        predicted = np.stack([indices, values], axis=-2).tolist()
+        self.assertCountEqual(predicted[0], expected[0])
+        self.assertCountEqual(predicted[1], expected[1])
+
+
     def test_forward_warp_whole_1(self):
         height = 2
         width = 2
@@ -327,6 +403,50 @@ class TestForwardWarp(unittest.TestCase):
         warp = self.sess.run(warp_tensor, feed_dict={flow_tensor: flow, features_tensor: features})
         self.assertEqual(warp.tolist(), expected_warp)
 
+    def test_forward_warp_batch(self):
+        height = 2
+        width = 2
+
+        # Flow is in (x, y) order.
+        # Splats the top-left pixel right in the center.
+        flow = [
+            [
+                [[0.5, 0.5], [0, 0]],
+                [[0, 0], [0, 0]]
+            ],
+            [
+                [[1, 1], [0, 0]],
+                [[0, 0], [0, 0]]
+            ]
+        ]
+        features = [
+            [
+                [[4, 0], [0, 0]],
+                [[1, 1], [0, 0]]
+            ],
+            [
+                [[100, 0], [0, 0]],
+                [[1, 1], [0, 0]]
+            ]
+        ]
+        expected_warp = [
+            [
+                [[1, 0], [1, 0]],
+                [[2, 1], [1, 0]]
+            ],
+            [
+                [[0, 0], [0, 0]],
+                [[1, 1], [100, 0]]
+            ]
+        ]
+
+        flow_tensor = tf.placeholder(tf.float32, (2, height, width, 2))
+        features_tensor = tf.placeholder(tf.float32, (2, height, width, 2))
+        warp_tensor = forward_warp(features_tensor, flow_tensor, max_image_area=8)
+        warp = self.sess.run(warp_tensor, feed_dict={flow_tensor: flow, features_tensor: features})
+        self.assertEqual(warp[0].tolist(), expected_warp[0])
+        self.assertEqual(warp[1].tolist(), expected_warp[1])
+
     def test_visualization(self):
         if not VISUALIZE:
             return
@@ -344,7 +464,7 @@ class TestForwardWarp(unittest.TestCase):
 
         warp = self.sess.run(warp_tensor, feed_dict={flow_ab_tensor: flow_ab, img_a_tensor: img_a})
         warp = np.clip(warp, 0.0, 1.0)
-        #show_image(warp)
+        show_image(warp[0])
 
         # For writing to video.
         # height = img_a.shape[0]
