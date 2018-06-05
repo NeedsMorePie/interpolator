@@ -14,6 +14,7 @@ VISUALIZE = False
 
 
 class TestForwardWarp(unittest.TestCase):
+    # TODO Add batch size tests.
 
     def setUp(self):
         config = tf.ConfigProto()
@@ -332,11 +333,18 @@ class TestForwardWarp(unittest.TestCase):
 
         cur_dir = os.path.dirname(os.path.abspath(__file__))
         root_dir = os.path.join(cur_dir, '..')
-        flow_ab = read_flow_file(root_dir + 'pwcnet/warp/test_data/flow_ab.flo')
-        img_a = read_image(root_dir + 'pwcnet/warp/test_data/image_a.png', as_float=True)
-        warped = forward_warp(img_a, flow_ab, 1.0)
-        warped = np.clip(warped, 0.0, 1.0)
-        show_image(warped)
+        flow_path = os.path.join(root_dir, 'pwcnet', 'warp', 'test_data', 'flow_ab.flo')
+        image_path = os.path.join(root_dir, 'pwcnet', 'warp', 'test_data', 'image_a.png')
+
+        flow_ab = [read_flow_file(flow_path)]
+        img_a = [read_image(image_path, as_float=True)]
+        flow_ab_tensor = tf.placeholder(tf.float32, np.shape(flow_ab))
+        img_a_tensor = tf.placeholder(tf.float32, np.shape(img_a))
+        warp_tensor = forward_warp(img_a_tensor, flow_ab_tensor, max_image_area=1280*720)
+
+        warp = self.sess.run(warp_tensor, feed_dict={flow_ab_tensor: flow_ab, img_a_tensor: img_a})
+        warp = np.clip(warp, 0.0, 1.0)
+        #show_image(warp)
 
         # For writing to video.
         # height = img_a.shape[0]

@@ -31,26 +31,7 @@ def forward_warp(features, flow, max_image_area=1280*720):
     y_indices = tf.clip_by_value(indices[..., 0], 0, height)
     x_indices = tf.clip_by_value(indices[..., 1], 0, width)
     flattened_indices = y_indices * width + x_indices
-
-    # Partition and aggregate based on target index.
-    def _aggregate_to_target(elems):
-        vals, indices = elems
-        partitions = tf.dynamic_partition(vals, indices, max_image_area)
-        values = []
-        for i in range(len(partitions)):
-            value = tf.where(tf.size(partitions[i]) > 0,
-                             x=tf.reduce_sum(partitions[i], axis=0),
-                             y=tf.zeros(tf.shape(partitions[i])[1:]))
-            values.append(value)
-        values = tf.stack(values, axis=0)
-        values = values[:height * width]
-
-        # map_fn requires us to return the same number of things as arguments (nested structure must match).
-        # See: https://stackoverflow.com/questions/47984876/tensorflow-tf-map-fn-parameters
-        return values, values
-
-    # After this, values has shape [batch_size, height, width, 1].
-    values, _ = tf.map_fn(_aggregate_to_target, (splat_values, flattened_indices), back_prop=True)
+    values = aggregate_pixels_to_targets(splat_values, flattened_indices, max_image_area, height * width)
 
     # Scatter into output. A bunch of transposing to work around the batch dimension is involved.
     x_1d, y_1d = tf.range(0, width), tf.range(0, height)
@@ -62,6 +43,39 @@ def forward_warp(features, flow, max_image_area=1280*720):
     warped = tf.scatter_nd(ordered_indices, values, tf.shape(transposed_features))
     warped = tf.transpose(warped, [3, 0, 1, 2])
     return warped
+
+
+def aggregate_pixels_to_targets(splat_values, flattened_indices, max_num_partitions, num_partitions=None):
+    """
+    :param splat_values: A Tensor of tensors, where each splat_values[i] has target flattened_indices[i].
+    :param flattened_indices: A Tensor of indices for splat_values.
+    :param max_num_partitions: An int. The maximum number of partitions. Fed directly into tf.dynamic_partition.
+    :param num_partitions: An int Tensor. The actual (known during run-time) number of partitions.
+    :return:
+    """
+    if num_partitions is None:
+        num_partitions = max_num_partitions
+
+    # Partition and aggregate based on target index.
+    def _aggregate_to_target(elems):
+        vals, indices = elems
+        partitions = tf.dynamic_partition(vals, indices, max_num_partitions)
+        values = []
+        for i in range(len(partitions)):
+            value = tf.where(tf.size(partitions[i]) > 0,
+                             x=tf.reduce_sum(partitions[i], axis=0),
+                             y=tf.zeros(tf.shape(partitions[i])[1:]))
+            values.append(value)
+        values = tf.stack(values, axis=0)
+        values = values[:num_partitions]
+
+        # map_fn requires us to return the same number of things as arguments (nested structure must match).
+        # See: https://stackoverflow.com/questions/47984876/tensorflow-tf-map-fn-parameters
+        return values, values
+
+    # After this, values has shape [batch_size, height, width, 1].
+    values, _ = tf.map_fn(_aggregate_to_target, (splat_values, flattened_indices), back_prop=True)
+    return values
 
 
 def get_translated_pixels(features, translations):
