@@ -2,10 +2,62 @@ import tensorflow as tf
 from utils.misc import print_tensor_shape
 
 
-def forward_warp(features, flow, max_image_area=1280*720):
+def forward_warp(features, flow, max_image_area=1280 * 720):
     """
     For an algorithm that gives the same end result, see section 3 in https://arxiv.org/pdf/1711.05890.pdf.
     Note that the actual implementation here is not n^2, and should be linear in GPU memory.
+    :param features: A Tensor. Features to be warped, of shape [batch_size, H, W, C].
+    :param flow: A Tensor. Un-normalized flow in image pixel units, of shape [batch_size, H, W, 2].
+    :param max_image_area: The maximum value for width * height of the input features. It is ok to specify a value
+                           larger than the actual area (at the expense of performance), but it cannot be any less.
+    """
+
+    # Flip (x, y) to (y, x) for flow, to avoid further confusion.
+    flow = tf.reverse(flow, axis=[-1])
+
+    # Get target indices along with corresponding values to add.
+    indices, splat_values = get_translated_pixels(features, flow)
+
+    # Mask out out-of-bounds splat values
+    height, width, channels = tf.shape(features)[1], tf.shape(features)[2], tf.shape(features)[3]
+    greater_than_zero = tf.greater_equal(indices, 0)
+    greater_than_zero = tf.cast(tf.reduce_all(greater_than_zero, axis=-1), tf.float32)
+    less_than_height = tf.cast(tf.less(indices[..., 0], height), tf.float32)
+    less_than_width = tf.cast(tf.less(indices[..., 1], width), tf.float32)
+    within_bounds = greater_than_zero * less_than_height * less_than_width
+    splat_values *= tf.expand_dims(within_bounds, axis=-1)
+
+    # Clip indices and flatten.
+    y_indices = tf.clip_by_value(indices[..., 0], 0, height-1)
+    x_indices = tf.clip_by_value(indices[..., 1], 0, width-1)
+    indices = tf.stack([y_indices, x_indices], axis=-1)
+
+    # Scatter into output. A bunch of transposing to work around the batch dimension is involved.
+    # To mitigate scatter conflicts, we split the scattering into a number of sections.
+    # The more sections, the smaller the chance of a splatter conflict, and the worse the performance.
+    scatter_sections = 32
+    all_warped = []
+
+    def _scatter(elms):
+        splat_values, indices, features = elms
+        for i in range(scatter_sections):
+            cur_splat_values = splat_values[i::scatter_sections]
+            cur_indices = indices[i::scatter_sections]
+            warped = tf.scatter_nd(cur_indices, cur_splat_values, tf.shape(features))
+            all_warped.append(warped)
+        summed = tf.add_n(all_warped)
+        return summed, summed, summed
+
+    warped, _, _ = tf.map_fn(_scatter, (splat_values, indices, features), back_prop=True)
+    return warped
+
+
+def forward_warp_exact(features, flow, max_image_area=1280*720):
+    """
+    For an algorithm that gives the same end result, see section 3 in https://arxiv.org/pdf/1711.05890.pdf.
+    Note that the actual implementation here is not n^2, and should be linear in GPU memory.
+    However, because of current issues with a large number of partitions, graph construction takes an
+    unacceptably long amount of time.
     :param features: A Tensor. Features to be warped, of shape [batch_size, H, W, C].
     :param flow: A Tensor. Un-normalized flow in image pixel units, of shape [batch_size, H, W, 2].
     :param max_image_area: The maximum value for width * height of the input features. It is ok to specify a value
