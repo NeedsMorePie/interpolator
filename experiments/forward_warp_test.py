@@ -9,8 +9,9 @@ import matplotlib.image as mpimg
 import numpy as np
 import tensorflow as tf
 import cv2
+from pylab import savefig
 
-VISUALIZE = False
+VISUALIZE = True
 
 
 class TestForwardWarp(unittest.TestCase):
@@ -458,26 +459,31 @@ class TestForwardWarp(unittest.TestCase):
 
         flow_ab = [read_flow_file(flow_path)]
         img_a = [read_image(image_path, as_float=True)]
+        t_tensor = tf.placeholder(tf.float32, None)
         flow_ab_tensor = tf.placeholder(tf.float32, np.shape(flow_ab))
         img_a_tensor = tf.placeholder(tf.float32, np.shape(img_a))
-        warp_tensor = forward_warp(img_a_tensor, flow_ab_tensor, max_image_area=1280*720)
+        warp_tensor = forward_warp(img_a_tensor, t_tensor * flow_ab_tensor, max_image_area=1280*720)
 
-        warp = self.sess.run(warp_tensor, feed_dict={flow_ab_tensor: flow_ab, img_a_tensor: img_a})
-        warp = np.clip(warp, 0.0, 1.0)
-        show_image(warp[0])
+        warp = self.sess.run(warp_tensor, feed_dict={flow_ab_tensor: flow_ab, img_a_tensor: img_a, t_tensor: 1.0})
+
+        #warp = np.clip(warp, 0.0, 1.0)
+        #mpimg.imsave('./warp_jank.jpg', warp[0])
 
         # For writing to video.
-        # height = img_a.shape[0]
-        # width = img_a.shape[1]
-        # writer = cv2.VideoWriter(cur_dir + '/outputs/video.avi', cv2.VideoWriter_fourcc(*"MJPG"), 20, (width, height))
-        #
-        # steps = 20
-        # for i in range(steps):
-        #     t = i * (1.0 / float(steps))
-        #     warped = forward_warp(img_a, flow_ab, t)
-        #     warped = np.clip(warped, 0.0, 1.0)
-        #     output_path = cur_dir + "/outputs/out-%.2f.png" % t
-        #     mpimg.imsave(output_path, warped)
-        #     writer.write(cv2.imread(output_path))
-        #
-        # writer.release()
+        height = img_a[0].shape[0]
+        width = img_a[0].shape[1]
+        writer = cv2.VideoWriter(cur_dir + '/outputs/video-jank.avi', cv2.VideoWriter_fourcc(*"MJPG"), 20, (width, height))
+
+        steps = 60
+        for i in range(steps):
+            print('Writing video at step %d' % i)
+            t = i * (1.0 / float(steps))
+            warped = self.sess.run(warp_tensor,
+                                   feed_dict={flow_ab_tensor: flow_ab, img_a_tensor: img_a, t_tensor: t})
+            warped = warped[0]
+            warped = np.clip(warped, 0.0, 1.0)
+            output_path = cur_dir + "/outputs/out-%.2f.png" % t
+            mpimg.imsave(output_path, warped)
+            writer.write(cv2.imread(output_path))
+
+        writer.release()

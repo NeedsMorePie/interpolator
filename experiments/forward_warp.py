@@ -35,7 +35,7 @@ def forward_warp(features, flow, max_image_area=1280 * 720):
     # Scatter into output. A bunch of transposing to work around the batch dimension is involved.
     # To mitigate scatter conflicts, we split the scattering into a number of sections.
     # The more sections, the smaller the chance of a splatter conflict, and the worse the performance.
-    scatter_sections = 64
+    scatter_sections = 1
     all_warped = []
 
     def _scatter(elms):
