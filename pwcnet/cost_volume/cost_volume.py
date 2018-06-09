@@ -17,8 +17,6 @@ def cost_volume(c1, c2, search_range=4):
         square_len = 2 * search_range + 1
         square_area = square_len ** 2
         cv_shape = tf.concat([tf.shape(c1)[:-1], [square_area]], axis=0)
-        c1_transposed = tf.transpose(c1, [1, 2, 3, 0])
-        c2_transposed = tf.transpose(c2, [1, 2, 3, 0])
 
         # Form an index matrix to help us update sparsely later on.
         cv_height, cv_width = cv_shape[1], cv_shape[2]
@@ -27,7 +25,6 @@ def cost_volume(c1, c2, search_range=4):
         indices_3d = tf.stack([y_2d, x_2d, z_2d], axis=-1)
 
         all_indices, all_costs = [], []
-        c1_regions, c2_regions = [], []
         cur_z_index = square_area - 1
         for i in range(-search_range, search_range + 1):
             for j in range(-search_range, search_range + 1):
@@ -55,14 +52,12 @@ def cost_volume(c1, c2, search_range=4):
 
                 # The batch dimension needs to be moved to the end to make slicing work correctly.
                 costs = tf.reshape(costs, (tf.shape(costs)[0], -1))
-                costs = tf.transpose(costs, [1, 0])
                 all_costs.append(costs)
                 all_indices.append(cur_indices)
-                c1_regions.append(c1_transposed[slice_h, slice_w, :, :])
-                c2_regions.append(c2_transposed[slice_h_r, slice_w_r, :, :])
                 cur_z_index -= 1
 
-        all_costs = tf.concat(all_costs[::-1], axis=0)
+        all_costs = tf.concat(all_costs[::-1], axis=1)
+        all_costs = tf.transpose(all_costs, [1, 0])
         all_indices = tf.concat(all_indices[::-1], axis=0)
         batch_dim = tf.shape(c1)[0]
         target_shape = [cv_height, cv_width, square_area, batch_dim]
@@ -73,8 +68,8 @@ def cost_volume(c1, c2, search_range=4):
 
 def cost_volume_grouped_reduce(c1, c2, search_range=4):
     """
-    See https://arxiv.org/pdf/1709.02371.pdf.
-    For each pixel in c1, we will compute correlations with its spatial neighbors in c2.
+    The same functionality as cost_volume, but is potentially faster,
+    and also takes substantially more GPU memory at once.
     :param c1: Tensor. Feature map of shape [batch_size, H, W, num_features].
     :param c2: Input tensor with the exact same shape as c1.
     :param search_range: The search square's side length is equal to 2 * search_range + 1.

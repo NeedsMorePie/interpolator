@@ -5,7 +5,7 @@ import time
 from pwcnet.cost_volume.cost_volume import cost_volume
 
 
-PROFILE = True
+PROFILE = False
 
 
 class TestCostVolume(unittest.TestCase):
@@ -187,8 +187,7 @@ class TestCostVolume(unittest.TestCase):
         if not PROFILE:
             return
 
-        image_shape = (32, 128, 128, 64)
-        #image_shape = (8, 128, 128, 32)
+        image_shape = (8, 128, 128, 32)
         test_runs = 100
         c1 = np.zeros(image_shape)
         c2 = np.ones(image_shape)
