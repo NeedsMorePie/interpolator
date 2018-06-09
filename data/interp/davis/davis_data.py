@@ -8,11 +8,11 @@ from io import BytesIO
 
 class DavisDataSet(InterpDataSet):
 
-    def __init__(self, directory, inbetween_locations, batch_size=1, maximum_shot_len=10):
+    def __init__(self, directory, inbetween_locations, batch_size=1):
         """
         See InterpDataSet.
         """
-        super().__init__(directory, inbetween_locations, batch_size=batch_size, maximum_shot_len=maximum_shot_len)
+        super().__init__(directory, inbetween_locations, batch_size=batch_size)
 
     def _process_image(self, filename):
         """
