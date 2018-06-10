@@ -25,25 +25,19 @@ def forward_warp(features, flow):
     within_bounds = greater_than_zero * less_than_height * less_than_width
     splat_values *= tf.expand_dims(within_bounds, axis=-1)
 
-    # Clip indices and flatten.
+    # Add batch indices, clip xy indices, and flatten.
+    batch_size = tf.shape(features)[0]
+    num_indices = tf.shape(indices)[1]
+    batch_indices = tf.range(0, batch_size)
+    batch_indices = tf.tile(batch_indices, [num_indices])
+    batch_indices = tf.reshape(batch_indices, (num_indices, batch_size))
+    batch_indices = tf.transpose(batch_indices)
     y_indices = tf.clip_by_value(indices[..., 0], 0, height-1)
     x_indices = tf.clip_by_value(indices[..., 1], 0, width-1)
-    indices = tf.stack([y_indices, x_indices], axis=-1)
+    indices = tf.stack([batch_indices, y_indices, x_indices], axis=-1)
 
     # Scatter into output.
-    all_warped = []
-
-    def _scatter(elms):
-        splat_values, indices, features = elms
-        warped = tf.scatter_nd(indices, splat_values, tf.shape(features))
-        all_warped.append(warped)
-        summed = tf.add_n(all_warped)
-
-        # map_fn requires us to return the same number of things as arguments (nested structure must match).
-        # See: https://stackoverflow.com/questions/47984876/tensorflow-tf-map-fn-parameters
-        return summed, summed, summed
-
-    warped, _, _ = tf.map_fn(_scatter, (splat_values, indices, features), back_prop=True)
+    warped = tf.scatter_nd(indices, splat_values, tf.shape(features))
     return warped
 
 
@@ -64,25 +58,12 @@ def get_translated_pixels(features, translations):
     translated_indices = translations + indices_2d
 
     # Get splat corners.
-    ceiled = tf.cast(tf.ceil(translated_indices), tf.int32)
     floored = tf.cast(tf.floor(translated_indices), tf.int32)
+    ceiled = floored + 1
     tl_indices = floored
     tr_indices = tf.stack([floored[..., 0], ceiled[..., 1]], axis=-1)
     br_indices = ceiled
     bl_indices = tf.stack([ceiled[..., 0], floored[..., 1]], axis=-1)
-
-    # If both x and y have integer coordinates (ceil and floor are the same),
-    # shift top-left to top, top-right to right, bottom-right to bottom, and bottom-left to left.
-    x_shift = tf.stack([tf.zeros(tf.shape(x_2d)), tf.ones(tf.shape(x_2d))], axis=-1)
-    y_shift = tf.stack([tf.ones(tf.shape(x_2d)), tf.zeros(tf.shape(x_2d))], axis=-1)
-    ceiled_compare = tf.cast(ceiled, tf.float32)
-    is_duplicated = tf.cast(tf.equal(ceiled_compare, translated_indices), tf.float32)
-    are_both_duplicated = tf.expand_dims(is_duplicated[..., 0] * is_duplicated[..., 1], axis=-1)
-    center_indices = tl_indices
-    tl_indices -= tf.cast(y_shift * are_both_duplicated, tf.int32)
-    tr_indices += tf.cast(x_shift * are_both_duplicated, tf.int32)
-    bl_indices += tf.cast(y_shift * are_both_duplicated, tf.int32)
-    br_indices -= tf.cast(x_shift * are_both_duplicated, tf.int32)
 
     # Compute splat values, using inverse bi-linear interpolation formula.
     tl_diff = tf.expand_dims(tf.abs(tf.cast(tl_indices, tf.float32) - translated_indices), axis=-1)
@@ -93,18 +74,10 @@ def get_translated_pixels(features, translations):
     tr_vals = features * (1.0 - tr_diff[..., 0, :]) * (1.0 - tr_diff[..., 1, :])
     br_vals = features * (1.0 - br_diff[..., 0, :]) * (1.0 - br_diff[..., 1, :])
     bl_vals = features * (1.0 - bl_diff[..., 0, :]) * (1.0 - bl_diff[..., 1, :])
-    center_vals = features
-
-    # Zero out certain splat values if x and y have integer coordinates (ceil and floor are the same).
-    # Otherwise we get incorrect duplication.
-    center_vals *= are_both_duplicated
-    tr_vals *= 1.0 - tf.expand_dims(is_duplicated[..., 1], axis=-1) * (1.0 - are_both_duplicated)
-    br_vals *= 1.0 - tf.expand_dims(is_duplicated[..., 0], axis=-1) * (1.0 - are_both_duplicated)
-    bl_vals *= 1.0 - tf.expand_dims(tf.reduce_sum(is_duplicated, axis=-1), axis=-1) * (1.0 - are_both_duplicated)
 
     # Combine and flatten shape.
-    all_indices = tf.stack([tl_indices, tr_indices, br_indices, bl_indices, center_indices], axis=1)
-    all_vals = tf.stack([tl_vals, tr_vals, br_vals, bl_vals, center_vals], axis=1)
+    all_indices = tf.stack([tl_indices, tr_indices, br_indices, bl_indices], axis=1)
+    all_vals = tf.stack([tl_vals, tr_vals, br_vals, bl_vals], axis=1)
     all_indices = tf.reshape(all_indices, (batch_size, -1, 2))
     all_vals = tf.reshape(all_vals, (batch_size, -1, channels))
     return all_indices, all_vals
