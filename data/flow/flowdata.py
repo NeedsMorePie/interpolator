@@ -17,13 +17,14 @@ FLOW_RAW = 'flow_raw'
 
 
 class FlowDataSet(DataSet):
-    def __init__(self, directory, batch_size=1, validation_size=1, crop_size=None):
+    def __init__(self, directory, batch_size=1, validation_size=1, crop_size=None, training_augmentations=True):
         """
         :param directory: Str. Directory of the dataset file structure and tf records.
         :param batch_size: Int.
         :param validation_size: Int. Number of examples to reserve for validation
         :param crop_size: Tuple of (int (H), int (W)). Size to crop the training examples to before feeding to network.
                           If None, then no cropping will be performed.
+        :param training_augmentations: Whether to do live augmentations while training.
         """
         super().__init__(directory, batch_size, validation_size)
 
@@ -41,6 +42,7 @@ class FlowDataSet(DataSet):
         self.next_flows = None  # Data iterator batch.
 
         self.crop_size = crop_size
+        self.training_augmentations = training_augmentations
 
         self.train_filename = 'flowdataset_train.tfrecords'
         self.valid_filename = 'flowdataset_valid.tfrecords'
@@ -71,7 +73,8 @@ class FlowDataSet(DataSet):
         Overridden.
         """
         with tf.name_scope('dataset_ops'):
-            self.train_dataset = self._load_dataset(self.get_train_file_names(), True, do_augmentations=True)
+            self.train_dataset = self._load_dataset(self.get_train_file_names(), True,
+                                                    do_augmentations=self.training_augmentations)
             self.valid_dataset = self._load_dataset(self.get_validation_file_names(), False, do_augmentations=False)
 
             self.handle_placeholder = tf.placeholder(tf.string, shape=[])
@@ -217,9 +220,9 @@ class FlowDataSet(DataSet):
 
         dataset = tf.data.TFRecordDataset(filenames)
         if repeat:
-            dataset = dataset.apply(tf.contrib.data.shuffle_and_repeat(buffer_size=len(filenames)))
+            dataset = dataset.apply(tf.contrib.data.shuffle_and_repeat(buffer_size=self.batch_size * 10))
         else:
-            dataset = dataset.shuffle(buffer_size=len(filenames))
+            dataset = dataset.shuffle(buffer_size=self.batch_size * 10)
         dataset = dataset.map(_parse_function, num_parallel_calls=multiprocessing.cpu_count())
         dataset = dataset.batch(self.batch_size)
         dataset = dataset.prefetch(2)
