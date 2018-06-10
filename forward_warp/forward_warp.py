@@ -138,17 +138,6 @@ def get_translated_pixels(features, translations):
     indices_2d = tf.cast(tf.stack([y_2d, x_2d], axis=-1), tf.float32)
     translated_indices = translations + indices_2d
 
-    # x_shift_1 = tf.stack([tf.zeros(tf.shape(x_2d)), tf.ones(tf.shape(x_2d))])
-    # y_shift_1 = tf.stack([tf.ones(tf.shape(x_2d)), tf.zeros(tf.shape(x_2d))])
-    # tl_indices = tf.cast(tf.floor(translated_indices), tf.int32)
-    # shifted_indices = []
-    # for i in range(3):
-    #     for j in range(3):
-    #         if i == j == 0:
-    #             shifted_indices.append(tl_indices)
-    #         else:
-    #             shifted_indices.append(tl_indices + i * y_shift_1 + j * x_shift_1)
-
     # Get splat corners.
     ceiled = tf.cast(tf.ceil(translated_indices), tf.int32)
     floored = tf.cast(tf.floor(translated_indices), tf.int32)
