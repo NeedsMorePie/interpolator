@@ -2,14 +2,9 @@ import unittest
 import os
 from utils.flow import read_flow_file
 from utils.img import read_image, show_image
-from utils.misc import sort_in_unison
-from forward_warp.forward_warp_np import forward_warp_np
 from forward_warp.forward_warp import forward_warp, get_translated_pixels
-import matplotlib.image as mpimg
 import numpy as np
 import tensorflow as tf
-import cv2
-from pylab import savefig
 
 VISUALIZE = False
 
