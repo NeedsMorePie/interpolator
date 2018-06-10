@@ -11,7 +11,7 @@ import tensorflow as tf
 import cv2
 from pylab import savefig
 
-VISUALIZE = True
+VISUALIZE = False
 
 
 class TestForwardWarp(unittest.TestCase):
@@ -36,20 +36,18 @@ class TestForwardWarp(unittest.TestCase):
         ]]
 
         # Indices are in (y, x) order.
-        # As the pixels are splatted on at exact integer coordinates, there will be duplicates.
         expected_indices = [[
-            [0, 1], [0, 1], [0, 1], [0, 1],
-            [0, 1], [0, 1], [0, 1], [0, 1],
-            [1, 1], [1, 1], [1, 1], [1, 1],
-            [1, 1], [1, 1], [1, 1], [1, 1],
+            [0, 1], [-1, 1], [1, 1], [0, 0], [0, 2],
+            [0, 1], [-1, 1], [1, 1], [0, 0], [0, 2],
+            [1, 1], [0, 1], [2, 1], [1, 0], [1, 2],
+            [1, 1], [0, 1], [2, 1], [1, 0], [1, 2]
         ]]
 
-        # We expect the duplicates to not splat anything.
         expected_values = [[
-            [1, 0], [0, 0], [0, 0], [0, 0],
-            [0, 0], [0, 0], [0, 0], [0, 0],
-            [0, 1], [0, 0], [0, 0], [0, 0],
-            [0, 0], [0, 0], [0, 0], [0, 0]
+            [1, 0], [0, 0], [0, 0], [0, 0], [0, 0],
+            [0, 0], [0, 0], [0, 0], [0, 0], [0, 0],
+            [0, 1], [0, 0], [0, 0], [0, 0], [0, 0],
+            [0, 0], [0, 0], [0, 0], [0, 0], [0, 0]
         ]]
 
         expected_indices, expected_values = np.squeeze(expected_indices), np.squeeze(expected_values)
@@ -84,24 +82,23 @@ class TestForwardWarp(unittest.TestCase):
         ]]
 
         # Indices are in (y, x) order.
-        # As the pixels are splatted on at exact integer coordinates, there will be duplicates.
         expected_indices = [[
-            [0, 1], [0, 1], [0, 1], [0, 1],
-            [0, 1], [0, 1], [0, 1], [0, 1],
-            [1, 2], [1, 2], [1, 2], [1, 2],
-            [1, 1], [1, 1], [1, 1], [1, 1],
-            [1, 1], [1, 1], [1, 1], [1, 1],
-            [1, 2], [1, 2], [1, 2], [1, 2]
+            [0, 1], [-1, 1], [1, 1], [0, 0], [0, 2],
+            [0, 1], [-1, 1], [1, 1], [0, 0], [0, 2],
+            [1, 2], [0, 2], [2, 2], [1, 1], [1, 3],
+            [1, 1], [0, 1], [2, 1], [1, 0], [1, 2],
+            [1, 1], [0, 1], [2, 1], [1, 0], [1, 2],
+            [1, 2], [0, 2], [2, 2], [1, 1], [1, 3]
         ]]
 
         # We expect the duplicates to not splat anything.
         expected_values = [[
-            [1, 0], [0, 0], [0, 0], [0, 0],
-            [0, 0], [0, 0], [0, 0], [0, 0],
-            [-1, 0], [0, 0], [0, 0], [0, 0],
-            [0, 1], [0, 0], [0, 0], [0, 0],
-            [0, 0], [0, 0], [0, 0], [0, 0],
-            [-1, 0], [0, 0], [0, 0], [0, 0]
+            [1, 0], [0, 0], [0, 0], [0, 0], [0, 0],
+            [0, 0], [0, 0], [0, 0], [0, 0], [0, 0],
+            [-1, 0], [0, 0], [0, 0], [0, 0], [0, 0],
+            [0, 1], [0, 0], [0, 0], [0, 0], [0, 0],
+            [0, 0], [0, 0], [0, 0], [0, 0], [0, 0],
+            [-1, 0], [0, 0], [0, 0], [0, 0], [0, 0]
         ]]
 
         expected_indices, expected_values = np.squeeze(expected_indices), np.squeeze(expected_values)
@@ -138,20 +135,19 @@ class TestForwardWarp(unittest.TestCase):
         ]]
 
         # Indices are in (y, x) order.
-        # As the pixels are splatted on at exact integer coordinates, there will be duplicates.
         expected_indices = [[
-            [0, 0], [0, 0], [1, 0], [1, 0],
-            [0, 1], [0, 1], [0, 1], [0, 1],
-            [1, 0], [1, 0], [1, 1], [1, 1],
-            [1, 1], [1, 1], [1, 1], [1, 1],
+            [0, 0], [0, 0], [1, 0], [1, 0], [0, 0],
+            [0, 1], [-1, 1], [1, 1], [0, 0], [0, 2],
+            [1, 0], [1, 0], [1, 1], [1, 1], [1, 0],
+            [1, 1], [0, 1], [2, 1], [1, 0], [1, 2]
         ]]
 
         # We expect the duplicates to not splat anything.
         expected_values = [[
-            [0.5, 0], [0, 0], [0.5, 0], [0, 0],
-            [0, 0], [0, 0], [0, 0], [0, 0],
-            [0, 0.5], [0, 0], [0, 0.5], [0, 0],
-            [0, 0], [0, 0], [0, 0], [0, 0]
+            [0.5, 0], [0, 0], [0.5, 0], [0, 0], [0, 0],
+            [0, 0], [0, 0], [0, 0], [0, 0], [0, 0],
+            [0, 0.5], [0, 0], [0, 0.5], [0, 0], [0, 0],
+            [0, 0], [0, 0], [0, 0], [0, 0], [0, 0]
         ]]
 
         expected_indices, expected_values = np.squeeze(expected_indices), np.squeeze(expected_values)
@@ -185,20 +181,19 @@ class TestForwardWarp(unittest.TestCase):
         ]]
 
         # Indices are in (y, x) order.
-        # As the pixels are splatted on at exact integer coordinates, there will be duplicates.
         expected_indices = [[
-            [0, 0], [0, 1], [1, 0], [1, 1],
-            [0, 1], [0, 1], [0, 1], [0, 1],
-            [1, -1], [1, -1], [1, -1], [1, -1],
-            [1, 1], [1, 1], [1, 1], [1, 1],
+            [0, 0], [0, 1], [1, 0], [1, 1], [0, 0],
+            [0, 1], [-1, 1], [1, 1], [0, 0], [0, 2],
+            [1, -1], [0, -1], [2, -1], [1, -2], [1, 0],
+            [1, 1], [0, 1], [2, 1], [1, 0], [1, 2]
         ]]
 
         # We expect the duplicates to not splat anything.
         expected_values = [[
-            [0.25, 0], [0.25, 0], [0.25, 0], [0.25, 0],
-            [0, 0], [0, 0], [0, 0], [0, 0],
-            [0, 1], [0, 0], [0, 0], [0, 0],
-            [0, 0], [0, 0], [0, 0], [0, 0]
+            [0.25, 0], [0.25, 0], [0.25, 0], [0.25, 0], [0, 0],
+            [0, 0], [0, 0], [0, 0], [0, 0], [0, 0],
+            [0, 1], [0, 0], [0, 0], [0, 0], [0, 0],
+            [0, 0], [0, 0], [0, 0], [0, 0], [0, 0]
         ]]
 
         expected_indices, expected_values = np.squeeze(expected_indices), np.squeeze(expected_values)
@@ -248,32 +243,32 @@ class TestForwardWarp(unittest.TestCase):
         # As the pixels are splatted on at exact integer coordinates, there will be duplicates.
         expected_indices = [
             [
-                [0, 1], [0, 1], [0, 1], [0, 1],
-                [0, 1], [0, 1], [0, 1], [0, 1],
-                [1, 1], [1, 1], [1, 1], [1, 1],
-                [1, 1], [1, 1], [1, 1], [1, 1]
+                [0, 1], [-1, 1], [1, 1], [0, 0], [0, 2],
+                [0, 1], [-1, 1], [1, 1], [0, 0], [0, 2],
+                [1, 1], [0, 1], [2, 1], [1, 0], [1, 2],
+                [1, 1], [0, 1], [2, 1], [1, 0], [1, 2]
             ],
             [
-                [0, 0], [0, 0], [1, 0], [1, 0],
-                [0, 1], [0, 1], [0, 1], [0, 1],
-                [1, 0], [1, 0], [1, 1], [1, 1],
-                [1, 1], [1, 1], [1, 1], [1, 1],
+                [0, 0], [0, 0], [1, 0], [1, 0], [0, 0],
+                [0, 1], [-1, 1], [1, 1], [0, 0], [0, 2],
+                [1, 0], [1, 0], [1, 1], [1, 1], [1, 0],
+                [1, 1], [0, 1], [2, 1], [1, 0], [1, 2]
             ]
         ]
 
         # We expect the duplicates to not splat anything.
         expected_values = [
             [
-                [1, 0], [0, 0], [0, 0], [0, 0],
-                [0, 0], [0, 0], [0, 0], [0, 0],
-                [0, 1], [0, 0], [0, 0], [0, 0],
-                [0, 0], [0, 0], [0, 0], [0, 0]
+                [1, 0], [0, 0], [0, 0], [0, 0], [0, 0],
+                [0, 0], [0, 0], [0, 0], [0, 0], [0, 0],
+                [0, 1], [0, 0], [0, 0], [0, 0], [0, 0],
+                [0, 0], [0, 0], [0, 0], [0, 0], [0, 0]
             ],
             [
-                [0.5, 0], [0, 0], [0.5, 0], [0, 0],
-                [0, 0], [0, 0], [0, 0], [0, 0],
-                [0, 0.5], [0, 0], [0, 0.5], [0, 0],
-                [0, 0], [0, 0], [0, 0], [0, 0]
+                [0.5, 0], [0, 0], [0.5, 0], [0, 0], [0, 0],
+                [0, 0], [0, 0], [0, 0], [0, 0], [0, 0],
+                [0, 0.5], [0, 0], [0, 0.5], [0, 0], [0, 0],
+                [0, 0], [0, 0], [0, 0], [0, 0], [0, 0]
             ]
         ]
 
@@ -293,7 +288,6 @@ class TestForwardWarp(unittest.TestCase):
         predicted = np.stack([indices, values], axis=-2).tolist()
         self.assertCountEqual(predicted[0], expected[0])
         self.assertCountEqual(predicted[1], expected[1])
-
 
     def test_forward_warp_whole_1(self):
         height = 2
@@ -316,7 +310,7 @@ class TestForwardWarp(unittest.TestCase):
 
         flow_tensor = tf.placeholder(tf.float32, (1, height, width, 2))
         features_tensor = tf.placeholder(tf.float32, (1, height, width, 2))
-        warp_tensor = forward_warp(features_tensor, flow_tensor, max_image_area=8)
+        warp_tensor = forward_warp(features_tensor, flow_tensor)
         warp = self.sess.run(warp_tensor, feed_dict={flow_tensor: flow, features_tensor: features})
         self.assertEqual(warp.tolist(), expected_warp)
 
@@ -341,7 +335,7 @@ class TestForwardWarp(unittest.TestCase):
 
         flow_tensor = tf.placeholder(tf.float32, (1, height, width, 2))
         features_tensor = tf.placeholder(tf.float32, (1, height, width, 2))
-        warp_tensor = forward_warp(features_tensor, flow_tensor, max_image_area=8)
+        warp_tensor = forward_warp(features_tensor, flow_tensor)
         warp = self.sess.run(warp_tensor, feed_dict={flow_tensor: flow, features_tensor: features})
         self.assertEqual(warp.tolist(), expected_warp)
 
@@ -369,9 +363,25 @@ class TestForwardWarp(unittest.TestCase):
 
         flow_tensor = tf.placeholder(tf.float32, (1, height, width, 2))
         features_tensor = tf.placeholder(tf.float32, (1, height, width, 2))
-        warp_tensor = forward_warp(features_tensor, flow_tensor, max_image_area=8)
+        warp_tensor = forward_warp(features_tensor, flow_tensor)
         warp = self.sess.run(warp_tensor, feed_dict={flow_tensor: flow, features_tensor: features})
         self.assertEqual(warp.tolist(), expected_warp)
+
+        # Check for gradients.
+        grads_tensor = tf.gradients(warp_tensor[0][0][0], [flow_tensor, features_tensor])
+        for grad_tensor in grads_tensor:
+            self.assertNotEqual(grad_tensor, None)
+
+        # For the top left warp, there should only be 2 flows giving non-zero gradients.
+        grads = self.sess.run(grads_tensor, feed_dict={flow_tensor: flow, features_tensor: features})
+        flow_grads, feature_grads = grads[0][0], grads[1][0]
+        self.assertNotEqual(np.sum(flow_grads[0][0]), 0.0)
+        self.assertNotEqual(np.sum(flow_grads[1][0]), 0.0)
+        self.assertEqual(np.sum(flow_grads) - np.sum(flow_grads[0][0]) - np.sum(flow_grads[1][0]), 0.0)
+
+        # Note that the feature on the left edge (at [1][0]) should have 0 gradient.
+        self.assertNotEqual(np.sum(feature_grads[0][0]), 0.0)
+        self.assertEqual(np.sum(feature_grads) - np.sum(feature_grads[0][0]), 0.0)
 
     def test_forward_warp_oob(self):
         """
@@ -400,7 +410,7 @@ class TestForwardWarp(unittest.TestCase):
 
         flow_tensor = tf.placeholder(tf.float32, (1, height, width, 2))
         features_tensor = tf.placeholder(tf.float32, (1, height, width, 2))
-        warp_tensor = forward_warp(features_tensor, flow_tensor, max_image_area=8)
+        warp_tensor = forward_warp(features_tensor, flow_tensor)
         warp = self.sess.run(warp_tensor, feed_dict={flow_tensor: flow, features_tensor: features})
         self.assertEqual(warp.tolist(), expected_warp)
 
@@ -443,7 +453,7 @@ class TestForwardWarp(unittest.TestCase):
 
         flow_tensor = tf.placeholder(tf.float32, (2, height, width, 2))
         features_tensor = tf.placeholder(tf.float32, (2, height, width, 2))
-        warp_tensor = forward_warp(features_tensor, flow_tensor, max_image_area=8)
+        warp_tensor = forward_warp(features_tensor, flow_tensor)
         warp = self.sess.run(warp_tensor, feed_dict={flow_tensor: flow, features_tensor: features})
         self.assertEqual(warp[0].tolist(), expected_warp[0])
         self.assertEqual(warp[1].tolist(), expected_warp[1])
@@ -462,28 +472,27 @@ class TestForwardWarp(unittest.TestCase):
         t_tensor = tf.placeholder(tf.float32, None)
         flow_ab_tensor = tf.placeholder(tf.float32, np.shape(flow_ab))
         img_a_tensor = tf.placeholder(tf.float32, np.shape(img_a))
-        warp_tensor = forward_warp(img_a_tensor, t_tensor * flow_ab_tensor, max_image_area=1280*720)
+        warp_tensor = forward_warp(img_a_tensor, t_tensor * flow_ab_tensor)
 
         warp = self.sess.run(warp_tensor, feed_dict={flow_ab_tensor: flow_ab, img_a_tensor: img_a, t_tensor: 1.0})
-
-        #warp = np.clip(warp, 0.0, 1.0)
-        #mpimg.imsave('./warp_jank.jpg', warp[0])
+        warp = np.clip(warp[0], 0.0, 1.0)
+        show_image(warp)
 
         # For writing to video.
-        height = img_a[0].shape[0]
-        width = img_a[0].shape[1]
-        writer = cv2.VideoWriter(cur_dir + '/outputs/video-jank.avi', cv2.VideoWriter_fourcc(*"MJPG"), 20, (width, height))
-
-        steps = 60
-        for i in range(steps):
-            print('Writing video at step %d' % i)
-            t = i * (1.0 / float(steps))
-            warped = self.sess.run(warp_tensor,
-                                   feed_dict={flow_ab_tensor: flow_ab, img_a_tensor: img_a, t_tensor: t})
-            warped = warped[0]
-            warped = np.clip(warped, 0.0, 1.0)
-            output_path = cur_dir + "/outputs/out-%.2f.png" % t
-            mpimg.imsave(output_path, warped)
-            writer.write(cv2.imread(output_path))
-
-        writer.release()
+        # height = img_a[0].shape[0]
+        # width = img_a[0].shape[1]
+        # writer = cv2.VideoWriter(cur_dir + '/outputs/video-jank.avi', cv2.VideoWriter_fourcc(*"MJPG"), 20, (width, height))
+        #
+        # steps = 60
+        # for i in range(steps):
+        #     print('Writing video at step %d' % i)
+        #     t = i * (1.0 / float(steps))
+        #     warped = self.sess.run(warp_tensor,
+        #                            feed_dict={flow_ab_tensor: flow_ab, img_a_tensor: img_a, t_tensor: t})
+        #     warped = warped[0]
+        #     warped = np.clip(warped, 0.0, 1.0)
+        #     output_path = cur_dir + "/outputs/out-%.2f.png" % t
+        #     mpimg.imsave(output_path, warped)
+        #     writer.write(cv2.imread(output_path))
+        #
+        # writer.release()
