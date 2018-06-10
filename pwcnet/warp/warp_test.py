@@ -53,7 +53,7 @@ class TestSpacialTransformTranslate(unittest.TestCase):
         # Warp matrix to achieve the expected output.
         translation = np.asarray([[[[x_trans_amount, y_trans_amount]]]])
         translation = np.tile(translation, [1, height, width, 1])
-        warp = optical_flow_to_transforms_immediate(translation, self.sess)[0, 0, 0, :]
+        warp = translation[0, 0, 0, :]
 
         # Create the graph and run it to get the actual output.
         input = tf.placeholder(shape=[None] + image_shape, dtype=tf.float32)
@@ -74,27 +74,6 @@ class TestSpacialTransformTranslate(unittest.TestCase):
         if SHOW_WARPED_IMAGES:
             show_image(transformed_image[1])
             show_image(diff_img)
-
-    def test_flow_to_matrix(self):
-        """
-        Tests that we can take an optical flow image and convert it into flat 2D transform matrices.
-        """
-        flow = np.asarray([[[1, 1], [2, 2]],
-                           [[3, 3], [4, 4]],
-                           [[5, 5], [6, 6]]], dtype=np.float32)
-        flow = np.stack([flow, flow])  # Create a batch size of 2.
-        flow_holder = tf.placeholder(shape=flow.shape, dtype=tf.float32)
-        transforms_tensor = optical_flow_to_transforms(flow_holder)
-        transforms = self.sess.run(transforms_tensor, feed_dict={flow_holder: flow})
-
-        height_scale = 2.0 / float(flow.shape[1])
-        width_scale = 2.0 / float(flow.shape[2])
-        expected_transforms = np.asarray([[[1 * width_scale, 1 * height_scale], [2 * width_scale, 2 * height_scale]],
-                                          [[3 * width_scale, 3 * height_scale], [4 * width_scale, 4 * height_scale]],
-                                          [[5 * width_scale, 5 * height_scale], [6 * width_scale, 6 * height_scale]]],
-                                         dtype=np.float32)
-        expected_transforms = np.stack([expected_transforms, expected_transforms])
-        self.assertTrue(np.allclose(transforms, expected_transforms))
 
     def test_optical_flow_warp(self):
         """
@@ -130,9 +109,9 @@ class TestSpacialTransformTranslate(unittest.TestCase):
         error_cd_img = np.abs(warped_image[1] - img_c) * warped_image[3]
         error_ab = np.mean(error_ab_img)
         error_cd = np.mean(error_cd_img)
-        # Assert a < 1.6% average error.
-        self.assertLess(error_ab, 0.016)
-        self.assertLess(error_cd, 0.016)
+        # Assert a < 1.3% average error.
+        self.assertLess(error_ab, 0.013)
+        self.assertLess(error_cd, 0.013)
 
         if SHOW_WARPED_IMAGES:
             show_image(warped_image[0])

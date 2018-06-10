@@ -119,8 +119,8 @@ def affine_grid_generator(height, width, theta):
     num_batch = tf.shape(theta)[0]
 
     # create normalized 2D grid
-    x = tf.linspace(-1.0, 1.0, width)
-    y = tf.linspace(-1.0, 1.0, height)
+    x = tf.linspace(0.0, tf.cast(width, dtype=tf.float32) - 1.0, width)
+    y = tf.linspace(0.0, tf.cast(height, dtype=tf.float32) - 1.0, height)
     x_t, y_t = tf.meshgrid(x, y)
 
     # flatten
@@ -181,10 +181,6 @@ def bilinear_sampler(img, x, y):
     # cast indices as float32 (for rescaling)
     x = tf.cast(x, 'float32')
     y = tf.cast(y, 'float32')
-
-    # rescale x and y to [0, W/H]
-    x = 0.5 * ((x + 1.0) * tf.cast(W, 'float32'))
-    y = 0.5 * ((y + 1.0) * tf.cast(H, 'float32'))
 
     # grab 4 nearest corner points for each (x_i, y_i)
     # i.e. we need a rectangle around the point of interest

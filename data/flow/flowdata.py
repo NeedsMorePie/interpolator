@@ -1,6 +1,7 @@
 import glob
 import multiprocessing
 import os.path
+import random
 from data.dataset import DataSet
 from joblib import Parallel, delayed
 from utils.data import *
@@ -18,16 +19,19 @@ FLOW_RAW = 'flow_raw'
 class FlowDataSet(DataSet):
     def __init__(self, directory, batch_size=1, validation_size=1):
         super().__init__(directory, batch_size, validation_size)
-        # Tensorflow dataset objects.
-        self.train_dataset = None
-        self.validation_dataset = None
-        # Tensors.
-        self.next_train_images_a = None
-        self.next_train_images_b = None
-        self.next_train_flows = None
-        self.next_validation_images_a = None
-        self.next_validation_images_b = None
-        self.next_validation_flows = None
+
+        # Initialized during load().
+        self.train_dataset = None  # Tensorflow DataSet object.
+        self.valid_dataset = None  # Tensorflow DataSet object.
+        self.handle_placeholder = None  # Handle placeholder for switching between datasets.
+        self.train_handle = None  # Handle to feed for the training dataset.
+        self.validation_handle = None  # Handle to feed for the validation dataset.
+        self.iterator = None  # Iterator for getting the next batch.
+        self.train_iterator = None  # Iterator for getting just the train data.
+        self.validation_iterator = None  # Iterator for getting just the validation data.
+        self.next_images_a = None  # Data iterator batch.
+        self.next_images_b = None  # Data iterator batch.
+        self.next_flows = None  # Data iterator batch.
 
         self.train_filename = 'flowdataset_train.tfrecords'
         self.valid_filename = 'flowdataset_valid.tfrecords'
@@ -53,30 +57,48 @@ class FlowDataSet(DataSet):
         image_a_paths, image_b_paths, flow_paths = self._get_data_paths()
         self._convert_to_tf_record(image_a_paths, image_b_paths, flow_paths, shard_size)
 
-    def load(self):
+    def load(self, session):
         """
         Overridden.
         """
-        self.train_dataset = self._load_dataset(self.get_train_file_names())
-        self.validation_dataset = self._load_dataset(self.get_validation_file_names())
+        with tf.name_scope('dataset_ops'):
+            self.train_dataset = self._load_dataset(self.get_train_file_names(), True)
+            self.valid_dataset = self._load_dataset(self.get_validation_file_names(), False)
 
-        iterator = self.train_dataset.make_one_shot_iterator()
-        self.next_train_images_a, self.next_train_images_b, self.next_train_flows = iterator.get_next()
+            self.handle_placeholder = tf.placeholder(tf.string, shape=[])
+            self.iterator = tf.data.Iterator.from_string_handle(
+                self.handle_placeholder, self.train_dataset.output_types, self.train_dataset.output_shapes)
+            self.next_images_a, self.next_images_b, self.next_flows = self.iterator.get_next()
 
-        iterator = self.validation_dataset.make_one_shot_iterator()
-        self.next_validation_images_a, self.next_validation_images_b, self.next_validation_flows = iterator.get_next()
+            self.train_iterator = self.train_dataset.make_one_shot_iterator()
+            self.validation_iterator = self.valid_dataset.make_initializable_iterator()
 
-    def get_next_train_batch(self):
+        self.train_handle = session.run(self.train_iterator.string_handle())
+        self.validation_handle = session.run(self.validation_iterator.string_handle())
+
+    def get_next_batch(self):
         """
         Overridden.
         """
-        return self.next_train_images_a, self.next_train_images_b, self.next_train_flows
+        return self.next_images_a, self.next_images_b, self.next_flows
 
-    def get_next_validation_batch(self):
+    def get_train_feed_dict(self):
         """
         Overridden.
         """
-        return self.next_validation_images_a, self.next_validation_images_b, self.next_validation_flows
+        return {self.handle_placeholder: self.train_handle}
+
+    def get_validation_feed_dict(self):
+        """
+        Overridden.
+        """
+        return {self.handle_placeholder: self.validation_handle}
+
+    def init_validation_data(self, session):
+        """
+        Overridden
+        """
+        session.run(self.validation_iterator.initializer)
 
     def _get_data_paths(self):
         """
@@ -114,6 +136,11 @@ class FlowDataSet(DataSet):
         assert len(image_a_paths) == len(flow_paths)
         assert len(image_b_paths) == len(flow_paths)
 
+        # Shuffle in unison.
+        zipped = list(zip(image_a_paths, image_b_paths, flow_paths))
+        random.shuffle(zipped)
+        image_a_paths, image_b_paths, flow_paths = zip(*zipped)
+
         def _write(filename, iter_range):
             if self.verbose:
                 print('Writing', len(iter_range),'data examples to the', filename, 'dataset.')
@@ -130,9 +157,10 @@ class FlowDataSet(DataSet):
         _write(self.train_filename, range(0, valid_start_idx))
         _write(self.valid_filename, range(valid_start_idx, len(image_a_paths)))
 
-    def _load_dataset(self, file_paths):
+    def _load_dataset(self, filenames, repeat):
         """
-        :param file_path: String. TfRecord file path.
+        :param filenames: List of strings.
+        :param repeat: Whether to repeat the dataset indefinitely.
         :return: Tensorflow dataset object.
         """
         def _parse_function(example_proto):
@@ -154,11 +182,12 @@ class FlowDataSet(DataSet):
             flow = tf.reshape(flow, [H, W, 2])
             return image_a, image_b, flow
 
-        dataset = tf.data.TFRecordDataset(file_paths)
+        dataset = tf.data.TFRecordDataset(filenames)
         dataset = dataset.map(_parse_function)
-        dataset = dataset.shuffle(buffer_size=500)
+        dataset = dataset.shuffle(buffer_size=250)
         dataset = dataset.batch(self.batch_size)
-        dataset = dataset.repeat()
+        if repeat:
+            dataset = dataset.repeat()
         return dataset
 
 

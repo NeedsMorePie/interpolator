@@ -8,6 +8,7 @@ from tensorflow.contrib.layers import l2_regularizer
 VERBOSE = False
 
 
+# TODO: Dump weights into npz dict of numpy arrays and reload from it.
 class PWCNet:
     def __init__(self, name='pwc_net', regularizer=l2_regularizer(4e-4),
                  flow_layer_loss_weights=None, flow_scaling=0.05):
@@ -23,9 +24,10 @@ class PWCNet:
         self.flow_scaling = flow_scaling
 
         if flow_layer_loss_weights is None:
-            # Note that the second-last element is 0.0 because it's the flow before the context network.
+            # Note that the loss weights have been decreased from the values mentioned in the paper.
+            scale = 0.5
             self.flow_layer_loss_weights = [
-                0.32, 0.08, 0.02, 0.01, 0.0, 0.005
+                0.32 * scale, 0.08 * scale, 0.02 * scale, 0.01 * scale, 0.005 * scale, 0.005 * scale
             ]
         else:
             self.flow_layer_loss_weights = flow_layer_loss_weights
@@ -74,12 +76,13 @@ class PWCNet:
                 B = tf.shape(features_a_n)[0]
                 H = tf.shape(features_a_n)[1]
                 W = tf.shape(features_a_n)[2]
+                pre_warp_scaling = 1.0
                 if previous_flow is None:
                     previous_flow = tf.zeros(shape=[B, H, W, 2], dtype=tf.float32)
                 else:
                     # The original scale flows at all layers is the same as the scale of the ground truth.
-                    scaling = tf.cast(H, tf.float32) / tf.cast(img_height, tf.float32)
-                    previous_flow = previous_flow * scaling / self.flow_scaling
+                    dimension_scaling = tf.cast(H, tf.float32) / tf.cast(img_height, tf.float32)
+                    pre_warp_scaling = dimension_scaling / self.flow_scaling
                     # Upsample to the size of the current layer.
                     previous_flow = tf.image.resize_images(previous_flow, [H, W],
                                                            method=tf.image.ResizeMethod.BILINEAR)
@@ -89,7 +92,8 @@ class PWCNet:
                 if VERBOSE:
                     print('Getting forward ops for', estimator_network.name)
                 previous_flow, estimator_outputs = estimator_network.get_forward(
-                    features_a_n, features_b_n, previous_flow, reuse_variables=reuse_variables)
+                    features_a_n, features_b_n, previous_flow,
+                    pre_warp_scaling=pre_warp_scaling, reuse_variables=reuse_variables)
                 previous_flows.append(previous_flow)
 
                 # Last level gets the context-network treatment.
@@ -119,19 +123,20 @@ class PWCNet:
 
         layer_losses = []
         for i, previous_flow in enumerate(previous_flows):
-            H, W = tf.shape(previous_flow)[1], tf.shape(previous_flow)[2]
+            with tf.name_scope('layer_' + str(i) + '_loss'):
+                H, W = tf.shape(previous_flow)[1], tf.shape(previous_flow)[2]
 
-            # Ground truth needs to be resized to match the size of the previous flow.
-            resized_scaled_gt = tf.image.resize_images(scaled_gt, [H, W], method=tf.image.ResizeMethod.BILINEAR)
+                # Ground truth needs to be resized to match the size of the previous flow.
+                resized_scaled_gt = tf.image.resize_images(scaled_gt, [H, W], method=tf.image.ResizeMethod.BILINEAR)
 
-            # squared_difference has the shape [batch_size, H, W, 2].
-            squared_difference = diff_fn(resized_scaled_gt, previous_flow)
-            # Reduce sum in the last 3 dimensions, average over the batch, and apply the weight.
-            weight = self.flow_layer_loss_weights[i]
-            layer_loss = weight * tf.reduce_mean(tf.reduce_sum(squared_difference, axis=[1, 2, 3]))
+                # squared_difference has the shape [batch_size, H, W, 2].
+                squared_difference = diff_fn(resized_scaled_gt, previous_flow)
+                # Reduce sum in the last 3 dimensions, average over the batch, and apply the weight.
+                weight = self.flow_layer_loss_weights[i]
+                layer_loss = weight * tf.reduce_mean(tf.reduce_sum(squared_difference, axis=[1, 2, 3]))
 
-            # Accumulate the total loss.
-            layer_losses.append(layer_loss)
+                # Accumulate the total loss.
+                layer_losses.append(layer_loss)
             total_loss += layer_loss
 
         # Add the regularization loss.
@@ -143,15 +148,17 @@ class PWCNet:
         Uses an L2 diffing loss.
         :return: Tf scalar loss term, and an array of all the inidividual loss terms.
         """
-        def l2_diff(a, b):
-            return tf.square(a-b)
-        return self._get_loss(previous_flows, expected_flow, l2_diff)
+        with tf.name_scope('training_loss'):
+            def l2_diff(a, b):
+                return tf.square(a-b)
+            return self._get_loss(previous_flows, expected_flow, l2_diff)
 
     def get_fine_tuning_loss(self, previous_flows, expected_flow, q=0.4, epsilon=0.01):
         """
         Uses an Lq diffing loss.
         :return: Tf scalar loss term, and an array of all the inidividual loss terms.
         """
-        def lq_diff(a, b):
-            return tf.pow(tf.abs(a-b) + epsilon, q)
-        return self._get_loss(previous_flows, expected_flow, lq_diff)
+        with tf.name_scope('fine_tuning_loss'):
+            def lq_diff(a, b):
+                return tf.pow(tf.abs(a-b) + epsilon, q)
+            return self._get_loss(previous_flows, expected_flow, lq_diff)
