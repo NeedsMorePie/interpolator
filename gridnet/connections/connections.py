@@ -20,11 +20,10 @@ class LateralConnection(ConvNetwork):
             full_layer_spec = [3, layer_spec[0], layer_spec[1], 1]
             full_layer_specs.append(full_layer_spec)
 
-        super().__init__(layer_specs=full_layer_specs,
+        super().__init__(name=name, layer_specs=full_layer_specs,
                          activation_fn=activation_fn, last_activation_fn=None,
                          regularizer=regularizer, padding='SAME')
 
-        self.name = name
         self.total_dropout_rate = total_dropout_rate
 
     def get_forward(self, features, reuse_variables=False, training=False):
@@ -71,11 +70,9 @@ class DownSamplingConnection(ConvNetwork):
             full_layer_spec = [3, layer_spec[0], layer_spec[1], stride]
             full_layer_specs.append(full_layer_spec)
 
-        super().__init__(layer_specs=full_layer_specs,
+        super().__init__(name=name, layer_specs=full_layer_specs,
                          activation_fn=activation_fn, last_activation_fn=None,
                          regularizer=regularizer, padding='SAME')
-
-        self.name = name
 
     def get_forward(self, features, reuse_variables=False):
         """
@@ -108,11 +105,9 @@ class UpSamplingConnection(ConvNetwork):
             full_layer_spec = [3, layer_spec[0], layer_spec[1], 1]
             full_layer_specs.append(full_layer_spec)
 
-        super().__init__(layer_specs=full_layer_specs,
+        super().__init__(name=name, layer_specs=full_layer_specs,
                          activation_fn=activation_fn, last_activation_fn=None,
                          regularizer=regularizer, padding='SAME')
-
-        self.name = name
 
     def get_forward(self, features, reuse_variables=False):
         """

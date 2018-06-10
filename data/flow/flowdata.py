@@ -5,8 +5,8 @@ import random
 from data.dataset import DataSet
 from joblib import Parallel, delayed
 from utils.data import *
-from utils.flow import read_flow_file
-from utils.img import read_image
+from utils.flow import read_flow_file, tf_random_flip_flow, tf_random_scale_flow
+from utils.img import read_image, tf_random_crop, tf_image_augmentation
 
 
 HEIGHT = 'height'
@@ -17,7 +17,14 @@ FLOW_RAW = 'flow_raw'
 
 
 class FlowDataSet(DataSet):
-    def __init__(self, directory, batch_size=1, validation_size=1):
+    def __init__(self, directory, batch_size=1, validation_size=1, crop_size=None):
+        """
+        :param directory: Str. Directory of the dataset file structure and tf records.
+        :param batch_size: Int.
+        :param validation_size: Int. Number of examples to reserve for validation
+        :param crop_size: Tuple of (int (H), int (W)). Size to crop the training examples to before feeding to network.
+                          If None, then no cropping will be performed.
+        """
         super().__init__(directory, batch_size, validation_size)
 
         # Initialized during load().
@@ -32,6 +39,8 @@ class FlowDataSet(DataSet):
         self.next_images_a = None  # Data iterator batch.
         self.next_images_b = None  # Data iterator batch.
         self.next_flows = None  # Data iterator batch.
+
+        self.crop_size = crop_size
 
         self.train_filename = 'flowdataset_train.tfrecords'
         self.valid_filename = 'flowdataset_valid.tfrecords'
@@ -62,8 +71,8 @@ class FlowDataSet(DataSet):
         Overridden.
         """
         with tf.name_scope('dataset_ops'):
-            self.train_dataset = self._load_dataset(self.get_train_file_names(), True)
-            self.valid_dataset = self._load_dataset(self.get_validation_file_names(), False)
+            self.train_dataset = self._load_dataset(self.get_train_file_names(), True, do_augmentations=True)
+            self.valid_dataset = self._load_dataset(self.get_validation_file_names(), False, do_augmentations=False)
 
             self.handle_placeholder = tf.placeholder(tf.string, shape=[])
             self.iterator = tf.data.Iterator.from_string_handle(
@@ -157,10 +166,11 @@ class FlowDataSet(DataSet):
         _write(self.train_filename, range(0, valid_start_idx))
         _write(self.valid_filename, range(valid_start_idx, len(image_a_paths)))
 
-    def _load_dataset(self, filenames, repeat):
+    def _load_dataset(self, filenames, repeat, do_augmentations=False):
         """
         :param filenames: List of strings.
         :param repeat: Whether to repeat the dataset indefinitely.
+        :param do_augmentations: Bool. Whether to do image augmentations.
         :return: Tensorflow dataset object.
         """
         def _parse_function(example_proto):
@@ -180,14 +190,40 @@ class FlowDataSet(DataSet):
             image_b = tf.reshape(image_b, [H, W, 3])
             flow = tf.decode_raw(parsed_features[FLOW_RAW], tf.float32)
             flow = tf.reshape(flow, [H, W, 2])
+
+            # Cropping augmentation.
+            image_a, image_b, flow = tf_random_crop([image_a, image_b, flow], self.crop_size)
+
+            if do_augmentations:
+                config = {
+                    'contrast_min': 0.8, 'contrast_max': 1.25,
+                    'gamma_min': 0.8, 'gamma_max': 1.25,
+                    'gain_min': 0.8, 'gain_max': 1.25,
+                    'brightness_stddev': 0.2,
+                    'hue_min': -0.3, 'hue_max': 0.3,
+                    'noise_stddev': 0.04,
+                    'scale_min': 0.5, 'scale_max': 2.0
+                }
+                image_a, image_b = tf_image_augmentation([image_a, image_b], config)
+
+                # Flip randomly in unison.
+                #flow, images = tf_random_flip_flow(flow, [image_a, image_b])
+                #image_a, image_b = images
+
+                # Scale randomly in unison.
+                flow, images = tf_random_scale_flow(flow, [image_a, image_b], config)
+                image_a, image_b = images
+
             return image_a, image_b, flow
 
         dataset = tf.data.TFRecordDataset(filenames)
-        dataset = dataset.map(_parse_function)
-        dataset = dataset.shuffle(buffer_size=250)
-        dataset = dataset.batch(self.batch_size)
         if repeat:
-            dataset = dataset.repeat()
+            dataset = dataset.apply(tf.contrib.data.shuffle_and_repeat(buffer_size=len(filenames)))
+        else:
+            dataset = dataset.shuffle(buffer_size=len(filenames))
+        dataset = dataset.map(_parse_function, num_parallel_calls=multiprocessing.cpu_count())
+        dataset = dataset.batch(self.batch_size)
+        dataset = dataset.prefetch(1)
         return dataset
 
 

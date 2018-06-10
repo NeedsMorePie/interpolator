@@ -9,12 +9,12 @@ def sort_in_unison(key_list, lists):
     :param lists: A list of lists, each of which will be sorted in unison with key_list.
     :return: (sorted_key_list, sorted_lists)
     """
-    indexes = [*range(len(key_list))]
-    indexes.sort(key=key_list.__getitem__)
+    indices = [*range(len(key_list))]
+    indices.sort(key=key_list.__getitem__)
     sorted_lists = []
-    sorted_key_list = [key_list[indexes[i]] for i in range(len(key_list))]
+    sorted_key_list = [key_list[indices[i]] for i in range(len(key_list))]
     for list in lists:
-        sorted_list = [list[indexes[i]] for i in range(len(list))]
+        sorted_list = [list[indices[i]] for i in range(len(list))]
         sorted_lists.append(sorted_list)
     return sorted_key_list, sorted_lists
 
@@ -51,3 +51,50 @@ def prelu(_x):
         neg = alphas * (_x - abs(_x)) * 0.5
 
         return pos + neg
+
+
+def sliding_window_slice(x, slice_locations):
+    """
+    :param x: The tensor to window slice.
+    :param slice_locations: A list. The locations at which we gather values. Values are either 0 or 1.
+                            E.g [1, 0, 1] means that at each window offset j, we form [x[j], x[j + 2]].
+    :return: The window sliced tensor. Is 1 rank higher than x.
+    """
+    slice_indices = []
+    for i in range(len(slice_locations)):
+        if slice_locations[i] == 1:
+            slice_indices.append(i)
+
+    sequence_len = len(slice_indices)
+
+    # Get the sliding window indices.
+    slice_indices_tensor = tf.constant(slice_indices)
+    num_offsets = tf.shape(x)[0] - tf.cast(len(slice_locations) - 1, tf.int32)
+
+    def get_zeros(sequence_len, x):
+        return tf.zeros(tf.concat([[1, sequence_len], tf.shape(x)[1:]], axis=0))
+
+    def get_slice(slice_indices_tensor, num_offsets, x):
+        num_offsets = tf.maximum(num_offsets, 0)
+
+        # Compute the gather indices for forming sequences.
+        tiled = tf.tile(slice_indices_tensor, [num_offsets])
+        tiled = tf.expand_dims(tiled, axis=0)
+        tiled = tf.reshape(tiled, [num_offsets, -1])
+        offsets = tf.expand_dims(tf.range(0, num_offsets), axis=1)
+        indices = tiled + offsets
+        indices = tf.reshape(indices, [-1])
+
+        # Gather and reshape.
+        images = tf.gather(x, indices)
+        images = tf.expand_dims(images, axis=0)
+        final_shape = tf.concat([[num_offsets, sequence_len], tf.shape(images)[2:]], axis=0)
+        images = tf.reshape(images, final_shape)
+        return tf.cast(images, tf.float32)
+
+    slices = tf.cond(
+        num_offsets > 0,
+        true_fn=lambda: get_slice(slice_indices_tensor, num_offsets, x),
+        false_fn=lambda: get_zeros(sequence_len, x)
+    )
+    return slices

@@ -8,6 +8,7 @@ if platform.system() == 'Darwin':
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
+import tensorflow as tf
 
 
 def show_image(img):
@@ -34,3 +35,71 @@ def read_image(img_path, as_float=False):
         return img.astype(dtype=np.float32) / 255.0
     else:
         return img
+
+
+def tf_random_crop(images, crop_size):
+    """
+    Picks a random crop region based on crop_size, and applies the same crop rect to all images.
+    :param images: List of image tensors. Number of channels does not matter. Shape is (H, W, C).
+    :param crop_size: Tuple of (int (H), int (W)). Size to crop the training examples to before feeding to network.
+                      If None, then no cropping will be performed.
+    :return: List of image tensors
+    """
+    if crop_size is not None and len(images) > 0:
+        crop_height = crop_size[0]
+        crop_width = crop_size[1]
+        assert crop_height > 0 and crop_width > 0
+        shape = tf.shape(images[0])
+        H = shape[0]
+        W = shape[1]
+        # Pick out the crop region location.
+        rand_y_start = tf.random_uniform((), 0, H - crop_height, dtype=tf.int32)
+        rand_x_start = tf.random_uniform((), 0, W - crop_width, dtype=tf.int32)
+        rand_y_end = rand_y_start + crop_height
+        rand_x_end = rand_x_start + crop_width
+        # Do cropping.
+        cropped_images = []
+        for image in images:
+            cropped_images.append(image[rand_y_start:rand_y_end, rand_x_start:rand_x_end, :])
+        return cropped_images
+    return images
+
+
+def tf_image_augmentation(images, config):
+    """
+    Does a set of basic image augmentations to a list of images.
+    :param images: List of image tensors. Number of channels does not matter. Shape is (H, W, C).
+    :param config: Dict.
+    :return: List of image tensors
+    """
+    if len(images) > 0:
+        shape = tf.shape(images[0])
+        H = shape[-3]
+        W = shape[-2]
+        C = shape[-1]
+
+        # Contrast.
+        rand_constrast = tf.random_uniform((), config['contrast_min'], config['contrast_max'], dtype=tf.float32)
+        # Gamma and gain.
+        rand_gamma = tf.random_uniform((), config['gamma_min'], config['gamma_max'], dtype=tf.float32)
+        rand_gain = tf.random_uniform((), config['gain_min'], config['gain_max'], dtype=tf.float32)
+        # Brightness.
+        rand_brightness = tf.random_normal((), mean=0.0, stddev=config['brightness_stddev'], dtype=tf.float32)
+        # Hue.
+        rand_hue = tf.random_uniform((), config['hue_min'], config['hue_max'], dtype=tf.float32)
+        # Noise.
+        rand_sigma = tf.random_uniform((), 0.0, config['noise_stddev'], dtype=tf.float32)
+
+        randomized_images = []
+        for image in images:
+            new_image = (image ** rand_gamma) * rand_gain
+            new_image = tf.image.adjust_contrast(new_image, rand_constrast)
+            new_image = tf.image.adjust_hue(new_image, rand_hue)
+
+            # Gaussian noise is created per image.
+            rand_image = tf.random_normal((H, W, C), mean=rand_brightness, stddev=rand_sigma, dtype=tf.float32)
+            new_image = new_image + rand_image
+
+            randomized_images.append(new_image)
+        return randomized_images
+    return images

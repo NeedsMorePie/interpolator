@@ -18,24 +18,27 @@ def main():
     if not os.path.exists(args.checkpoint_directory):
         os.makedirs(args.checkpoint_directory)
 
+    # TODO: config read from json.
+    config = {
+        'learning_rate': 1e-4,
+        'checkpoint_directory': args.checkpoint_directory,
+        'crop_width':  768,
+        'crop_height': 384,
+        'fine_tune': args.fine_tune
+    }
+
     print('Creating network...')
     model = PWCNet()
 
     print('Creating dataset...')
-    dataset = FlowDataSet(args.directory, batch_size=args.batch_size)
-
-    # TODO: config read from json.
-    config = {
-        'learning_rate': 1e-4,
-        'checkpoint_directory': args.checkpoint_directory
-    }
+    dataset = FlowDataSet(args.directory, batch_size=args.batch_size,
+                          crop_size=(config['crop_height'], config['crop_width']))
 
     print('Initializing trainer...')
     trainer = PWCNetTrainer(model, dataset, session, config)
 
     print('Initializing variables...')
     session.run(tf.global_variables_initializer())
-    # TODO: support restoring from npz dict.
     trainer.restore()
 
     trainer.train(validate_every=args.validate_every)
@@ -50,6 +53,8 @@ def add_args(parser):
                         help='Size of the batch.')
     parser.add_argument('-c', '--checkpoint_directory', type=str,
                         help='Directory of saved checkpoints.')
+    parser.add_argument('-f', '--fine_tune', type=bool, default=False,
+                        help='Whether to use fine tuning loss.')
 
 
 if __name__ == "__main__":
