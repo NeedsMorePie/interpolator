@@ -66,6 +66,7 @@ class RestorableNetwork():
             assign_ops = []
             for var in trainable_vars:
                 var_name = var.name
+                assert var_name in var_dict
                 var_np = var_dict[var_name]
                 assign_op, placeholder = self.get_assign_op(var)
                 assign_ops.append(assign_op)
@@ -81,7 +82,7 @@ class RestorableNetwork():
         var_name = var.name
         if var_name not in self._assign_ops:
             ph = tf.placeholder(dtype=tf.float32)
-            op = tf.assign(var, ph)
+            op = tf.assign(var, ph, validate_shape=True)
             self._assign_ops['var_name'] = op, ph
         return self._assign_ops['var_name']
 

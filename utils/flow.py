@@ -104,6 +104,30 @@ def show_flow_image(flow):
     plt.show()
 
 
+def tf_flip_flow(flow, images, left_right, up_down):
+    """
+    :param flow: Optical flow tensor. Shape is (H, W, C).
+    :param images: List of image tensors.
+    :param left_right: Whether to flip left/right.
+    :param up_down: Whether to flip up/down.
+    :return: new_flow (tensor), new_images (list of tensors).
+    """
+    # When reversed, the flow vector needs to be reversed too.
+    if flow is not None:
+        new_flow = tf.cond(left_right, lambda: tf.reverse(flow * tf.constant([[[-1.0, 1.0]]]), [1]), lambda: flow)
+        new_flow = tf.cond(up_down, lambda: tf.reverse(new_flow * tf.constant([[[1.0, -1.0]]]), [0]), lambda: new_flow)
+    else:
+        new_flow = None
+
+    new_images = []
+    for image in images:
+        new_image = tf.cond(left_right, lambda: tf.reverse(image, [1]), lambda: image)
+        new_image = tf.cond(up_down, lambda: tf.reverse(new_image, [0]), lambda: new_image)
+        new_images.append(new_image)
+
+    return new_flow, new_images
+
+
 def tf_random_flip_flow(flow, images):
     """
     Randomly flips a flow and a set of corresponding images in unison.
@@ -111,19 +135,45 @@ def tf_random_flip_flow(flow, images):
     :param images: List of image tensors.
     :return: new_flow (tensor), new_images (list of tensors).
     """
-    # Flip left/right.
     left_right_cond = tf.less(tf.random_uniform([], 0, 1.0), .5)
-    # Flip up/down.
     up_down_cond = tf.less(tf.random_uniform([], 0, 1.0), .5)
+    return tf_flip_flow(flow, images, left_right_cond, up_down_cond)
 
-    # When reversed, the flow vector needs to be reversed too.
-    new_flow = tf.cond(left_right_cond, lambda: tf.reverse(flow * tf.constant([[[-1.0, 1.0]]]), [1]), lambda: flow)
-    new_flow = tf.cond(up_down_cond, lambda: tf.reverse(new_flow * tf.constant([[[1.0, -1.0]]]), [0]), lambda: new_flow)
+
+def tf_scale_flow(flow, images, scale):
+    """
+    :param flow: Optical flow tensor. Shape is (H, W, C).
+    :param images: List of image tensors.
+    :param scale: How much to scale by. >1 means vertical scale, <1 means horizontal scale.
+    :return: new_flow (tensor), new_images (list of tensors).
+    """
+    shape = tf.shape(flow)
+    H = shape[0]
+    H_f = tf.cast(H, dtype=tf.float32)
+    W = shape[1]
+    W_f = tf.cast(W, dtype=tf.float32)
+
+    scale_vert_cond = tf.greater(scale, 1.0)
+
+    # When scaled, the flow vector needs to be scaled too.
+    # Notice that horizontal scaling is just 1/scale when scale < 1.
+    if flow is not None:
+        new_flow = tf.cond(scale_vert_cond,
+                           lambda: tf.convert_to_tensor([[[1.0, scale]]]) * tf.image.resize_image_with_crop_or_pad(
+                               tf.image.resize_images(flow, [tf.cast(H_f * scale, tf.int32), W]), H, W),
+                           lambda: tf.convert_to_tensor(
+                               [[[1.0 / scale, 1.0]]]) * tf.image.resize_image_with_crop_or_pad(
+                               tf.image.resize_images(flow, [H, tf.cast(W_f / scale, tf.int32)]), H, W))
+    else:
+        new_flow = None
 
     new_images = []
     for image in images:
-        new_image = tf.cond(left_right_cond, lambda: tf.reverse(image, [1]), lambda: image)
-        new_image = tf.cond(up_down_cond, lambda: tf.reverse(new_image, [0]), lambda: new_image)
+        new_image = tf.cond(scale_vert_cond,
+                            lambda: tf.image.resize_image_with_crop_or_pad(
+                                tf.image.resize_images(image, [tf.cast(H_f * scale, tf.int32), W]), H, W),
+                            lambda: tf.image.resize_image_with_crop_or_pad(
+                                tf.image.resize_images(image, [H, tf.cast(W_f / scale, tf.int32)]), H, W))
         new_images.append(new_image)
 
     return new_flow, new_images
@@ -137,30 +187,5 @@ def tf_random_scale_flow(flow, images, config):
     :param config: Dict.
     :return: new_flow (tensor), new_images (list of tensors).
     """
-    shape = tf.shape(flow)
-    H = shape[0]
-    H_f = tf.cast(H, dtype=tf.float32)
-    W = shape[1]
-    W_f = tf.cast(W, dtype=tf.float32)
-
     scale = tf.random_uniform((), config['scale_min'], config['scale_max'], dtype=tf.float32)
-    scale_vert_cond = tf.greater(scale, 1.0)
-
-    # When scaled, the flow vector needs to be scaled too.
-    # Notice that horizontal scaling is just 1/scale when scale < 1.
-    new_flow = tf.cond(scale_vert_cond,
-                       lambda: tf.convert_to_tensor([[[1.0, scale]]]) * tf.image.resize_image_with_crop_or_pad(
-                           tf.image.resize_images(flow, [tf.cast(H_f * scale, tf.int32), W]), H, W),
-                       lambda: tf.convert_to_tensor([[[1.0 / scale, 1.0]]]) * tf.image.resize_image_with_crop_or_pad(
-                           tf.image.resize_images(flow, [H, tf.cast(W_f / scale, tf.int32)]), H, W))
-
-    new_images = []
-    for image in images:
-        new_image = tf.cond(scale_vert_cond,
-                            lambda: tf.image.resize_image_with_crop_or_pad(
-                                tf.image.resize_images(image, [tf.cast(H_f * scale, tf.int32), W]), H, W),
-                            lambda: tf.image.resize_image_with_crop_or_pad(
-                                tf.image.resize_images(image, [H, tf.cast(W_f / scale, tf.int32)]), H, W))
-        new_images.append(new_image)
-
-    return new_flow, new_images
+    return tf_scale_flow(flow, images, scale)

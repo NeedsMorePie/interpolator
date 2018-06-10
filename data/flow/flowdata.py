@@ -204,12 +204,11 @@ class FlowDataSet(DataSet):
                     'noise_stddev': 0.04,
                     'scale_min': 0.5, 'scale_max': 2.0
                 }
+                # Basic image augmentations.
                 image_a, image_b = tf_image_augmentation([image_a, image_b], config)
-
                 # Flip randomly in unison.
-                #flow, images = tf_random_flip_flow(flow, [image_a, image_b])
-                #image_a, image_b = images
-
+                flow, images = tf_random_flip_flow(flow, [image_a, image_b])
+                image_a, image_b = images
                 # Scale randomly in unison.
                 flow, images = tf_random_scale_flow(flow, [image_a, image_b], config)
                 image_a, image_b = images
@@ -223,7 +222,7 @@ class FlowDataSet(DataSet):
             dataset = dataset.shuffle(buffer_size=len(filenames))
         dataset = dataset.map(_parse_function, num_parallel_calls=multiprocessing.cpu_count())
         dataset = dataset.batch(self.batch_size)
-        dataset = dataset.prefetch(1)
+        dataset = dataset.prefetch(2)
         return dataset
 
 
