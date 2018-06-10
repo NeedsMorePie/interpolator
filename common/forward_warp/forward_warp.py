@@ -8,6 +8,7 @@ def forward_warp(features, flow):
     Note that the actual implementation here is not n^2, and should be linear in GPU memory.
     :param features: A Tensor. Features to be warped, of shape [batch_size, H, W, C].
     :param flow: A Tensor. Un-normalized flow in image pixel units, of shape [batch_size, H, W, 2].
+                 Flow vectors should have (x, y) ordering.
     """
 
     # Flip (x, y) to (y, x) for flow, to avoid further confusion.

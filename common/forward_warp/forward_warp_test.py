@@ -2,7 +2,7 @@ import unittest
 import os
 from utils.flow import read_flow_file
 from utils.img import read_image, show_image
-from forward_warp.forward_warp import forward_warp, get_translated_pixels
+from common.forward_warp.forward_warp import forward_warp
 import numpy as np
 import tensorflow as tf
 
