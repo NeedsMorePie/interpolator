@@ -33,6 +33,8 @@ class PWCNetTrainer(Trainer):
         self.merged_summ = None
         self.train_writer = None
         self.valid_writer = None
+        self.train_log_dir = os.path.join(self.config['checkpoint_directory'], 'train')
+        self.valid_log_dir = os.path.join(self.config['checkpoint_directory'], 'valid')
         self._make_summaries()
 
         # Checkpoint saving.
@@ -43,7 +45,7 @@ class PWCNetTrainer(Trainer):
         """
         Overridden.
         """
-        latest_checkpoint = tf.train.latest_checkpoint(self.config['checkpoint_directory'])
+        latest_checkpoint = tf.train.latest_checkpoint(self.train_log_dir)
         if latest_checkpoint is not None:
             print('Restoring checkpoint...')
             self.saver.restore(self.session, latest_checkpoint)
@@ -71,7 +73,7 @@ class PWCNetTrainer(Trainer):
                 loss, _ = self.session.run([self.loss, self.train_op], feed_dict=self.dataset.get_train_feed_dict())
 
         print('Saving model checkpoint...')
-        save_path = self.saver.save(self.session, os.path.join(self.config['checkpoint_directory'], 'model.ckpt'),
+        save_path = self.saver.save(self.session, os.path.join(self.train_log_dir, 'model.ckpt'),
                                     global_step=self._eval_global_step())
         print('Model saved in path:', save_path)
 
@@ -98,12 +100,11 @@ class PWCNetTrainer(Trainer):
                 tf.summary.scalar('layer_' + str(i) + '_loss', layer_loss)
             for i, previous_flow in enumerate(self.previous_flows):
                 tf.summary.image('flow_' + str(i), get_tf_flow_visualization(previous_flow))
-            tf.summary.image('image_a', self.images_a)
-            tf.summary.image('image_b', self.images_b)
+            tf.summary.image('image_a', tf.clip_by_value(self.images_a, 0.0, 1.0))
+            tf.summary.image('image_b', tf.clip_by_value(self.images_b, 0.0, 1.0))
             tf.summary.image('final_flow', get_tf_flow_visualization(self.final_flow))
             tf.summary.image('gt_flow', get_tf_flow_visualization(self.flows))
 
             self.merged_summ = tf.summary.merge_all()
-            self.train_writer = tf.summary.FileWriter(os.path.join(self.config['checkpoint_directory'], 'train'),
-                                                      self.session.graph)
-            self.valid_writer = tf.summary.FileWriter(os.path.join(self.config['checkpoint_directory'], 'valid'))
+            self.train_writer = tf.summary.FileWriter(self.train_log_dir, self.session.graph)
+            self.valid_writer = tf.summary.FileWriter(self.valid_log_dir)
