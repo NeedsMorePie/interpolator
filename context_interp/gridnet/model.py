@@ -12,7 +12,10 @@ def batch_norm_with_relu(x):
     x = tf.layers.batch_normalization(x)
     return tf.nn.relu(x)
 
+
 _default = object()
+
+
 class GridNet:
     def __init__(self, channel_sizes, width,
                  name='gridnet',

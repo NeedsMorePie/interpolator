@@ -60,14 +60,14 @@ class InterpDataSetReader:
         with tf.name_scope(self.tf_record_name + '_dataset_ops'):
             for i in range(len(self.inbetween_locations)):
                 inbetween_locations = self.inbetween_locations[i]
-                dataset = self._load_dataset(inbetween_locations)
+                dataset = self._load_for_inbetween_locations(inbetween_locations)
                 self.dataset = dataset if i == 0 else self.dataset.concatenate(dataset)
 
             if max_num_elements is not None:
                 assert max_num_elements >= 0
                 self.dataset = self.dataset.take(max_num_elements)
 
-            buffer_size = 30
+            buffer_size = 100
             if shuffle:
                 self.dataset = self.dataset.shuffle(buffer_size=buffer_size)
 
@@ -96,7 +96,7 @@ class InterpDataSetReader:
     def _get_tf_record_pattern(self):
         return os.path.join(self.directory, '*' + self.tf_record_name)
 
-    def _load_dataset(self, inbetween_locations):
+    def _load_for_inbetween_locations(self, inbetween_locations):
         """
         :param inbetween_locations: An element of self.inbetween_locations.
         :return: Tensorflow dataset object.

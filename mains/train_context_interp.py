@@ -25,7 +25,6 @@ def main():
     dataset = DavisDataSet(args.directory, [[1]],
                            batch_size=args.batch_size)
 
-    # TODO: config read from json.
     config = {
         'learning_rate': 1e-4,
         'checkpoint_directory': args.checkpoint_directory
@@ -36,9 +35,7 @@ def main():
 
     print('Initializing variables...')
     session.run(tf.global_variables_initializer())
-    # TODO: support restoring from npz dict.
     trainer.restore()
-
     trainer.train(validate_every=args.validate_every)
 
 
