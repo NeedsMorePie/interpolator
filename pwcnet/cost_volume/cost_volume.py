@@ -2,17 +2,25 @@
 # Master branch commit 2225ad2082371126cc9c8e57a8b962a88933a8c0.
 
 import tensorflow as tf
+from utils.misc import *
 
 
-def cost_volume(c1, c2, search_range=4):
+def cost_volume(c1, c2, search_range=4, batched_reduce=True):
     """
     See https://arxiv.org/pdf/1709.02371.pdf.
     For each pixel in c1, we will compute correlations with its spatial neighbors in c2.
     :param c1: Tensor. Feature map of shape [batch_size, H, W, num_features].
     :param c2: Input tensor with the exact same shape as c1.
     :param search_range: The search square's side length is equal to 2 * search_range + 1.
+    :param batched_reduce: If True, will enable more aggressive batching of TF ops, at the cost of more memory.
     :return: Tensor. Cost volume of shape [batch_size, H, W, s * s], where s is equal to 2 * search_range + 1.
     """
+    if batched_reduce:
+        return cost_volume_grouped_reduce(c1, c2, search_range)
+    return cost_volume_separate_reduce(c1, c2, search_range)
+
+
+def cost_volume_separate_reduce(c1, c2, search_range=4):
     with tf.name_scope('cost_volume'):
         square_len = 2 * search_range + 1
         square_area = square_len ** 2
@@ -21,8 +29,8 @@ def cost_volume(c1, c2, search_range=4):
         # Form an index matrix to help us update sparsely later on.
         cv_height, cv_width = cv_shape[1], cv_shape[2]
         x_1d, y_1d, z_1d = tf.range(0, cv_width), tf.range(0, cv_height), tf.range(0, square_area)
-        x_2d, y_2d, z_2d = tf.meshgrid(x_1d, y_1d, z_1d)
-        indices_3d = tf.stack([y_2d, x_2d, z_2d], axis=-1)
+        x_3d, y_3d, z_3d = tf.meshgrid(x_1d, y_1d, z_1d)
+        indices_3d = tf.stack([y_3d, x_3d, z_3d], axis=-1)
 
         all_indices, all_costs = [], []
         cur_z_index = square_area - 1
@@ -67,14 +75,6 @@ def cost_volume(c1, c2, search_range=4):
 
 
 def cost_volume_grouped_reduce(c1, c2, search_range=4):
-    """
-    The same functionality as cost_volume, but is potentially faster,
-    and also takes substantially more GPU memory at once.
-    :param c1: Tensor. Feature map of shape [batch_size, H, W, num_features].
-    :param c2: Input tensor with the exact same shape as c1.
-    :param search_range: The search square's side length is equal to 2 * search_range + 1.
-    :return: Tensor. Cost volume of shape [batch_size, H, W, s * s], where s is equal to 2 * search_range + 1.
-    """
     with tf.name_scope('cost_volume'):
         square_len = 2 * search_range + 1
         square_area = square_len ** 2
@@ -87,11 +87,10 @@ def cost_volume_grouped_reduce(c1, c2, search_range=4):
         # Form an index matrix to help us update sparsely later on.
         cv_height, cv_width = cv_shape[1], cv_shape[2]
         x_1d, y_1d, z_1d = tf.range(0, cv_width), tf.range(0, cv_height), tf.range(0, square_area)
-        x_2d, y_2d, z_2d = tf.meshgrid(x_1d, y_1d, z_1d)
-        indices_3d = tf.stack([y_2d, x_2d, z_2d], axis=-1)
+        x_3d, y_3d, z_3d = tf.meshgrid(x_1d, y_1d, z_1d)
+        indices_3d = tf.stack([y_3d, x_3d, z_3d], axis=-1)
 
-        all_indices, all_costs = [], []
-        all_c1_regions, all_c2_regions = [], []
+        all_indices, all_c2_indices, all_costs = [], [], []
         cur_z_index = square_area - 1
         num_channels = tf.shape(c1)[-1]
         batch_size = tf.shape(c1)[0]
@@ -116,18 +115,22 @@ def cost_volume_grouped_reduce(c1, c2, search_range=4):
                 # Get the coordinates for scatter update, where each element is a (y, x, z) coordinate.
                 cur_indices = indices_3d[slice_h, slice_w, cur_z_index]
                 cur_indices = tf.reshape(cur_indices, (-1, 3))
-                c1_region = c1_transposed[slice_h, slice_w, :, :]
-                c1_region = tf.reshape(c1_region, (-1, num_channels, batch_size))
-                c2_region = c2_transposed[slice_h_r, slice_w_r, :, :]
-                c2_region = tf.reshape(c2_region, (-1, num_channels, batch_size))
+                cur_c2_indices = indices_3d[slice_h_r, slice_w_r, 0][..., :-1]
+                cur_c2_indices = tf.reshape(cur_c2_indices, (-1, 2))
                 all_indices.append(cur_indices)
-                all_c1_regions.append(c1_region)
-                all_c2_regions.append(c2_region)
+                all_c2_indices.append(cur_c2_indices)
                 cur_z_index -= 1
 
+        # Gather values from c1 and c2 for dot product-ing.
         all_indices = tf.concat(all_indices[::-1], axis=0)
-        all_c1_regions = tf.concat(all_c1_regions[::-1], axis=0)
-        all_c2_regions = tf.concat(all_c2_regions[::-1], axis=0)
+        all_c1_indices = all_indices[:, :-1]
+        all_c2_indices = tf.concat(all_c2_indices[::-1], axis=0)
+        all_c2_regions = tf.gather_nd(c2_transposed, all_c2_indices)
+        all_c2_regions = tf.reshape(all_c2_regions, (-1, num_channels, batch_size))
+        all_c1_regions = tf.gather_nd(c1_transposed, all_c1_indices)
+        all_c1_regions = tf.reshape(all_c1_regions, (-1, num_channels, batch_size))
+
+        # Compute costs and scatter into output.
         all_costs = tf.reduce_mean(all_c1_regions * all_c2_regions, axis=1)
         batch_dim = tf.shape(c1)[0]
         target_shape = [cv_height, cv_width, square_area, batch_dim]

@@ -1,14 +1,17 @@
 import numpy as np
 import tensorflow as tf
+import sys
 
 
 def print_tensor_shape(x):
     print(x.get_shape().as_list())
 
+
 def tf_coin_flip(heads_rate):
     rand_val = tf.random_uniform([1], minval=0.0, maxval=1.0)
     is_head = tf.less(rand_val, heads_rate)
     return is_head
+
 
 # https://github.com/tensorflow/tensorflow/issues/7712
 def pelu(x):
@@ -20,6 +23,7 @@ def pelu(x):
         positive = tf.nn.relu(x) * alpha / (beta + 1e-9)
         negative = alpha * (tf.exp((-tf.nn.relu(-x)) / (beta + 1e-9)) - 1)
         return negative + positive
+
 
 # https://stackoverflow.com/questions/39975676/how-to-implement-prelu-activation-in-tensorflow
 def prelu(_x):
