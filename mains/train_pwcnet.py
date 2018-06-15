@@ -20,7 +20,7 @@ def main():
 
     # TODO: config read from json.
     config = {
-        'learning_rate': 1e-4,
+        'learning_rate': args.learning_rate,
         'checkpoint_directory': args.checkpoint_directory,
         'crop_width':  768,
         'crop_height': 384,
@@ -55,6 +55,8 @@ def add_args(parser):
                         help='Directory of saved checkpoints.')
     parser.add_argument('-f', '--fine_tune', type=bool, default=False,
                         help='Whether to use fine tuning loss.')
+    parser.add_argument('-l', '--learning_rate', type=float, default=1e-4,
+                        help='The learning rate.')
 
 
 if __name__ == "__main__":
