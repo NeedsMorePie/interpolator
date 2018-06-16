@@ -26,14 +26,16 @@ class TestLaplacianPyramid(unittest.TestCase):
         pyr_builder = LaplacianPyramid(num_levels, filter_side_len=5)
         image_height = np.shape(self.test_image)[0]
         image_width = np.shape(self.test_image)[1]
-        image_tensor = tf.placeholder(tf.float32, shape=(1, image_height, image_width, 3))
-        pyr_tensors, _ = pyr_builder.get_forward(image_tensor)
+        image_channels = np.shape(self.test_image)[2]
+        image_tensor = tf.placeholder(tf.float32, shape=(1, image_height, image_width, image_channels))
+        pyr_tensors, _, reconstructed_tensor = pyr_builder.get_forward(image_tensor)
         pyr = self.sess.run(pyr_tensors, feed_dict={image_tensor: [self.test_image]})
+        reconstructed = self.sess.run(reconstructed_tensor, feed_dict={image_tensor: [self.test_image]})
 
         # Check shapes.
         self.assertEqual(len(pyr), num_levels)
         for i, level in enumerate(pyr):
-            self.assertTupleEqual(np.shape(level), (1, image_height / 2 ** i, image_width / 2 ** i, 3))
+            self.assertTupleEqual(np.shape(level), (1, image_height / 2 ** i, image_width / 2 ** i, image_channels))
 
         # Check that gradients flow.
         grads_tensor = tf.gradients(pyr_tensors, image_tensor)
@@ -41,9 +43,14 @@ class TestLaplacianPyramid(unittest.TestCase):
         for grad in grads:
             self.assertNotEqual(np.sum(grad), 0.0)
 
+        # Check reconstruction error.
+        diff = np.abs(reconstructed[0] - self.test_image)
+        self.assertLessEqual(np.sum(diff), 1E-2)
+
         if VISUALIZE:
+            show_image(np.clip(reconstructed[0] / 255.0, 0, 255))
             for level in pyr:
-                show_image(level[0] / 255.0)
+                show_image(np.clip(level[0] / 255.0, 0, 255))
 
     def testFilter(self):
         pyr = LaplacianPyramid(5, filter_side_len=4)

@@ -5,6 +5,7 @@ import numpy as np
 # References:
 # http://nbviewer.jupyter.org/github/tensorflow/tensorflow/blob/master/tensorflow/examples/tutorials/deepdream/deepdream.ipynb#laplacian
 # http://www.cse.psu.edu/~rtc12/CSE486/lecture10.pdf
+# https://docs.opencv.org/2.4/modules/imgproc/doc/filtering.html?highlight=pyrup#pyrup
 class LaplacianPyramid:
 
     def __init__(self, num_levels, name='laplacian_pyramid', filter_side_len=5):
@@ -50,11 +51,16 @@ class LaplacianPyramid:
                 for i in range(len(gaussian_levels) - 1):
                     upsampled = self._pyr_up(gaussian_levels[i + 1], blur_filter)
                     diff = gaussian_levels[i] - upsampled
-                    clamped = tf.maximum(diff, 0)
-                    laplacian_levels.append(clamped)
+                    laplacian_levels.append(diff)
                 laplacian_levels.append(gaussian_levels[-1])
 
-        return laplacian_levels, gaussian_levels
+                # Build the reconstruction.
+                reconstructed = gaussian_levels[-1]
+                for i in range(self.num_levels - 2, -1, -1):
+                    reconstructed = self._pyr_up(reconstructed, blur_filter)
+                    reconstructed += laplacian_levels[i]
+
+        return laplacian_levels, gaussian_levels, reconstructed
 
     def _pyr_down(self, images, filter):
         """
