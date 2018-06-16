@@ -1,5 +1,5 @@
 import tensorflow as tf
-from context_interp.feature_extractors.vgg19.model.model import Vgg19
+from context_interp.vgg19_features.model.model import Vgg19
 
 
 class Vgg19Features:

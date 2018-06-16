@@ -1,11 +1,8 @@
 import tensorflow as tf
-import numpy as np
-import os
-import inspect
-from context_interp.feature_extractors.vgg19.vgg19_features import Vgg19Features
+from context_interp.vgg19_features.vgg19_features import Vgg19Features
 from context_interp.gridnet.model import GridNet
-from pwcnet.warp.warp import warp_via_flow
 from pwcnet.model import PWCNet
+
 
 class ContextInterp:
     def __init__(self, name='context_interp'):

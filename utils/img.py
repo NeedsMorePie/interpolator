@@ -17,8 +17,6 @@ def show_image(img):
     :param img: Numpy array of shape (Height, Width, Channels)
     :return: Nothing.
     """
-    if img.dtype == 'float32' or img.dtype == 'float64':
-        img = np.clip(img, 0.0, 1.0)
     plt.imshow(img)
     plt.show()
 

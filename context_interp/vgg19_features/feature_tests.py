@@ -1,9 +1,8 @@
 import numpy as np
 import tensorflow as tf
 import unittest
-import inspect
 import os
-from context_interp.feature_extractors.vgg19.vgg19_features import Vgg19Features
+from context_interp.vgg19_features.vgg19_features import Vgg19Features
 from utils.img import read_image, show_image
 
 VISUALIZE = False
@@ -54,7 +53,7 @@ class TestVgg19Features(unittest.TestCase):
 
         # Load image.
         cur_dir = os.path.dirname(os.path.realpath(__file__))
-        img_path = os.path.join(cur_dir, '..', 'test_data', 'hamid.jpg')
+        img_path = os.path.join(cur_dir, 'test_data', 'hamid.jpg')
         img = read_image(img_path, as_float=True)
 
         height = img.shape[0]

@@ -1,6 +1,6 @@
 import tensorflow as tf
 import optparse
-from context_interp.feature_extractors.vgg19.model.model import Vgg19
+from context_interp.vgg19_features.vgg19.model.model import Vgg19
 import os
 import inspect
 
