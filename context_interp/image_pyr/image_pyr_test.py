@@ -26,7 +26,7 @@ class TestImagePyramid(unittest.TestCase):
         image_height = np.shape(self.test_image)[0]
         image_width = np.shape(self.test_image)[1]
         image_tensor = tf.placeholder(tf.float32, shape=(1, image_height, image_width, 3))
-        pyr_tensors = pyr_builder.get_forward(image_tensor)
+        pyr_tensors, _ = pyr_builder.get_forward(image_tensor)
         pyr = self.sess.run(pyr_tensors, feed_dict={image_tensor: [self.test_image]})
 
         # Check shapes.
@@ -55,6 +55,6 @@ class TestImagePyramid(unittest.TestCase):
             [1, 3, 3, 1]
         ])
         expected = expected / np.sum(expected)
-        self.assertTupleEqual(np.shape(filter), (4, 4, 3, 1))
+        self.assertTupleEqual(np.shape(filter), (4, 4, 3, 3))
         self.assertEqual(filter[..., 0, 0].tolist(), expected.tolist())
 
