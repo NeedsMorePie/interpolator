@@ -137,21 +137,21 @@ python -m unittest pwcnet.warp.warp_test
 3.  Run the following command from the project root directory:
 
     ```
-    python -m mains.create_davis_dataset --directory="<path>/<to>/<training_dataset>" --num_validation=100 --shard_size=25
+    python -m mains.create_davis_dataset -d path/to/DAVIS -o path/to/tfrecords_dir
     ```
 
-4.  Expected output should be:
+4.  Expected output in the specified output directory should be:
 
     ```
-    <training_dataset>
+    <tfrecords_dir>
         ...
         0_interp_dataset_train.tfrecords
         ...
         n_interp_dataset_train.tfrecords
         
-        0_interp_datase_valid.tfrecords
+        0_interp_dataset_valid.tfrecords
         ...
-        n_interp_datase_valid.tfrecords
+        n_interp_dataset_valid.tfrecords
     ```
     
 #### Training
@@ -161,11 +161,11 @@ python -m unittest pwcnet.warp.warp_test
 2.  Run the following command:
 
     ```
-    python -m mains.train_context_interp --directory="<path>/<to>/<tf_records>" --checkpoint_directory="<path>/<to>/<checkpoint_output>"
+    python -m mains.train_context_interp -d path/to/tfrecords_dir -c path/to/checkpoints_dir
     ```
 
 3.  Launch tensorboard.
 
     ```
-    tensorboard --logdir="<path>/<to>/<checkpoint_output>"
+    tensorboard --logdir=path/to/checkpoints_dir
     ```
