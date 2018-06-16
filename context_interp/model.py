@@ -1,6 +1,7 @@
 import tensorflow as tf
 from context_interp.vgg19_features.vgg19_features import Vgg19Features
 from context_interp.gridnet.model import GridNet
+from context_interp.laplacian_pyramid.laplacian_pyramid import LaplacianPyramid
 from pwcnet.model import PWCNet
 
 
@@ -12,6 +13,7 @@ class ContextInterp:
         self.pwcnet = PWCNet()
         self.gridnet = GridNet([32, 64, 96], 6, num_output_channels=3)
         self.feature_extractor = Vgg19Features()
+        self.laplacian_pyramid = LaplacianPyramid(5)
 
     def get_forward(self, image_a, image_b, t, reuse_variables=tf.AUTO_REUSE):
         """
@@ -53,16 +55,22 @@ class ContextInterp:
         :param expected: Tensor of shape [batch, H, W, num_features]. Ground truth image.
         :return: Tf scalar loss term.
         """
-        return self._get_l1_loss(prediction, expected)
+        return self._get_laplacian_loss(prediction, expected)
 
     def _get_feature_loss(self, prediction, expected):
-        prediction_features = self.feature_extractor.get_perceptual_features(prediction)
-        expected_features = self.feature_extractor.get_perceptual_features(expected)
-        return tf.reduce_mean(tf.squared_difference(prediction_features, expected_features))
+        with tf.variable_scope('feature_loss'):
+            prediction_features = self.feature_extractor.get_perceptual_features(prediction)
+            expected_features = self.feature_extractor.get_perceptual_features(expected)
+            return tf.reduce_mean(tf.squared_difference(prediction_features, expected_features))
 
     def _get_l1_loss(self, prediction, expected):
         return tf.reduce_mean(tf.abs(prediction - expected))
 
     def _get_laplacian_loss(self, prediction, expected):
-        raise NotImplementedError
-
+        with tf.variable_scope('laplacian_loss'):
+            pyr1, _, _ = self.laplacian_pyramid.get_forward(prediction)
+            pyr2, _, _ = self.laplacian_pyramid.get_forward(expected)
+            loss = 0
+            for i in range(len(pyr2)):
+                loss += 2 ** i * tf.reduce_sum(tf.abs(pyr1[i] - pyr2[i]))
+            return loss

@@ -11,7 +11,7 @@ class LaplacianPyramid:
     def __init__(self, num_levels, name='laplacian_pyramid', filter_side_len=5):
         """
         :param num_levels: The number of pyramid levels.
-                       At each level the image width and height are 2x lower than the previous one.
+                           At each level the image width and height are 2x lower than the previous one.
         :param name: Str. For variable scoping.
         :param filter_side_len: The width and height of the approximate gaussian blur filter.
         """
@@ -25,6 +25,7 @@ class LaplacianPyramid:
         :return: laplacian_levels: A list of Tensors of length self.num_levels.
                                    Each level (from 0) has tensors of shape [batch_size, H / 2^level, W / 2^level, C].
                  gaussian_levels: Same format as laplacian_levels.
+                 reconstructed: A Tensor. Input reconstruction of shape [batch_size, H, W, C].
         """
         with tf.variable_scope(self.name):
             image_height = tf.shape(images)[1]

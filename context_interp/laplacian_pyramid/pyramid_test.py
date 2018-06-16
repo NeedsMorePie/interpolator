@@ -21,7 +21,7 @@ class TestLaplacianPyramid(unittest.TestCase):
         image_path = os.path.join(cur_dir, 'test_data', 'lena.jpg')
         self.test_image = read_image(image_path)
 
-    def testPyramid(self):
+    def test_pyramid(self):
         num_levels = 5
         pyr_builder = LaplacianPyramid(num_levels, filter_side_len=5)
         image_height = np.shape(self.test_image)[0]
@@ -52,7 +52,7 @@ class TestLaplacianPyramid(unittest.TestCase):
             for level in pyr:
                 show_image(np.clip(level[0] / 255.0, 0, 255))
 
-    def testFilter(self):
+    def test_filter(self):
         pyr = LaplacianPyramid(5, filter_side_len=4)
         filter_tensor = pyr._get_blur_filter(3)
         filter = self.sess.run(filter_tensor)

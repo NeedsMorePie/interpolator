@@ -1,6 +1,6 @@
 import tensorflow as tf
 import optparse
-from context_interp.vgg19_features.vgg19.model.model import Vgg19
+from context_interp.vgg19_features.model.model import Vgg19
 import os
 import inspect
 
@@ -12,7 +12,7 @@ import inspect
 
 cur_dir = os.path.dirname(os.path.realpath(__file__))
 
-# This does not work nicely with our modules, would need to move this script to root folder.
+# This does not work nicely with our modules, would need to move this script to mains folder.
 # parser = optparse.OptionParser()
 # parser.add_option('-d', '--data-path',
 #     action="store", dest="data_path",
