@@ -13,8 +13,8 @@ class TestImagePyramid(unittest.TestCase):
 
     def testKernel(self):
         pyr = ImagePyramid(5, filter_side_len=4)
-        kernel_tensor = pyr._get_blur_kernel()
-        kernel = self.sess.run(kernel_tensor)
+        filter_tensor = pyr._get_blur_filter(3)
+        filter = self.sess.run(filter_tensor)
         expected = np.array([
             [1, 3, 3, 1],
             [3, 9, 9, 3],
@@ -22,5 +22,6 @@ class TestImagePyramid(unittest.TestCase):
             [1, 3, 3, 1]
         ])
         expected = expected / np.sum(expected)
-        self.assertEquals(kernel.tolist(), expected.tolist())
+        self.assertTupleEqual(np.shape(filter), (4, 4, 3, 1))
+        self.assertEqual(filter[..., 0, 0].tolist(), expected.tolist())
 

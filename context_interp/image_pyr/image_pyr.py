@@ -24,14 +24,19 @@ class ImagePyramid:
         :return: A Tensor. Images at all the pyramid levels, of shape [batch_size, levels, H, W, C].
         """
         with tf.variable_scope(self.name):
-            for i in range(self.num_levels):
+            num_channels = tf.shape(images)[-1]
+            levels = [images]
+            blur_filter = self._get_blur_filter(num_channels)
+            for i in range(1, self.num_levels):
                 print('Building level %d ...' % i)
+                blurred = tf.nn.depthwise_conv2d(levels[i - 1], blur_filter, 4 * [1], 'VALID')
+                levels.append(blurred)
+        return levels
 
-        return images
-
-    def _get_blur_kernel(self):
+    def _get_blur_filter(self, num_in_channels):
         """
-        :return: A TF constant. Filter of shape [H, W].
+        :param num_in_channels: The number of input channels to the convolutions.
+        :return: A TF constant. Filter of shape [H, W, in_channels, 1].
                  Note that H = W = self.filter_side_len.
         """
 
@@ -46,6 +51,10 @@ class ImagePyramid:
             triangle.append(cur_row)
 
         # Get the TF kernel variable.
-        blur_kernel = np.outer(triangle[-1], triangle[-1])
-        blur_kernel = blur_kernel / np.sum(blur_kernel)
-        return tf.constant(blur_kernel)
+        blur_filter_np = np.outer(triangle[-1], triangle[-1])
+        blur_filter_np = blur_filter_np / np.sum(blur_filter_np)
+        blur_filter = [tf.constant(blur_filter_np)]
+        blur_filter = tf.tile(blur_filter, [num_in_channels, 1, 1])
+        blur_filter = tf.transpose(blur_filter, [1, 2, 0])
+        blur_filter = tf.expand_dims(blur_filter, axis=-1)
+        return blur_filter
