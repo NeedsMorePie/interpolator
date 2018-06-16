@@ -3,7 +3,6 @@ import multiprocessing
 import os.path
 import random
 import numpy as np
-import json
 from data.dataset import DataSet
 from data.interp.interp_data_reader import InterpDataSetReader
 from joblib import Parallel, delayed
@@ -75,27 +74,13 @@ class InterpDataSet(DataSet):
         image_paths = self._get_data_paths(raw_directory)
         self._convert_to_tf_record(image_paths, shard_size, validation_size, max_shot_len)
 
-        # Keep track of the validation size, as the amount of sequences that we write may allow slightly more.
-        json_path = os.path.join(self.tf_record_directory, 'val_split.json')
-        with open(json_path, 'w') as f:
-            json_data = {'validation_size': validation_size}
-            json.dump(json_data, f)
-
     def load(self, session):
         """
         Overriden.
         """
         with tf.name_scope('interp_data'):
-
-            json_path = os.path.join(self.tf_record_directory, 'val_split.json')
-            with open(json_path) as f:
-                json_data = json.load(f)
-                maximum_validation_size = json_data['validation_size']
-
             self.train_data.load(session, repeat=True, shuffle=True)
-            self.validation_data.load(session, repeat=False, shuffle=False,
-                                      initializable=True, max_num_elements=maximum_validation_size)
-
+            self.validation_data.load(session, repeat=False, shuffle=False, initializable=True)
             self.handle_placeholder = tf.placeholder(tf.string, shape=[])
             self.iterator = tf.data.Iterator.from_string_handle(
                 self.handle_placeholder, self.train_data.get_output_types(), self.train_data.get_output_shapes())
@@ -156,7 +141,6 @@ class InterpDataSet(DataSet):
                 print('Writing', len(iter_range), 'data examples to the', filename, 'dataset.')
 
             sharded_iter_ranges = create_shard_ranges(iter_range, shard_size)
-
             Parallel(n_jobs=multiprocessing.cpu_count(), backend="threading")(
                 delayed(_write_shard)(shard_id, shard_range, image_paths, filename,
                                       self.tf_record_directory, self._process_image, self.verbose)

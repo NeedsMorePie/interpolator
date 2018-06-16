@@ -1,4 +1,5 @@
 import tensorflow as tf
+from common.models import RestorableNetwork
 from pwcnet.estimator_network.model import EstimatorNetwork
 from pwcnet.context_network.model import ContextNetwork
 from pwcnet.feature_pyramid_network.model import FeaturePyramidNetwork
@@ -8,8 +9,7 @@ from tensorflow.contrib.layers import l2_regularizer
 VERBOSE = False
 
 
-# TODO: Dump weights into npz dict of numpy arrays and reload from it.
-class PWCNet:
+class PWCNet(RestorableNetwork):
     def __init__(self, name='pwc_net', regularizer=l2_regularizer(4e-4),
                  flow_layer_loss_weights=None, flow_scaling=0.05, search_range=4):
         """
@@ -20,7 +20,8 @@ class PWCNet:
         :param flow_scaling: In the PWC-Net paper, ground truth is scaled by this amount to normalize the flows.
         :param search_range: The search range to use for the cost volume layer.
         """
-        self.name = name
+        super().__init__(name=name)
+
         self.regularizer = regularizer
         self.flow_scaling = flow_scaling
 

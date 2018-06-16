@@ -1,10 +1,107 @@
+import numpy as np
 import tensorflow as tf
-from utils.misc import print_tensor_shape
+
 
 _default = object()
 
-class ConvNetwork:
-    def __init__(self, layer_specs=None,
+
+# Allows saving and restoring all network parameters its scope into an npz file.
+# Provides a way to serialize the network in a minimal form without any tensorflow metadata.
+# If the network is fully convolutional, this also allows restoring weights into a network with larger inputs/outputs.
+class RestorableNetwork():
+    def __init__(self, name):
+        """
+        :param name: Str. For variable scoping.
+        """
+        self.name = name
+
+        # Dictionary with key = variable name and value = (assign_op, placeholder).
+        self._assign_ops = {}
+
+    def save_to(self, file_path, sess):
+        """
+        Serializes the network into an npz file.
+        :param file_path: Str.
+        :param sess: Tensorflow session.
+        :return: Nothing.
+        """
+        save_dict = self.get_save_np(sess)
+        np.savez(file_path, **save_dict)
+
+    def get_save_np(self, sess):
+        """
+        Creates a dict of np arrays corresponding to the weights of each variable.
+        :param sess: Tensorflow session.
+        :return: Dict of np arrays. Key is the name of the variable.
+        """
+        trainable_vars = tf.trainable_variables(self.name)
+        trainable_vars_np = sess.run(trainable_vars)
+        # Create a dict of variable_name:variable_np.
+        save_dict = {}
+        for i, var in enumerate(trainable_vars):
+            var_name = var.name
+            save_dict[var_name] = trainable_vars_np[i]
+        return save_dict
+
+    def restore_from(self, file_path, sess):
+        """
+        Deserializes a network from an npz file.
+        :param file_path: Str.
+        :param sess: Tensorflow session.
+        :return: Nothing.
+        """
+        var_dict = np.load(file_path)
+        self.restore_from_np(var_dict, sess)
+
+    def restore_from_np(self, var_dict, sess):
+        """
+        Restores the network from the var_dict.
+        :param var_dict: Dict of np arrays. Key is the name of the variable.
+        :param sess: Tensorflow session.
+        :return: Nothing
+        """
+        with tf.name_scope(self.name + '_assign_ops'):
+            trainable_vars = tf.trainable_variables(self.name)
+            feed_dict = {}
+            assign_ops = []
+            for var in trainable_vars:
+                var_name = var.name
+                var_np = var_dict[var_name]
+                assign_op, placeholder = self.get_assign_op(var)
+                assign_ops.append(assign_op)
+                assert placeholder not in feed_dict
+                feed_dict[placeholder] = var_np
+            sess.run(assign_ops, feed_dict=feed_dict)
+
+    def get_assign_op(self, var):
+        """
+        :param var: Tensorflow variable.
+        :return: Operation, placeholder.
+        """
+        var_name = var.name
+        if var_name not in self._assign_ops:
+            ph = tf.placeholder(dtype=tf.float32)
+            op = tf.assign(var, ph)
+            self._assign_ops['var_name'] = op, ph
+        return self._assign_ops['var_name']
+
+    @staticmethod
+    def rename_np_dict(var_dict, old_network_name, new_network_name):
+        """
+        Renames the np dict so a new network with a different name but same architecture can restore from it.
+        :param old_network_name: Str. Name of the old network.
+        :param new_network_name: Str. Name of the new network.
+        :return: New var dict.
+        """
+        new_dict = {}
+        for key, value in var_dict.items():
+            new_key = key.replace(old_network_name, new_network_name)
+            new_dict[new_key] = value
+        return new_dict
+
+
+class ConvNetwork(RestorableNetwork):
+    def __init__(self, name, layer_specs=None,
                  activation_fn=tf.nn.leaky_relu,
                  last_activation_fn=_default,
                  regularizer=None, padding='SAME', dense_net=False):
@@ -20,6 +117,7 @@ class ConvNetwork:
         :param padding: Str. Either 'SAME' or 'VALID' case insensitive.
         :param dense_net: Bool. If true, then it is expected that all layers have the same width and height.
         """
+        super().__init__(name)
         self.layer_specs = layer_specs
         self.activation_fn = activation_fn
         self.regularizer = regularizer
@@ -77,4 +175,14 @@ class ConvNetwork:
 
         final_output = previous_output
         return final_output, layer_outputs
+
+    def get_forward_conv(self, features, reuse_variables=tf.AUTO_REUSE):
+        """
+        Public API for getting the forward ops.
+        :param features: Feature map or images.
+        :param reuse_variables: Whether to reuse the variables under the scope.
+        :return: final_output, layer_outputs.
+        """
+        with tf.variable_scope(self.name, reuse=reuse_variables):
+            return self._get_conv_tower(features)
 

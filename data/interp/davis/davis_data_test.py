@@ -40,7 +40,7 @@ class TestDavisDataSet(unittest.TestCase):
         Test that the data paths make sense.
         """
         data_set = DavisDataSet(self.data_directory, [[1]], batch_size=2)
-        image_paths = data_set._get_data_paths()
+        image_paths = data_set._get_data_paths(self.data_directory)
         self.assertListEqual(image_paths[0], self.expected_image_paths_0)
         self.assertListEqual(image_paths[1], self.expected_image_paths_1)
 

@@ -15,11 +15,10 @@ class EstimatorNetwork(ConvNetwork):
         :param regularizer: Tf regularizer such as tf.contrib.layers.l2_regularizer.
         :param dense_net: Bool. Default for PWC-Net is true.
         """
-        super().__init__(layer_specs=layer_specs,
+        super().__init__(name=name, layer_specs=layer_specs,
                          activation_fn=activation_fn, last_activation_fn=None,
                          regularizer=regularizer, padding='SAME', dense_net=dense_net)
 
-        self.name = name
         if layer_specs is None:
             # PWC-Net default.
             self.layer_specs = [[3, 128, 1, 1],
