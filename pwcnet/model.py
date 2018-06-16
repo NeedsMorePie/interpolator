@@ -57,11 +57,13 @@ class PWCNet(RestorableNetwork):
                  previous_flows: all previous flow outputs of the estimator networks and the context network.
         """
         with tf.variable_scope(self.name, reuse=reuse_variables):
+            batch_size = tf.shape(image_a)[0]
             img_height = tf.shape(image_a)[1]
             img_width = tf.shape(image_a)[2]
             # Siamese networks (i.e. image_a and image_b are fed through the same network with shared weights).
-            _, features_a = self.feature_pyramid.get_forward(image_a, reuse_variables=tf.AUTO_REUSE)
-            _, features_b = self.feature_pyramid.get_forward(image_b, reuse_variables=tf.AUTO_REUSE)
+            # Implemented by combining the the image_a and image_b batches.
+            images_a_b = tf.concat([image_a, image_b], axis=0)
+            _, features = self.feature_pyramid.get_forward(images_a_b, reuse_variables=reuse_variables)
 
             # The initial flow will be initialized with zeros.
             # It is refined at each feature level.
@@ -73,8 +75,9 @@ class PWCNet(RestorableNetwork):
                 if VERBOSE:
                     print('Creating estimator at level', i)
                 # Get the features at this level.
-                features_a_n = features_a[self.feature_pyramid.get_c_n_idx(i)]
-                features_b_n = features_b[self.feature_pyramid.get_c_n_idx(i)]
+                features_n = features[self.feature_pyramid.get_c_n_idx(i)]
+                features_a_n = features_n[0:batch_size, ...]
+                features_b_n = features_n[batch_size:, ...]
 
                 # Setup the previous flow for input into the estimator network at this level.
                 B = tf.shape(features_a_n)[0]
