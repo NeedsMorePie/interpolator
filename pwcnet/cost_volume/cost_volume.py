@@ -5,7 +5,7 @@ import tensorflow as tf
 from utils.misc import *
 
 
-def cost_volume(c1, c2, search_range=4, batched_reduce=True):
+def cost_volume(c1, c2, search_range=4, batched_reduce=False):
     """
     See https://arxiv.org/pdf/1709.02371.pdf.
     For each pixel in c1, we will compute correlations with its spatial neighbors in c2.
