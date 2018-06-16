@@ -21,16 +21,30 @@ class ImagePyramid:
     def get_forward(self, images):
         """
         :param images: A Tensor. Images of shape [batch_size, H, W, C].
-        :return: A Tensor. Images at all the pyramid levels, of shape [batch_size, levels, H, W, C].
+        :return: A list of Tensors of length self.num_levels.
+                 Each level (from 0) has tensors of shape [batch_size, H / 2^level, W / 2^level, C].
         """
         with tf.variable_scope(self.name):
+            image_height = tf.shape(images)[1]
+            image_width = tf.shape(images)[2]
             num_channels = tf.shape(images)[-1]
-            levels = [images]
-            blur_filter = self._get_blur_filter(num_channels)
-            for i in range(1, self.num_levels):
-                print('Building level %d ...' % i)
-                blurred = tf.nn.depthwise_conv2d(levels[i - 1], blur_filter, 4 * [1], 'VALID')
-                levels.append(blurred)
+
+            # Make sure that we are at integer values.
+            final_height = image_height / 2 ** (self.num_levels - 1)
+            final_width = image_width / 2 ** (self.num_levels - 1)
+            height_check = tf.Assert(tf.equal(final_height, tf.floor(final_height)), [final_height])
+            width_check = tf.Assert(tf.equal(final_width, tf.floor(final_width)), [final_width])
+
+            # Build the pyramid by depth-wise gaussian blurring followed by 2x down-sampling.
+            with tf.control_dependencies([height_check, width_check]):
+                levels = [images]
+                blur_filter = self._get_blur_filter(num_channels)
+                for i in range(1, self.num_levels):
+                    blurred = tf.nn.depthwise_conv2d(levels[i - 1], blur_filter, 4 * [1], 'VALID')
+                    new_height = tf.cast(image_height / 2 ** i, tf.int32)
+                    new_width = tf.cast(image_width / 2 ** i, tf.int32)
+                    blurred = tf.image.resize_bilinear(blurred, [new_height, new_width])
+                    levels.append(blurred)
         return levels
 
     def _get_blur_filter(self, num_in_channels):
@@ -53,7 +67,7 @@ class ImagePyramid:
         # Get the TF kernel variable.
         blur_filter_np = np.outer(triangle[-1], triangle[-1])
         blur_filter_np = blur_filter_np / np.sum(blur_filter_np)
-        blur_filter = [tf.constant(blur_filter_np)]
+        blur_filter = [tf.constant(blur_filter_np, dtype=tf.float32)]
         blur_filter = tf.tile(blur_filter, [num_in_channels, 1, 1])
         blur_filter = tf.transpose(blur_filter, [1, 2, 0])
         blur_filter = tf.expand_dims(blur_filter, axis=-1)
