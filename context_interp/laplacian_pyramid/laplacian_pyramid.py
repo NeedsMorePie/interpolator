@@ -5,9 +5,9 @@ import numpy as np
 # References:
 # http://nbviewer.jupyter.org/github/tensorflow/tensorflow/blob/master/tensorflow/examples/tutorials/deepdream/deepdream.ipynb#laplacian
 # http://www.cse.psu.edu/~rtc12/CSE486/lecture10.pdf
-class ImagePyramid:
+class LaplacianPyramid:
 
-    def __init__(self, num_levels, name='image_pyr', filter_side_len=5):
+    def __init__(self, num_levels, name='laplacian_pyramid', filter_side_len=5):
         """
         :param num_levels: The number of pyramid levels.
                        At each level the image width and height are 2x lower than the previous one.
@@ -57,9 +57,19 @@ class ImagePyramid:
         return laplacian_levels, gaussian_levels
 
     def _pyr_down(self, images, filter):
+        """
+        :param images: A Tensor. Images of shape [batch_size, H, W, C].
+        :param filter: A Tensor. Convolution filter of shape [H, W, in_channels, out_channels].
+        :return: A Tensor. Images of shape [batch_size, H/2, W/2, C].
+        """
         return tf.nn.conv2d(images, filter, [1, 2, 2, 1], 'SAME')
 
     def _pyr_up(self, images, filter):
+        """
+        :param images: A Tensor. Images of shape [batch_size, H, W, C].
+        :param filter: A Tensor. Convolution filter of shape [H, W, in_channels, out_channels].
+        :return: A Tensor. Images of shape [batch_size, H*2, W*2, C].
+        """
         batch_size = tf.shape(images)[0]
         H, W, C = tf.shape(images)[1], tf.shape(images)[2], tf.shape(images)[3]
         upsampled = tf.nn.conv2d_transpose(images, 4 * filter, (batch_size, 2 * H, 2 * W, C), [1, 2, 2, 1])

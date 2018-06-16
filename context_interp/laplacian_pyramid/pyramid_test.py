@@ -3,12 +3,13 @@ import tensorflow as tf
 import unittest
 import os
 from utils.img import read_image, show_image
-from context_interp.image_pyr.image_pyr import ImagePyramid
+from context_interp.laplacian_pyramid.laplacian_pyramid import LaplacianPyramid
 
 
-VISUALIZE = True
+VISUALIZE = False
 
-class TestImagePyramid(unittest.TestCase):
+
+class TestLaplacianPyramid(unittest.TestCase):
 
     def setUp(self):
         config = tf.ConfigProto()
@@ -22,7 +23,7 @@ class TestImagePyramid(unittest.TestCase):
 
     def testPyramid(self):
         num_levels = 5
-        pyr_builder = ImagePyramid(num_levels, filter_side_len=5)
+        pyr_builder = LaplacianPyramid(num_levels, filter_side_len=5)
         image_height = np.shape(self.test_image)[0]
         image_width = np.shape(self.test_image)[1]
         image_tensor = tf.placeholder(tf.float32, shape=(1, image_height, image_width, 3))
@@ -45,7 +46,7 @@ class TestImagePyramid(unittest.TestCase):
                 show_image(level[0] / 255.0)
 
     def testFilter(self):
-        pyr = ImagePyramid(5, filter_side_len=4)
+        pyr = LaplacianPyramid(5, filter_side_len=4)
         filter_tensor = pyr._get_blur_filter(3)
         filter = self.sess.run(filter_tensor)
         expected = np.array([
