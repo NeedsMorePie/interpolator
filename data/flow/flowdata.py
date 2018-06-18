@@ -30,7 +30,7 @@ class FlowDataSet(DataSet):
         :param crop_size: Tuple of (int (H), int (W)). Size to crop the training examples to before feeding to network.
                           If None, then no cropping will be performed.
         :param training_augmentations: Whether to do live augmentations while training.
-        :param data_source: Source of the data. Only needed if pre-processing the raw data.
+        :param data_source: Source of the data.
         """
         super().__init__(directory, batch_size, validation_size)
 
@@ -47,6 +47,7 @@ class FlowDataSet(DataSet):
         self.next_images_b = None  # Data iterator batch.
         self.next_flows = None  # Data iterator batch.
 
+        # TODO: Make the crop size part of the class.
         self.crop_size = crop_size
         self.training_augmentations = training_augmentations
         self.data_source = data_source

@@ -6,6 +6,7 @@ import unittest
 from data.flow.flowdata import FlowDataSet
 
 
+# TODO: Create a subclass to be shared with flying chairs test.
 class TestSintelFlowDataSet(unittest.TestCase):
     def setUp(self):
         self.data_directory = os.path.join('data', 'flow', 'test_data', 'sintel')
