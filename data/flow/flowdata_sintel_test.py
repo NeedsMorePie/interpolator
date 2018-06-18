@@ -8,7 +8,7 @@ from data.flow.flowdata import FlowDataSet
 
 class TestFlowDataSet(unittest.TestCase):
     def setUp(self):
-        self.data_directory = os.path.join('data', 'flow', 'test_data')
+        self.data_directory = os.path.join('data', 'flow', 'test_data', 'sintel')
         self.flow_directory = os.path.join(self.data_directory, 'test_flows')
         self.image_directory = os.path.join(self.data_directory, 'test_images')
         # No data augmentation so that the tests are deterministic.
