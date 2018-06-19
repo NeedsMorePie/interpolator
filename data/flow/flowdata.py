@@ -47,7 +47,6 @@ class FlowDataSet(DataSet):
         self.next_images_b = None  # Data iterator batch.
         self.next_flows = None  # Data iterator batch.
 
-        # TODO: Make the crop size part of the class.
         self.crop_size = crop_size
         self.training_augmentations = training_augmentations
         self.data_source = data_source
