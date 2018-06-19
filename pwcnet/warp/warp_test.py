@@ -75,7 +75,7 @@ class TestSpacialTransformTranslate(unittest.TestCase):
             show_image(transformed_image[1])
             show_image(diff_img)
 
-    def test_optical_flow_warp(self):
+    def test_optical_flow_warp_sintel(self):
         """
         Runs warp test against Sintel ground truth and checks for <2% average pixel error.
         Also masks out the occluded warp regions when computing the error.
@@ -118,6 +118,41 @@ class TestSpacialTransformTranslate(unittest.TestCase):
             show_image(warped_image[1])
             show_image(error_ab_img)
             show_image(error_cd_img)
+
+    def test_optical_flow_warp_flyingchairs(self):
+        """
+        Runs warp test against FlyingChairs ground truth and checks for <3% average pixel error.
+        Also masks out the occluded warp regions when computing the error.
+        """
+        # Load from files.
+        flow_ab = read_flow_file('pwcnet/warp/test_data/06530_flow.flo')
+        img_a = read_image('pwcnet/warp/test_data/06530_img1.ppm', as_float=True)
+        img_b = read_image('pwcnet/warp/test_data/06530_img2.ppm', as_float=True)
+        mask_ab = np.ones(shape=img_a.shape)
+
+        H = img_a.shape[0]
+        W = img_a.shape[1]
+        C = img_a.shape[2]
+
+        # Create the graph.
+        img_shape = [None, H, W, C]
+        flow_shape = [None, H, W, 2]
+        input = tf.placeholder(shape=img_shape, dtype=tf.float32)
+        flow_tensor = tf.placeholder(shape=flow_shape, dtype=tf.float32)
+        warped_tensor = warp_via_flow(input, flow_tensor)
+
+        # Run.
+        warped_image = self.sess.run(warped_tensor, feed_dict={input: [img_b, mask_ab],
+                                                               flow_tensor: [flow_ab, flow_ab]})
+        # Get the masked errors.
+        error_ab_img = np.abs(warped_image[0] - img_a) * warped_image[1]
+        error_ab = np.mean(error_ab_img)
+        # Assert a < 3% average error.
+        self.assertLess(error_ab, 0.03)
+
+        if SHOW_WARPED_IMAGES:
+            show_image(warped_image[0])
+            show_image(error_ab_img)
 
     def test_gradients(self):
         """
