@@ -8,10 +8,12 @@ import unittest
 class TestFlowDataSet:
     class TestCases(unittest.TestCase):
         def setUp(self):
+            # FlowData data set.
             self.data_set = None
+            # Array (i.e. [346, 1024]).
             self.resolution = None
 
-            # Test paths.
+            # Test paths, arrays of strings. These must be exactly 5 long.
             self.expected_image_a_paths = None
             self.expected_image_b_paths = None
             self.expected_flow_paths = None
