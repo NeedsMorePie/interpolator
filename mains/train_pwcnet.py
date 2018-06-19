@@ -22,8 +22,8 @@ def main():
     config = {
         'learning_rate': args.learning_rate,
         'checkpoint_directory': args.checkpoint_directory,
-        'crop_width':  768,
-        'crop_height': 384,
+        'crop_width':  args.crop_width,
+        'crop_height': args.crop_height,
         'fine_tune': args.fine_tune
     }
 
@@ -57,6 +57,10 @@ def add_args(parser):
                         help='Whether to use fine tuning loss.')
     parser.add_argument('-l', '--learning_rate', type=float, default=1e-4,
                         help='The learning rate.')
+    parser.add_argument('-w', '--crop_width', type=int, default=768,
+                        help='Random crop width.')
+    parser.add_argument('-h', '--crop_height', type=int, default=384,
+                        help='Random crop height.')
 
 
 if __name__ == "__main__":
