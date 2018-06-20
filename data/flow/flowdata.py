@@ -58,13 +58,17 @@ class FlowDataSet(DataSet):
         """
         Overridden.
         """
-        return glob.glob(os.path.join(self.directory, '*' + self.train_filename))
+        file_names = glob.glob(os.path.join(self.directory, '*' + self.train_filename))
+        assert len(file_names) > 0
+        return file_names
 
     def get_validation_file_names(self):
         """
         :return: List of string.
         """
-        return glob.glob(os.path.join(self.directory, '*' + self.valid_filename))
+        file_names = glob.glob(os.path.join(self.directory, '*' + self.valid_filename))
+        assert len(file_names) > 0
+        return file_names
 
     def preprocess_raw(self, shard_size):
         """
