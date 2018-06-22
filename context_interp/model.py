@@ -57,6 +57,14 @@ class ContextInterp:
         """
         return self._get_laplacian_loss(prediction, expected)
 
+    def get_fine_tuning_loss(self, prediction, expected):
+        """
+        :param prediction: Tensor of shape [batch, H, W, num_features]. Predicted image.
+        :param expected: Tensor of shape [batch, H, W, num_features]. Ground truth image.
+        :return: Tf scalar loss term.
+        """
+        return self._get_feature_loss(prediction, expected)
+
     def _get_feature_loss(self, prediction, expected):
         with tf.variable_scope('feature_loss'):
             prediction_features = self.feature_extractor.get_perceptual_features(prediction)

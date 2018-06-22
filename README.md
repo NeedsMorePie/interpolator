@@ -9,6 +9,7 @@
     *   opencv-python
     *   matplotlib
     *   joblib
+    *   pillow
     
 ### Running tests
 

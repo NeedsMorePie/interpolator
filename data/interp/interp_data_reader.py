@@ -117,6 +117,7 @@ class InterpDataSetReader:
             shot = tf.map_fn(lambda bytes: tf.image.decode_image(bytes), shot_bytes, dtype=(tf.uint8))
             shot = tf.image.convert_image_dtype(shot, tf.float32)
             shot = tf.reshape(shot, (shot_len, H, W, 3))
+            shot = tf.random_crop(shot, [shot_len, 256, 256, 3])
 
             # Decompose each shot into sequences of consecutive images.
             slice_locations = [1] + inbetween_locations + [1]

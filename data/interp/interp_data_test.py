@@ -120,7 +120,7 @@ class TestInterpDataSet(unittest.TestCase):
 
             self.assertListEqual(next_sequence_timing[0].tolist(), [0.0, 0.5, 1.0])
             self.assertListEqual(next_sequence_timing[1].tolist(), [0.0, 0.5, 1.0])
-            self.assertTupleEqual(np.shape(next_sequence), (2, 3, 224, 224, 3))
+            self.assertTupleEqual(np.shape(next_sequence), (2, 3, 256, 256, 3))
 
     def test_val_data_read_write(self):
         data_set = DavisDataSet(self.tf_record_directory, [[1]], batch_size=2)
@@ -142,7 +142,7 @@ class TestInterpDataSet(unittest.TestCase):
 
         self.assertListEqual(next_sequence_timing[0].tolist(), [0.0, 0.5, 1.0])
         self.assertListEqual(next_sequence_timing[1].tolist(), [0.0, 0.5, 1.0])
-        self.assertTupleEqual(np.shape(next_sequence), (2, 3, 224, 224, 3))
+        self.assertTupleEqual(np.shape(next_sequence), (2, 3, 256, 256, 3))
 
         end_of_val = False
         try:
@@ -187,7 +187,7 @@ class TestInterpDataSet(unittest.TestCase):
                 num_sparse_sequences += 1
                 is_sparse = True
 
-            self.assertTupleEqual(np.shape(next_sequence), (1, 3, 224, 224, 3))
+            self.assertTupleEqual(np.shape(next_sequence), (1, 3, 256, 256, 3))
             if VISUALIZE:
                 if is_sparse:
                     print('Showing sparse sequence with timings [0.0, 0.25, 1.0] ...')

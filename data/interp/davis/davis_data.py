@@ -23,13 +23,16 @@ class DavisDataSet(InterpDataSet):
         buffered = BytesIO()
         im = Image.open(filename)
         width, height = im.size
-        crop_width, crop_height = 224, 224
+
+        # This just takes the whole image currently.
+        crop_width, crop_height = width, height
         crop_left = int(width / 2 - crop_width / 2)
         crop_top = int(height / 2 - crop_height / 2)
         im = im.crop((crop_left, crop_top, crop_left + crop_width, crop_top + crop_height))
         im.save(buffered, format='JPEG')
         bytes = buffered.getvalue()
         buffered.close()
+
         return bytes, crop_height, crop_width
 
     def _get_data_paths(self, raw_directory):

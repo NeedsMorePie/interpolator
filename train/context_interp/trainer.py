@@ -22,11 +22,17 @@ class ContextInterpTrainer(Trainer):
         # Get the train network.
         self.images_b_pred, _, _ = self.model.get_forward(self.images_a, self.images_c, 0.5,
                                                                       reuse_variables=tf.AUTO_REUSE)
-        self.loss = self.model.get_training_loss(self.images_b_pred, self.images_b)
+
+        if self.config['fine_tune']:
+            self.loss = self.model.get_fine_tuning_loss(self.images_b_pred, self.images_b)
+        else:
+            self.loss = self.model.get_training_loss(self.images_b_pred, self.images_b)
 
         # Get the optimizer.
         with tf.variable_scope('train'):
             self.global_step = tf.Variable(initial_value=0, trainable=False, dtype=tf.int32, name='global_step')
+
+            # TODO Use AdaMax with B1 = 0.9, B2 = 0.999, instead of Adam.
             self.train_op = tf.train.AdamOptimizer(config['learning_rate']).minimize(
                 self.loss, global_step=self.global_step)
 
@@ -94,11 +100,14 @@ class ContextInterpTrainer(Trainer):
             weight = 0.60
             self.image_overlays = self.images_a * weight + self.images_c * (1 - weight)
 
-            max_outputs = 1
+            # Images will appear 'washed out' otherwise, due to tensorboard's own normalization scheme.
+            clipped_preds = tf.clip_by_value(self.images_b_pred, 0.0, 1.0)
+
+            max_outputs = 4
             tf.summary.scalar('total_loss', self.loss)
             tf.summary.image('overlay', self.image_overlays, max_outputs=max_outputs)
             tf.summary.image('inbetween_gt', self.images_b, max_outputs=max_outputs)
-            tf.summary.image('inbetween_pred', self.images_b_pred, max_outputs=max_outputs)
+            tf.summary.image('inbetween_pred', clipped_preds, max_outputs=max_outputs)
 
             self.merged_summ = tf.summary.merge_all()
             self.train_writer = tf.summary.FileWriter(os.path.join(self.config['checkpoint_directory'], 'train'),

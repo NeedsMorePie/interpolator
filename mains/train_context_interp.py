@@ -26,8 +26,9 @@ def main():
                            batch_size=args.batch_size)
 
     config = {
-        'learning_rate': 1e-4,
-        'checkpoint_directory': args.checkpoint_directory
+        'learning_rate': 1E-4,
+        'checkpoint_directory': args.checkpoint_directory,
+        'fine_tune': args.fine_tune
     }
 
     print('Initializing trainer...')
@@ -48,6 +49,8 @@ def add_args(parser):
                         help='Size of the batch.')
     parser.add_argument('-c', '--checkpoint_directory', type=str,
                         help='Directory of saved checkpoints.')
+    parser.add_argument('-f', '--fine_tune', type=bool, default=False,
+                        help='Whether to use fine tuning loss.')
 
 
 if __name__ == "__main__":
