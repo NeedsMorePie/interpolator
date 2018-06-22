@@ -53,8 +53,8 @@ def tf_random_crop(images, crop_size):
         H = shape[0]
         W = shape[1]
         # Pick out the crop region location.
-        rand_y_start = tf.random_uniform((), 0, H - crop_height, dtype=tf.int32)
-        rand_x_start = tf.random_uniform((), 0, W - crop_width, dtype=tf.int32)
+        rand_y_start = tf.random_uniform((), 0, H - crop_height + 1, dtype=tf.int32)
+        rand_x_start = tf.random_uniform((), 0, W - crop_width + 1, dtype=tf.int32)
         rand_y_end = rand_y_start + crop_height
         rand_x_end = rand_x_start + crop_width
         # Do cropping.

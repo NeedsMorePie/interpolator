@@ -17,7 +17,12 @@ FLOW_RAW = 'flow_raw'
 
 
 class FlowDataSet(DataSet):
-    def __init__(self, directory, batch_size=1, validation_size=1, crop_size=None, training_augmentations=True):
+    # Data sources.
+    SINTEL = 0
+    FLYING_CHAIRS = 1
+
+    def __init__(self, directory, batch_size=1, validation_size=1, crop_size=None, training_augmentations=True,
+                 data_source=SINTEL):
         """
         :param directory: Str. Directory of the dataset file structure and tf records.
         :param batch_size: Int.
@@ -25,6 +30,7 @@ class FlowDataSet(DataSet):
         :param crop_size: Tuple of (int (H), int (W)). Size to crop the training examples to before feeding to network.
                           If None, then no cropping will be performed.
         :param training_augmentations: Whether to do live augmentations while training.
+        :param data_source: Source of the data.
         """
         super().__init__(directory, batch_size, validation_size)
 
@@ -43,6 +49,7 @@ class FlowDataSet(DataSet):
 
         self.crop_size = crop_size
         self.training_augmentations = training_augmentations
+        self.data_source = data_source
 
         self.train_filename = 'flowdataset_train.tfrecords'
         self.valid_filename = 'flowdataset_valid.tfrecords'
@@ -51,13 +58,17 @@ class FlowDataSet(DataSet):
         """
         Overridden.
         """
-        return glob.glob(os.path.join(self.directory, '*' + self.train_filename))
+        file_names = glob.glob(os.path.join(self.directory, '*' + self.train_filename))
+        assert len(file_names) > 0
+        return file_names
 
     def get_validation_file_names(self):
         """
         :return: List of string.
         """
-        return glob.glob(os.path.join(self.directory, '*' + self.valid_filename))
+        file_names = glob.glob(os.path.join(self.directory, '*' + self.valid_filename))
+        assert len(file_names) > 0
+        return file_names
 
     def preprocess_raw(self, shard_size):
         """
@@ -114,7 +125,17 @@ class FlowDataSet(DataSet):
 
     def _get_data_paths(self):
         """
-        Gets the paths of [image_a, image_b, flow] tuples from a typical flow data directory structure.
+        :return: List of image_path strings, list of flow_path strings.
+        """
+        if self.data_source == self.SINTEL:
+            return self._get_data_paths_sintel()
+        elif self.data_source == self.FLYING_CHAIRS:
+            return self._get_data_paths_flying_chairs()
+        return None
+
+    def _get_data_paths_sintel(self):
+        """
+        Gets the paths of [image_a, image_b, flow] tuples from a typical Sintel flow data directory structure.
         :return: List of image_path strings, list of flow_path strings.
         """
         # Get sorted lists.
@@ -137,6 +158,17 @@ class FlowDataSet(DataSet):
                 flow_idx += 1
         assert flow_idx == len(flows)
         return filtered_images_a, filtered_images_b, filtered_flows
+
+    def _get_data_paths_flying_chairs(self):
+        """
+        Gets the paths of [image_a, image_b, flow] tuples from a typical flying chairs flow data directory structure.
+        :return: List of image_path strings, list of flow_path strings.
+        """
+        images_a = glob.glob(os.path.join(self.directory, '**', '*_img1.ppm'), recursive=True)
+        images_a.sort()
+        images_b = [image_a.replace('img1', 'img2') for image_a in images_a]
+        flows = [image_a.replace('img1', 'flow').replace('ppm', 'flo') for image_a in images_a]
+        return images_a, images_b, flows
 
     def _convert_to_tf_record(self, image_a_paths, image_b_paths, flow_paths, shard_size):
         """
@@ -210,8 +242,8 @@ class FlowDataSet(DataSet):
                 # Basic image augmentations.
                 image_a, image_b = tf_image_augmentation([image_a, image_b], config)
                 # Flip randomly in unison.
-                #flow, images = tf_random_flip_flow(flow, [image_a, image_b])
-                #image_a, image_b = images
+                flow, images = tf_random_flip_flow(flow, [image_a, image_b])
+                image_a, image_b = images
                 # Scale randomly in unison.
                 flow, images = tf_random_scale_flow(flow, [image_a, image_b], config)
                 image_a, image_b = images
