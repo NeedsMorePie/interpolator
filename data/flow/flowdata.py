@@ -58,17 +58,13 @@ class FlowDataSet(DataSet):
         """
         Overridden.
         """
-        file_names = glob.glob(os.path.join(self.directory, '*' + self.train_filename))
-        assert len(file_names) > 0
-        return file_names
+        return glob.glob(os.path.join(self.directory, '*' + self.train_filename))
 
     def get_validation_file_names(self):
         """
         :return: List of string.
         """
-        file_names = glob.glob(os.path.join(self.directory, '*' + self.valid_filename))
-        assert len(file_names) > 0
-        return file_names
+        return glob.glob(os.path.join(self.directory, '*' + self.valid_filename))
 
     def preprocess_raw(self, shard_size):
         """
@@ -208,6 +204,7 @@ class FlowDataSet(DataSet):
         :param do_augmentations: Bool. Whether to do image augmentations.
         :return: Tensorflow dataset object.
         """
+        assert len(filenames) > 0
         def _parse_function(example_proto):
             features = {
                 HEIGHT: tf.FixedLenFeature((), tf.int64, default_value=0),
