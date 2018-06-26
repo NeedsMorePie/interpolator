@@ -115,5 +115,5 @@ class PWCNetTrainer(Trainer):
             self.train_writer = tf.summary.FileWriter(self.train_log_dir, self.session.graph)
             self.valid_writer = tf.summary.FileWriter(self.valid_log_dir)
 
-            # Write the config summary.
-            self.train_writer.add_summary(self.session.run(config_summary), global_step=0)
+        # Write the config summary.
+        self.train_writer.add_summary(self.session.run(config_summary), global_step=0)
