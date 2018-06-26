@@ -113,9 +113,5 @@ class PWCNetTrainer(Trainer):
             text = ''
             for key in sorted(self.config.keys()):
                 text += key + ': ' + str(self.config[key]) + '\n'
-            text_tensor = tf.make_tensor_proto(text, dtype=tf.string)
-            metadata = tf.SummaryMetadata()
-            metadata.plugin_data.plugin_name = "text"
-            summary = tf.Summary()
-            summary.value.add(tag='Configurations', metadata=metadata, tensor=text_tensor)
-            self.train_writer.add_summary(summary, global_step=0)
+            config_summary = tf.summary.text('Configurations', tf.convert_to_tensor(text))
+            self.train_writer.add_summary(self.session.run(config_summary), global_step=0)
