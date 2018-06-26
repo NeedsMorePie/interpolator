@@ -117,3 +117,4 @@ class PWCNetTrainer(Trainer):
 
         # Write the config summary.
         self.train_writer.add_summary(self.session.run(config_summary), global_step=0)
+        self.train_writer.flush()
