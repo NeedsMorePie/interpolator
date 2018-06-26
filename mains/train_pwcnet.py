@@ -1,4 +1,5 @@
 import argparse
+import json
 import os
 import tensorflow as tf
 from data.flow.flowdata import FlowDataSet
@@ -15,26 +16,28 @@ def main():
     config_proto.gpu_options.allow_growth = True
     session = tf.Session(config=config_proto)
 
+    # Read the JSON config.
+    print('Loading configurations...')
+    with open(args.config) as json_data:
+        config = json.load(json_data)
+        print(config)
+        print('')
+    # Add extra fields to the config from argparse.
+    config['checkpoint_directory'] = args.checkpoint_directory
+    config['directory'] = args.directory
+
     if not os.path.exists(args.checkpoint_directory):
         os.makedirs(args.checkpoint_directory)
-
-    # TODO: config read from json.
-    config = {
-        'learning_rate': args.learning_rate,
-        'checkpoint_directory': args.checkpoint_directory,
-        'crop_width':  args.crop_width,
-        'crop_height': args.crop_height,
-        'fine_tune': args.fine_tune
-    }
 
     print('Creating network...')
     model = PWCNet()
 
     print('Creating dataset...')
     dataset = FlowDataSet(args.directory, batch_size=args.batch_size,
-                          crop_size=(config['crop_height'], config['crop_width']))
+                          crop_size=(config['crop_height'], config['crop_width']),
+                          augmentation_config=config)
 
-    print('Initializing trainer...')
+    print('Initializing trainer and model ops...')
     trainer = PWCNetTrainer(model, dataset, session, config)
 
     print('Initializing variables...')
@@ -47,20 +50,10 @@ def main():
 def add_args(parser):
     parser.add_argument('-d', '--directory', type=str,
                         help='Directory of the tf records.')
-    parser.add_argument('-v', '--validate_every', type=int, default=20,
-                        help='Defines the frequency of validation.')
-    parser.add_argument('-b', '--batch_size', type=int, default=8,
-                        help='Size of the batch.')
     parser.add_argument('-c', '--checkpoint_directory', type=str,
                         help='Directory of saved checkpoints.')
-    parser.add_argument('-f', '--fine_tune', type=bool, default=False,
-                        help='Whether to use fine tuning loss.')
-    parser.add_argument('-l', '--learning_rate', type=float, default=1e-4,
-                        help='The learning rate.')
-    parser.add_argument('-cw', '--crop_width', type=int, default=768,
-                        help='Random crop width.')
-    parser.add_argument('-ch', '--crop_height', type=int, default=384,
-                        help='Random crop height.')
+    parser.add_argument('-j', '--config', type=str, default='mains/configs/train_pwcnet.json',
+                        help='Config json file path.')
 
 
 if __name__ == "__main__":

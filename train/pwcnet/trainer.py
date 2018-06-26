@@ -108,3 +108,14 @@ class PWCNetTrainer(Trainer):
             self.merged_summ = tf.summary.merge_all()
             self.train_writer = tf.summary.FileWriter(self.train_log_dir, self.session.graph)
             self.valid_writer = tf.summary.FileWriter(self.valid_log_dir)
+
+            # Summarize the config.
+            text = ''
+            for key in sorted(self.config.keys()):
+                text += key + ': ' + str(self.config[key]) + '\n'
+            text_tensor = tf.make_tensor_proto(text, dtype=tf.string)
+            meta = tf.SummaryMetadata()
+            meta.plugin_data.plugin_name = 'Config'
+            summary = tf.Summary()
+            summary.value.add(tag='Configurations', metadata=meta, tensor=text_tensor)
+            self.train_writer.add_summary(summary, global_step=0)
