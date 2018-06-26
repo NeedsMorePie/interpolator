@@ -110,8 +110,8 @@ class PWCNetTrainer(Trainer):
             self.valid_writer = tf.summary.FileWriter(self.valid_log_dir)
 
             # Summarize the config.
-            text = ''
+            text = []
             for key in sorted(self.config.keys()):
-                text += key + ': ' + str(self.config[key]) + '\n'
+                text.append([key, str(self.config[key])])
             config_summary = tf.summary.text('Configurations', tf.convert_to_tensor(text))
             self.train_writer.add_summary(self.session.run(config_summary), global_step=0)
