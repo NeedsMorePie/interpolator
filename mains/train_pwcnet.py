@@ -33,7 +33,7 @@ def main():
     model = PWCNet()
 
     print('Creating dataset...')
-    dataset = FlowDataSet(args.directory, batch_size=args.batch_size,
+    dataset = FlowDataSet(args.directory, batch_size=config['batch_size'],
                           crop_size=(config['crop_height'], config['crop_width']),
                           augmentation_config=config)
 
@@ -44,7 +44,7 @@ def main():
     session.run(tf.global_variables_initializer())
     trainer.restore()
 
-    trainer.train(validate_every=args.validate_every)
+    trainer.train(validate_every=config['validate_every'])
 
 
 def add_args(parser):
