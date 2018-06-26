@@ -82,7 +82,7 @@ class RestorableNetwork():
             var_dict = {_append_prefix(key): value for (key, value) in var_dict.items()}
         with tf.name_scope(self.name + '_assign_ops'):
             trainable_vars = tf.trainable_variables(scope_filter)
-            assert len(trainable_vars) > 0
+            assert len(trainable_vars) == len(var_dict.keys())
             feed_dict = {}
             assign_ops = []
             for var in trainable_vars:
