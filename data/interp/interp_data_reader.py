@@ -7,7 +7,7 @@ from data.dataset import DataSet
 from joblib import Parallel, delayed
 from utils.data import *
 from utils.img import read_image
-from utils.tf import sliding_window_slice
+from utils.tf import sliding_window_slice, tf_coin_flip
 
 SHOT_LEN = 'shot_len'
 WIDTH = 'width'
@@ -16,7 +16,9 @@ SHOT = 'shot'
 
 
 class InterpDataSetReader:
-    def __init__(self, directory, inbetween_locations, tf_record_name, batch_size=1):
+    def __init__(self, directory, inbetween_locations, tf_record_name, batch_size=1,
+                 do_augment=False,
+                 crop_size=(256, 256)):
         """
         :param inbetween_locations: A list of lists. Each element specifies where inbetweens will be placed,
                                     and each configuration will appear with uniform probability.
@@ -25,6 +27,10 @@ class InterpDataSetReader:
                                         [1] equates to [frame0, frame1, frame2]
                                         [0, 1, 0] equates to [frame0, frame2, frame4]
                                         [1, 0, 0] equates to [frame0, frame1, frame4]
+        :param crop_size: Tuple of (int (H), int (W)). Size to crop the training examples to before feeding to network.
+                           If None, then no cropping will be performed.
+        :param do_augment: Whether to augment the data when it's read in.
+                           If False, the image crop will always be taken in the center.
         """
 
         # Initialized during load().
@@ -33,6 +39,8 @@ class InterpDataSetReader:
         self.iterator = None  # Iterator for getting the next batch.
 
         self.batch_size = batch_size
+        self.crop_size = crop_size
+        self.do_augment = do_augment
         self.directory = directory
         self.tf_record_name = tf_record_name
         self.inbetween_locations = inbetween_locations
@@ -118,7 +126,19 @@ class InterpDataSetReader:
             shot = tf.map_fn(lambda bytes: tf.image.decode_image(bytes), shot_bytes, dtype=(tf.uint8))
             shot = tf.image.convert_image_dtype(shot, tf.float32)
             shot = tf.reshape(shot, (shot_len, H, W, 3))
-            shot = tf.random_crop(shot, [shot_len, 256, 256, 3])
+
+            crop_h, crop_w = self.crop_size
+            if self.do_augment:
+
+                # Crop and randomly flip in temporal, y, and x axes.
+                shot = tf.random_crop(shot, [shot_len, crop_h, crop_w, 3])
+                shot = tf.cond(tf_coin_flip(0.5)[0], lambda: tf.reverse(shot, [0]), lambda: shot)
+                shot = tf.cond(tf_coin_flip(0.5)[0], lambda: tf.reverse(shot, [1]), lambda: shot)
+                shot = tf.cond(tf_coin_flip(0.5)[0], lambda: tf.reverse(shot, [2]), lambda: shot)
+            else:
+                crop_top = tf.cast(H / 2 - crop_h / 2, tf.int32)
+                crop_left = tf.cast(W / 2 - crop_w / 2, tf.int32)
+                shot = tf.image.crop_to_bounding_box(shot, crop_top, crop_left, crop_h, crop_w)
 
             # Decompose each shot into sequences of consecutive images.
             slice_locations = [1] + inbetween_locations + [1]

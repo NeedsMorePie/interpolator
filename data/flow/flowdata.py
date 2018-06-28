@@ -26,7 +26,7 @@ class FlowDataSet(DataSet):
                           If None, then no cropping will be performed.
         :param training_augmentations: Whether to do live augmentations while training.
         """
-        super().__init__(directory, batch_size, validation_size)
+        super().__init__(directory, batch_size, validation_size, training_augmentations=training_augmentations)
 
         # Initialized during load().
         self.train_dataset = None  # Tensorflow DataSet object.
@@ -42,8 +42,6 @@ class FlowDataSet(DataSet):
         self.next_flows = None  # Data iterator batch.
 
         self.crop_size = crop_size
-        self.training_augmentations = training_augmentations
-
         self.train_filename = 'flowdataset_train.tfrecords'
         self.valid_filename = 'flowdataset_valid.tfrecords'
 

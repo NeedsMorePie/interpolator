@@ -3,10 +3,11 @@ import tensorflow as tf
 
 # Dataset interface.
 class DataSet:
-    def __init__(self, directory, batch_size, validation_size):
+    def __init__(self, directory, batch_size, validation_size, training_augmentations=True):
         self.directory = directory
         self.batch_size = batch_size
         self.validation_size = validation_size
+        self.training_augmentations = training_augmentations
         self.verbose = False
 
     def set_verbose(self, verbose):

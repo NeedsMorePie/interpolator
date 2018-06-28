@@ -14,8 +14,9 @@ WIDTH = 'width'
 HEIGHT = 'height'
 SHOT = 'shot'
 
+
 class InterpDataSet(DataSet):
-    def __init__(self, tf_record_directory, inbetween_locations, batch_size=1):
+    def __init__(self, tf_record_directory, inbetween_locations, batch_size=1, training_augmentations=True):
         """
         :param inbetween_locations: A list of lists. Each element specifies where inbetweens will be placed,
                                     and each configuration will appear with uniform probability.
@@ -23,8 +24,10 @@ class InterpDataSet(DataSet):
                                     With this, dataset elements will be sequences of 3 ordered frames,
                                     where the middle (inbetween) frame is 2 frames away from the first and last frames.
                                     The number of 1s must be the same for each list in this argument.
+        :param training_augmentations: Whether to do live augmentations while training.
         """
-        super().__init__(tf_record_directory, batch_size, validation_size=0)
+        super().__init__(tf_record_directory, batch_size, validation_size=0,
+                                                          training_augmentations=training_augmentations)
 
         # Initialized during load().
         self.handle_placeholder = None  # Handle placeholder for switching between datasets.
@@ -36,7 +39,8 @@ class InterpDataSet(DataSet):
         self.train_tf_record_name = 'interp_dataset_train.tfrecords'
         self.validation_tf_record_name = 'interp_dataset_validation.tfrecords'
         self.train_data = InterpDataSetReader(self.tf_record_directory, inbetween_locations,
-                                              self.train_tf_record_name, batch_size=batch_size)
+                                              self.train_tf_record_name, batch_size=batch_size,
+                                              do_augment=self.training_augmentations)
         self.validation_data = InterpDataSetReader(self.tf_record_directory, inbetween_locations,
                                                    self.validation_tf_record_name, batch_size=batch_size)
 
