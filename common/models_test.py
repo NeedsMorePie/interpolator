@@ -100,7 +100,7 @@ class TestModels(unittest.TestCase):
         global_initializer = tf.global_variables_initializer()
         self.sess.run(global_initializer)
 
-        # Run and check that they arent the same.
+        # Run and check that they aren't the same.
         dummy_input_small = np.ones(shape=[1, 8, 8, 2], dtype=np.float32)
         dummy_output_small = self.sess.run(output_small, feed_dict={input_small: dummy_input_small})
         dummy_input_large = np.ones(shape=[1, 16, 16, 2], dtype=np.float32)
@@ -113,6 +113,43 @@ class TestModels(unittest.TestCase):
 
         # Restore the small network's weights into the large network.
         conv_net_large.restore_from_np(large_var_dict, self.sess)
+
+        # Run the large network again and the output should match now.
+        dummy_output_large = self.sess.run(output_large, feed_dict={input_large: dummy_input_large})
+        self.assertTrue(np.allclose(dummy_output_small[0, 4, 4, :], dummy_output_large[0, 8, 8, :]))
+
+    def test_network_name_and_scope_change(self):
+        """
+        Tests that we can transfer weights from one network to another that has different name and a deeper scope.
+        """
+        layer_specs = [[3, 7, 1, 1],
+                       [3, 6, 1, 1]]
+        scope_name = 'other_scope'
+
+        # Create and initialize models.
+        conv_net_small = ConvNetwork('conv_network_small_test', layer_specs=layer_specs)
+        input_small = tf.placeholder(shape=[None, 8, 8, 2], dtype=tf.float32)
+        output_small, _ = conv_net_small.get_forward_conv(input_small)
+        with tf.variable_scope(scope_name):
+            conv_net_large = ConvNetwork('conv_network_large_test', layer_specs=layer_specs)
+            input_large = tf.placeholder(shape=[None, 16, 16, 2], dtype=tf.float32)
+            output_large, _ = conv_net_large.get_forward_conv(input_large)
+        global_initializer = tf.global_variables_initializer()
+        self.sess.run(global_initializer)
+
+        # Run and check that they aren't the same.
+        dummy_input_small = np.ones(shape=[1, 8, 8, 2], dtype=np.float32)
+        dummy_output_small = self.sess.run(output_small, feed_dict={input_small: dummy_input_small})
+        dummy_input_large = np.ones(shape=[1, 16, 16, 2], dtype=np.float32)
+        dummy_output_large = self.sess.run(output_large, feed_dict={input_large: dummy_input_large})
+        self.assertFalse(np.allclose(dummy_output_small[0, 4, 4, :], dummy_output_large[0, 8, 8, :]))
+
+        # Convert the small network's dict to the large network's dict.
+        large_var_dict = RestorableNetwork.rename_np_dict(conv_net_small.get_save_np(self.sess),
+                                                          conv_net_small.name, conv_net_large.name)
+
+        # Restore the small network's weights into the large network.
+        conv_net_large.restore_from_np(large_var_dict, self.sess, scope_prefix=scope_name)
 
         # Run the large network again and the output should match now.
         dummy_output_large = self.sess.run(output_large, feed_dict={input_large: dummy_input_large})

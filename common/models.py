@@ -43,25 +43,46 @@ class RestorableNetwork():
             save_dict[var_name] = trainable_vars_np[i]
         return save_dict
 
-    def restore_from(self, file_path, sess):
+    def restore_from(self, file_path, sess, scope_prefix=''):
         """
         Deserializes a network from an npz file.
+        Instructions on how to handle changes to network name and scope:
+            If the network's name has changed:
+                Call restore_from_np(rename_np_dict(np.load(file_path), <old_name>, <new_name>), sess)
+            If the network's scope has gotten deeper:
+                Call restore_from(file_path, sess, scope_prefix=<new_scope>)
+            If the network's name and scope has changed:
+                Call restore_from_np(rename_np_dict(np.load(file_path), <old_name>, <new_name>), sess,
+                                     scope_prefix=<new_scope>)
+         Note that we only "officially" support the scope getting deeper, because it doesn't make sense for a trained
+         and saved network to become shallower -- networks shouldn't be trained in a scope deeper than their name.
         :param file_path: Str.
         :param sess: Tensorflow session.
+        :param scope_prefix: Adds a prefix to the scope filter when getting the vars to restore. If it is '', then no
+            prefix will be used. The npz file does not need to be modified if name of the network is still the same.
         :return: Nothing.
         """
         var_dict = np.load(file_path)
-        self.restore_from_np(var_dict, sess)
+        self.restore_from_np(var_dict, sess, scope_prefix)
 
-    def restore_from_np(self, var_dict, sess):
+    def restore_from_np(self, var_dict, sess, scope_prefix=''):
         """
         Restores the network from the var_dict.
         :param var_dict: Dict of np arrays. Key is the name of the variable.
         :param sess: Tensorflow session.
+        :param scope_prefix: Adds a prefix to the scope filter when getting the vars to restore. If it is '', then no
+            prefix will be used. The var_dict does not need to be modified if name of the network is still the same.
         :return: Nothing
         """
+        def _append_prefix(name):
+            return scope_prefix + '/' + name
+        scope_filter = self.name
+        if scope_prefix != '':
+            scope_filter = _append_prefix(self.name)
+            var_dict = {_append_prefix(key): value for (key, value) in var_dict.items()}
         with tf.name_scope(self.name + '_assign_ops'):
-            trainable_vars = tf.trainable_variables(self.name)
+            trainable_vars = tf.trainable_variables(scope_filter)
+            assert len(trainable_vars) == len(var_dict.keys())
             feed_dict = {}
             assign_ops = []
             for var in trainable_vars:
