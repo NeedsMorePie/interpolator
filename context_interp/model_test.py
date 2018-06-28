@@ -33,9 +33,12 @@ class TestContextInterp(unittest.TestCase):
         image_b[:, 4:height-4, 5:width-5, :] = 1.0
 
         loss_tensor = model.get_training_loss(interpolated_tensor, gt_placeholder)
-        grad_tensors = tf.gradients(interpolated_tensor, list(output_tensors))
-        for grad_tensor in grad_tensors:
-            self.assertNotEqual(grad_tensor, None)
+
+        # Currently a stop_gradient is applied to the input of GridNet.
+        # _, warped_a_b_tensor, warped_b_a_tensor, _, _ = output_tensors
+        # grad_tensors = tf.gradients(interpolated_tensor, [warped_a_b_tensor, warped_b_a_tensor])
+        # for grad_tensor in grad_tensors:
+        #     self.assertNotEqual(grad_tensor, None)
 
         query = [loss_tensor] + list(output_tensors)
         self.sess.run(tf.global_variables_initializer())
@@ -43,7 +46,7 @@ class TestContextInterp(unittest.TestCase):
                                                      image_b_placeholder: image_b,
                                                      gt_placeholder: np.zeros(shape=image_a.shape)})
 
-        loss, interpolated, warped_a_b, warped_b_a = outputs_np
+        loss, interpolated, warped_a_b, warped_b_a, flow_a_b, flow_b_a = outputs_np
         warped_im_a_b = warped_a_b[..., :3]
         warped_feat_a_b = warped_a_b[..., 3:]
         warped_im_b_a = warped_b_a[..., :3]
@@ -57,11 +60,8 @@ class TestContextInterp(unittest.TestCase):
         self.assertTrue(np.allclose(warped_feat_b_a.shape[:-1], np.asarray([batch_size, height, width])))
         self.assertTrue(np.allclose(warped_feat_a_b.shape, warped_feat_b_a.shape))
 
-        # TODO Not sure what the forward warp op is, some tests will depend on it.
-        # TODO Check the number of trainable variables (not including zero grad variables).
-        # TODO Check that the gradients are flowing.
-
         # Check the gradients with the loss.
+        grad_tensors = tf.gradients(loss_tensor, interpolated_tensor)
         grads = self.sess.run(grad_tensors, feed_dict={image_a_placeholder: image_a,
                                                    image_b_placeholder: image_b,
                                                    gt_placeholder: np.zeros(shape=image_a.shape)})

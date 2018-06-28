@@ -43,7 +43,7 @@ class DavisDataSet(InterpDataSet):
         :return: List of list of image names, where image_paths[0][0] is the first image in the first video shot.
         """
         image_names = []
-        extensions = ['*.jpg']
+        extensions = ['*.jpg', '*.png']
         for item in os.listdir(raw_directory):
             path = os.path.join(raw_directory, item)
             if os.path.isdir(path):

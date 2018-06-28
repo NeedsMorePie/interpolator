@@ -1,5 +1,5 @@
 import tensorflow as tf
-from utils.misc import print_tensor_shape, pelu, prelu
+from utils.tf import print_tensor_shape, pelu, prelu
 from context_interp.gridnet.connections.connections import UpSamplingConnection, DownSamplingConnection, LateralConnection
 
 
@@ -7,6 +7,7 @@ from context_interp.gridnet.connections.connections import UpSamplingConnection,
 def batch_norm_with_prelu(x):
     x = tf.layers.batch_normalization(x)
     return prelu(x)
+
 
 def batch_norm_with_relu(x):
     x = tf.layers.batch_normalization(x)

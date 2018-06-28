@@ -7,7 +7,7 @@ from data.dataset import DataSet
 from joblib import Parallel, delayed
 from utils.data import *
 from utils.img import read_image
-from utils.misc import sliding_window_slice
+from utils.tf import sliding_window_slice
 
 SHOT_LEN = 'shot_len'
 WIDTH = 'width'
@@ -60,7 +60,7 @@ class InterpDataSetReader:
         with tf.name_scope(self.tf_record_name + '_dataset_ops'):
             for i in range(len(self.inbetween_locations)):
                 inbetween_locations = self.inbetween_locations[i]
-                dataset = self._load_for_inbetween_locations(inbetween_locations)
+                dataset = self._load_for_inbetween_locations(inbetween_locations, shuffle)
                 self.dataset = dataset if i == 0 else self.dataset.concatenate(dataset)
 
             if max_num_elements is not None:
@@ -96,9 +96,10 @@ class InterpDataSetReader:
     def _get_tf_record_pattern(self):
         return os.path.join(self.directory, '*' + self.tf_record_name)
 
-    def _load_for_inbetween_locations(self, inbetween_locations):
+    def _load_for_inbetween_locations(self, inbetween_locations, shuffle):
         """
         :param inbetween_locations: An element of self.inbetween_locations.
+        :param shuffle: Whether to shuffle the shards.
         :return: Tensorflow dataset object.
         """
         def _parse_function(example_proto):
@@ -126,8 +127,9 @@ class InterpDataSetReader:
         # Shuffle filenames.
         # Ideas taken from: https://github.com/tensorflow/tensorflow/issues/14857
         num_shards = len(self.get_tf_record_names())
-        dataset = tf.data.Dataset.list_files(self._get_tf_record_pattern(), shuffle=True)
-        dataset = dataset.shuffle(buffer_size=num_shards)
+        dataset = tf.data.Dataset.list_files(self._get_tf_record_pattern())
+        if shuffle:
+            dataset = dataset.shuffle(buffer_size=num_shards)
         dataset = tf.data.TFRecordDataset(dataset)
 
         # Parse sequences.

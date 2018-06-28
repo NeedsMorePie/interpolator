@@ -1,9 +1,10 @@
 import unittest
 import tensorflow as tf
 import numpy as np
-from utils.misc import *
+from utils.tf import *
 
-class TestMiscUtils(unittest.TestCase):
+
+class TestTfUtils(unittest.TestCase):
     def setUp(self):
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True

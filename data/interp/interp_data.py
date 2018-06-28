@@ -239,9 +239,6 @@ def _write_shard(shard_id, shard_range, image_paths, filename, directory, proces
         if len(image_paths[i]) <= 0:
             continue
 
-        # Read sequence from file.
-        reference_image = read_image(image_paths[i][0], as_float=True)
-
         shot_raw = []
         for image_path in image_paths[i]:
             bytes, h, w = processor_fn(image_path)

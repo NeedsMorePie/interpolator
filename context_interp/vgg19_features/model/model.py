@@ -4,7 +4,7 @@
 import os
 import time
 import inspect
-from utils.misc import print_tensor_shape
+from utils.tf import print_tensor_shape
 import tensorflow as tf
 import numpy as np
 import types

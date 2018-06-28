@@ -4,6 +4,7 @@ from data.interp.interp_data import InterpDataSet
 from context_interp.model import ContextInterp
 from train.trainer import Trainer
 from utils.misc import print_progress_bar
+from utils.flow import get_tf_flow_visualization
 
 
 class ContextInterpTrainer(Trainer):
@@ -20,9 +21,8 @@ class ContextInterpTrainer(Trainer):
         self.images_c = self.next_sequence_tensor[:, 2]
 
         # Get the train network.
-        self.images_b_pred, _, _ = self.model.get_forward(self.images_a, self.images_c, 0.5,
-                                                                      reuse_variables=tf.AUTO_REUSE)
-
+        model_outputs = self.model.get_forward(self.images_a, self.images_c, 0.5, reuse_variables=tf.AUTO_REUSE)
+        self.images_b_pred, self.warped_a_c, self.warped_c_a, self.flow_a_c, self.flow_c_a = model_outputs
         if self.config['fine_tune']:
             self.loss = self.model.get_fine_tuning_loss(self.images_b_pred, self.images_b)
         else:
@@ -102,12 +102,20 @@ class ContextInterpTrainer(Trainer):
 
             # Images will appear 'washed out' otherwise, due to tensorboard's own normalization scheme.
             clipped_preds = tf.clip_by_value(self.images_b_pred, 0.0, 1.0)
+            clipped_warp_a_b = tf.clip_by_value(self.warped_a_c[..., 0:3], 0.0, 1.0)
+            clipped_warp_b_a = tf.clip_by_value(self.warped_c_a[..., 0:3], 0.0, 1.0)
 
             max_outputs = 4
             tf.summary.scalar('total_loss', self.loss)
             tf.summary.image('overlay', self.image_overlays, max_outputs=max_outputs)
             tf.summary.image('inbetween_gt', self.images_b, max_outputs=max_outputs)
             tf.summary.image('inbetween_pred', clipped_preds, max_outputs=max_outputs)
+
+            # Debug
+            tf.summary.image('warped_a_c', clipped_warp_a_b, max_outputs=max_outputs)
+            tf.summary.image('warped_c_a', clipped_warp_b_a, max_outputs=max_outputs)
+            tf.summary.image('flow_a_c', get_tf_flow_visualization(self.flow_a_c), max_outputs=max_outputs)
+            tf.summary.image('flow_c_a', get_tf_flow_visualization(self.flow_c_a), max_outputs=max_outputs)
 
             self.merged_summ = tf.summary.merge_all()
             self.train_writer = tf.summary.FileWriter(os.path.join(self.config['checkpoint_directory'], 'train'),
