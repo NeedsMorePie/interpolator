@@ -44,7 +44,7 @@ class DavisDataSet(InterpDataSet):
         """
         image_names = []
         extensions = ['*.jpg', '*.png']
-        for item in os.listdir(raw_directory):
+        for item in sorted(os.listdir(raw_directory)):
             path = os.path.join(raw_directory, item)
             if os.path.isdir(path):
                 cur_names = []

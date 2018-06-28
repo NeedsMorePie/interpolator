@@ -39,50 +39,52 @@ python -m unittest pwcnet.warp.warp_test
 
 #### Creating a TFRecord optical flow dataset
 
-1.  Download a dataset (i.e. Sintel or Flying chairs).
+1.  Download a dataset (i.e. Sintel or FlyingChairs).
 
 2.  Organize the files into the following format:
 
-    ```
-    <directory>
-        <directory to images>
-            <set_0>
-                <image_0>.png
-                ...
-                <image_n>.png
-            <set_1>
-            ...
-            <set_n>
-        <directory to flows>
-            <set_0>
-                <flow_0>.flo
-                ...
-                <flow_n>.flo
-            <set_1>
-            ...
-            <set_n>
-    ```
-    
     For Sintel this might look like:
-    
     ```
     training_dataset
         clean
             alley_1
+                image_0000.png
+                ...
             alley_2
             ...
             temple_3
         flow
             alley_1
+                flow_0000.flo
+                ...
             alley_2
             ...
             temple_3
     ```
     
+    For FlyingChairs this might look like:
+    ```
+    training_dataset
+        data
+            00000_img1.ppm
+            00000_img2.ppm
+            00000_flow.flo
+            00001_img1.ppm
+            00001_img2.ppm
+            00001_flow.flo
+            ...
+    ```
+    
 3.  Run the following command from the project root directory:
 
+    For Sintel:
     ```
-    python -m mains.create_flow_dataset --directory="<path>/<to>/<training_dataset>" --num_validation=100 --shard_size=25
+    python -m mains.create_flow_dataset --directory="<path>/<to>/<training_dataset>" --num_validation=100 --shard_size=25 --data_source="sintel"
+    ```
+    
+    For FlyingChairs:
+    ```
+    python -m mains.create_flow_dataset --directory="<path>/<to>/<training_dataset>" --num_validation=100 --shard_size=25 --data_source="flyingchairs"
     ```
 
 4.  Expected output should be:
@@ -106,7 +108,13 @@ python -m unittest pwcnet.warp.warp_test
 2.  Run the following command:
 
     ```
-    python -m mains.train_pwcnet --directory="<path>/<to>/<tf_records>" --checkpoint_directory="<path>/<to>/<checkpoint_output>"
+    python -m mains.train_pwcnet --directory="<path>/<to>/<tf_records>" --checkpoint_directory="<path>/<to>/<checkpoint_output>" --validate_every=10000
+    ```
+    
+    For FlyingChairs, add the following commands:
+    
+    ```
+    --crop_width=448 --crop_height=384
     ```
 
 3.  Launch tensorboard.
