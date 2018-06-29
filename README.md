@@ -104,19 +104,22 @@ python -m unittest pwcnet.warp.warp_test
 
 1.  Have your tf records prepared.
 
-2.  Run the following command:
+2.  Modify mains/configs/train_pwcnet.json as needed.
 
-    ```
-    python -m mains.train_pwcnet --directory="<path>/<to>/<tf_records>" --checkpoint_directory="<path>/<to>/<checkpoint_output>" --validate_every=10000
-    ```
-    
-    For FlyingChairs, add the following commands:
+    For FlyingChairs make sure:
     
     ```
-    --crop_width=448 --crop_height=384
+    "crop_width": 448,
+    "crop_height": 384
     ```
 
-3.  Launch tensorboard.
+3.  Run the following command:
+
+    ```
+    python -m mains.train_pwcnet --directory="<path>/<to>/<tf_records>" --checkpoint_directory="<path>/<to>/<checkpoint_output>"
+    ```
+
+4.  Launch tensorboard.
 
     ```
     tensorboard --logdir="<path>/<to>/<checkpoint_output>"

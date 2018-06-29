@@ -22,7 +22,7 @@ class FlowDataSet(DataSet):
     FLYING_CHAIRS = 1
 
     def __init__(self, directory, batch_size=1, validation_size=1, crop_size=None, training_augmentations=True,
-                 data_source=SINTEL):
+                 data_source=SINTEL, augmentation_config=None):
         """
         :param directory: Str. Directory of the dataset file structure and tf records.
         :param batch_size: Int.
@@ -31,6 +31,7 @@ class FlowDataSet(DataSet):
                           If None, then no cropping will be performed.
         :param training_augmentations: Whether to do live augmentations while training.
         :param data_source: Source of the data.
+        :param augmentation_config: Configurations for data augmentation. If None, the default will be used.
         """
         super().__init__(directory, batch_size, validation_size)
 
@@ -53,6 +54,20 @@ class FlowDataSet(DataSet):
 
         self.train_filename = 'flowdataset_train.tfrecords'
         self.valid_filename = 'flowdataset_valid.tfrecords'
+
+        self.config = augmentation_config
+        if augmentation_config is None:
+            self.config = {
+                'contrast_min': 0.8, 'contrast_max': 1.25,
+                'gamma_min': 0.8, 'gamma_max': 1.25,
+                'gain_min': 0.8, 'gain_max': 1.25,
+                'brightness_stddev': 0.2,
+                'hue_min': -0.3, 'hue_max': 0.3,
+                'noise_stddev': 0.04,
+                'scale_min': 0.5, 'scale_max': 2.0,
+                'do_scaling': True,
+                'do_flipping': True
+            }
 
     def get_train_file_names(self):
         """
@@ -227,23 +242,16 @@ class FlowDataSet(DataSet):
             image_a, image_b, flow = tf_random_crop([image_a, image_b, flow], self.crop_size)
 
             if do_augmentations:
-                config = {
-                    'contrast_min': 0.8, 'contrast_max': 1.25,
-                    'gamma_min': 0.8, 'gamma_max': 1.25,
-                    'gain_min': 0.8, 'gain_max': 1.25,
-                    'brightness_stddev': 0.2,
-                    'hue_min': -0.3, 'hue_max': 0.3,
-                    'noise_stddev': 0.04,
-                    'scale_min': 0.5, 'scale_max': 2.0
-                }
                 # Basic image augmentations.
-                image_a, image_b = tf_image_augmentation([image_a, image_b], config)
-                # Flip randomly in unison.
-                flow, images = tf_random_flip_flow(flow, [image_a, image_b])
-                image_a, image_b = images
-                # Scale randomly in unison.
-                flow, images = tf_random_scale_flow(flow, [image_a, image_b], config)
-                image_a, image_b = images
+                image_a, image_b = tf_image_augmentation([image_a, image_b], self.config)
+                if self.config['do_scaling']:
+                    # Flip randomly in unison.
+                    flow, images = tf_random_flip_flow(flow, [image_a, image_b])
+                    image_a, image_b = images
+                if self.config['do_flipping']:
+                    # Scale randomly in unison.
+                    flow, images = tf_random_scale_flow(flow, [image_a, image_b], self.config)
+                    image_a, image_b = images
 
             return image_a, image_b, flow
 
