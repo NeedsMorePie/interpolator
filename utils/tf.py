@@ -114,13 +114,13 @@ def optimistic_restore(session, save_file):
     saver.restore(session, save_file)
 
 
-# Copied from: https://gist.github.com/gyglim/1f8dfb1b5c82627ae3efcfbbadb9f514#file-tensorboard_logging-py-L41
+# Mostly copied from: https://gist.github.com/gyglim/1f8dfb1b5c82627ae3efcfbbadb9f514#file-tensorboard_logging-py-L41
 class Logger(object):
     """Logging in tensorboard without tensorflow ops."""
 
-    def __init__(self, log_dir):
+    def __init__(self, log_dir, graph):
         """Creates a summary writer logging to log_dir."""
-        self.writer = tf.summary.FileWriter(log_dir)
+        self.writer = tf.summary.FileWriter(log_dir, graph)
 
     def log_scalar(self, tag, value, step):
         """Log a scalar variable.

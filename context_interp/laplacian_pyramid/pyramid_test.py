@@ -48,8 +48,10 @@ class TestLaplacianPyramid(unittest.TestCase):
         self.assertLessEqual(np.sum(diff), 1E-2)
 
         if VISUALIZE:
+            print('Showing reconstruction...')
             show_image(np.clip(reconstructed[0] / 255.0, 0, 255))
-            for level in pyr:
+            for i, level in enumerate(pyr):
+                print('Showing level %d...' % i)
                 show_image(np.clip(level[0] / 255.0, 0, 255))
 
     def test_filter(self):

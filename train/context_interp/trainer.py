@@ -38,8 +38,8 @@ class ContextInterpTrainer(Trainer):
 
         # Checkpoint saving.
         self.saver = tf.train.Saver()
-        self.valid_logger = Logger(os.path.join(self.config['checkpoint_directory'], 'valid'))
-        self.train_logger = Logger(os.path.join(self.config['checkpoint_directory'], 'train'))
+        self.valid_logger = Logger(os.path.join(self.config['checkpoint_directory'], 'valid'), self.session.graph)
+        self.train_logger = Logger(os.path.join(self.config['checkpoint_directory'], 'train'), self.session.graph)
         self._make_summaries_dict()
 
     def restore(self):
@@ -61,18 +61,18 @@ class ContextInterpTrainer(Trainer):
                 run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
                 run_metadata = tf.RunMetadata()
                 _ = self.session.run(self.train_op,
-                                           feed_dict=self.dataset.get_train_feed_dict(),
-                                           options=run_options, run_metadata=run_metadata)
-                global_step = self._eval_global_step()
+                                     feed_dict=self.dataset.get_train_feed_dict(),
+                                     options=run_options, run_metadata=run_metadata)
 
                 # Write summaries.
+                global_step = self._eval_global_step()
+                self.train_logger.add_run_metadata(run_metadata, global_step)
                 loss_key = 'total_loss'
                 np_summary_dict = self._get_np_summaries(feed_dict=self.dataset.get_train_feed_dict())
                 for key, value in np_summary_dict.items():
                     if key != loss_key:
                         self.train_logger.log_images(key, value, global_step)
                 self.train_logger.log_scalar(loss_key, np_summary_dict[loss_key], global_step)
-                self.train_logger.add_run_metadata(run_metadata, global_step)
             else:
                 loss, _ = self.session.run([self.loss, self.train_op], feed_dict=self.dataset.get_train_feed_dict())
             print_progress_bar(i + 1, iterations, prefix='Train Steps', suffix='Complete', use_percentage=False)
@@ -89,18 +89,24 @@ class ContextInterpTrainer(Trainer):
         self.dataset.init_validation_data(self.session)
         global_step = self._eval_global_step()
         loss_key = 'total_loss'
-        iter = 0
+        batch_iter = 0
         total_loss = 0
-        image_logging_period = 100
+
+        # Log 1 example every image_logging_period examples (regardless of batch size).
+        image_logging_period = 50
         while True:
             try:
                 np_summary_dict = self._get_np_summaries(self.dataset.get_validation_feed_dict())
-                if iter % image_logging_period == 0:
-                    for key, value in np_summary_dict.items():
-                        if key != loss_key:
-                            self.valid_logger.log_images(key, value, global_step)
+                for key, value in np_summary_dict.items():
+                    if key != loss_key:
+                        for i, image in enumerate(value):
+                            cur_iter = batch_iter * self.dataset.batch_size + i
+                            if cur_iter % image_logging_period == 0:
+                                sample_number = cur_iter / image_logging_period
+                                sample_name = key + '/sample_%d' % sample_number
+                                self.valid_logger.log_images(sample_name, [image], global_step)
                 total_loss += np_summary_dict[loss_key]
-                iter += 1
+                batch_iter += 1
             except tf.errors.OutOfRangeError:
                 # End of validation epoch.
                 break

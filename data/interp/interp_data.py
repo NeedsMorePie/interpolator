@@ -135,7 +135,6 @@ class InterpDataSet(DataSet):
                             where image_paths[0][0] is the first image in the first video shot.
         :return: Nothing.
         """
-        random.shuffle(image_paths)
 
         if not os.path.exists(self.tf_record_directory):
             os.mkdir(self.tf_record_directory)

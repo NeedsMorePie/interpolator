@@ -52,7 +52,7 @@ class InterpDataSetReader:
                 raise ValueError('The number of ones for each element in inbetween_locations must be the same.')
 
     def get_tf_record_names(self):
-        return glob.glob(self._get_tf_record_pattern())
+        return sorted(glob.glob(self._get_tf_record_pattern()))
 
     def init_data(self, session):
         session.run(self.iterator.initializer)
@@ -127,29 +127,13 @@ class InterpDataSetReader:
             shot = tf.image.convert_image_dtype(shot, tf.float32)
             shot = tf.reshape(shot, (shot_len, H, W, 3))
 
-            crop_h, crop_w = self.crop_size
-            if self.do_augment:
-
-                # Crop and randomly flip in temporal, y, and x axes.
-                shot = tf.random_crop(shot, [shot_len, crop_h, crop_w, 3])
-                shot = tf.cond(tf_coin_flip(0.5)[0], lambda: tf.reverse(shot, [0]), lambda: shot)
-                shot = tf.cond(tf_coin_flip(0.5)[0], lambda: tf.reverse(shot, [1]), lambda: shot)
-                shot = tf.cond(tf_coin_flip(0.5)[0], lambda: tf.reverse(shot, [2]), lambda: shot)
-            else:
-                crop_top = tf.cast(H / 2 - crop_h / 2, tf.int32)
-                crop_left = tf.cast(W / 2 - crop_w / 2, tf.int32)
-                shot = tf.image.crop_to_bounding_box(shot, crop_top, crop_left, crop_h, crop_w)
-
             # Decompose each shot into sequences of consecutive images.
             slice_locations = [1] + inbetween_locations + [1]
             return sliding_window_slice(shot, slice_locations)
 
         # Shuffle filenames.
         # Ideas taken from: https://github.com/tensorflow/tensorflow/issues/14857
-        num_shards = len(self.get_tf_record_names())
-        dataset = tf.data.Dataset.list_files(self._get_tf_record_pattern())
-        if shuffle:
-            dataset = dataset.shuffle(buffer_size=num_shards)
+        dataset = tf.data.Dataset.list_files(self._get_tf_record_pattern(), shuffle=shuffle)
         dataset = tf.data.TFRecordDataset(dataset)
 
         # Parse sequences.
@@ -169,5 +153,27 @@ class InterpDataSetReader:
         def _add_timing(sequence):
             return sequence, tf.constant(slice_times)
 
+        def _crop(sequence):
+            s = tf.shape(sequence)
+            sequence_len, H, W = s[0], s[1], s[2]
+            crop_h, crop_w = self.crop_size
+            if self.do_augment:
+                sequence = tf.random_crop(sequence, [sequence_len, crop_h, crop_w, 3])
+            else:
+                crop_top = tf.cast(H / 2 - crop_h / 2, tf.int32)
+                crop_left = tf.cast(W / 2 - crop_w / 2, tf.int32)
+                sequence = tf.image.crop_to_bounding_box(sequence, crop_top, crop_left, crop_h, crop_w)
+            return sequence
+
+        def _flip(sequence):
+            # Randomly flip in temporal, y, and x axes.
+            sequence = tf.cond(tf_coin_flip(0.5)[0], lambda: tf.reverse(sequence, [0]), lambda: sequence)
+            sequence = tf.cond(tf_coin_flip(0.5)[0], lambda: tf.reverse(sequence, [1]), lambda: sequence)
+            sequence = tf.cond(tf_coin_flip(0.5)[0], lambda: tf.reverse(sequence, [2]), lambda: sequence)
+            return sequence
+
+        dataset = dataset.map(_crop, num_parallel_calls=multiprocessing.cpu_count())
+        if self.do_augment:
+            dataset = dataset.map(_flip, num_parallel_calls=multiprocessing.cpu_count())
         dataset = dataset.map(_add_timing, num_parallel_calls=multiprocessing.cpu_count())
         return dataset
