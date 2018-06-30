@@ -127,6 +127,7 @@ class InterpDataSetReader:
             shot = tf.image.convert_image_dtype(shot, tf.float32)
             shot = tf.reshape(shot, (shot_len, H, W, 3))
 
+            # TODO We should randomly augment triplets with timestamps like [0.0, 1.0, 1.0], or [0.0, 0.0, 1.0].
             # Decompose each shot into sequences of consecutive images.
             slice_locations = [1] + inbetween_locations + [1]
             return sliding_window_slice(shot, slice_locations)

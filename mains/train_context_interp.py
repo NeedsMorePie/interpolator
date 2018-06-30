@@ -41,6 +41,7 @@ def main():
     dataset = DavisDataSet(args.directory, [[1]],
                            batch_size=args.batch_size)
 
+    # TODO Some of this stuff might want to go into a config json.
     config = {
         'learning_rate': 1E-4,
         'checkpoint_directory': args.checkpoint_directory,
