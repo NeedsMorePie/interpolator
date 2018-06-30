@@ -170,7 +170,7 @@ python -m unittest pwcnet.warp.warp_test
 2.  Run the following command:
 
     ```
-    python -m mains.train_context_interp -d path/to/tfrecords_dir -c path/to/checkpoints_dir
+    python -m mains.train_context_interp -d path/to/tfrecords_dir -c path/to/checkpoints_dir -w path/to/pwcnet_weights.npz
     ```
 
 3.  Launch tensorboard.
