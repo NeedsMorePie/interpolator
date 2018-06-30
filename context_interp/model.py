@@ -1,8 +1,10 @@
 import tensorflow as tf
+import numpy as np
 from context_interp.vgg19_features.vgg19_features import Vgg19Features
 from context_interp.gridnet.model import GridNet
 from context_interp.laplacian_pyramid.laplacian_pyramid import LaplacianPyramid
 from pwcnet.model import PWCNet
+from common.models import RestorableNetwork
 from common.forward_warp.forward_warp import forward_warp
 
 
@@ -54,12 +56,16 @@ class ContextInterp:
 
     def load_pwcnet_weights(self, pwcnet_weights_path, sess):
         """
-        Loads pre-trained PWCNet weights. Must be called after get_forward.
+        Loads pre-trained PWCNet weights.
+        For this to work:
+            - It must be called after get_forward.
+            - get_forward must not have been called in an enclosing variable scope.
+            - The pwcnet weights must have been saved under variable scope 'pwcnet'.
         :param pwcnet_weights_path: The full path to PWCNet weights that will be loaded via
                                     the RestorableNetwork interface.
         :param sess: Tf Session.
         """
-        self.pwcnet.restore_from(pwcnet_weights_path, sess)
+        self.pwcnet.restore_from(pwcnet_weights_path, sess, scope_prefix=self.name)
 
     def get_training_loss(self, prediction, expected):
         """

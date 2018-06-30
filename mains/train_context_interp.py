@@ -15,7 +15,7 @@ def add_args(parser):
                         help='Size of the batch.')
     parser.add_argument('-c', '--checkpoint_directory', type=str,
                         help='Directory of saved checkpoints.')
-    parser.add_argument('f', '--fine_tune', dest='fine_tune',
+    parser.add_argument('-f', '--fine_tune', dest='fine_tune',
                         action='store_true',
                         help='Whether to use fine tuning loss')
     parser.add_argument('-w', '--pwcnet_weights_path', type=str,
@@ -52,8 +52,6 @@ def main():
 
     print('Initializing variables...')
     session.run(tf.global_variables_initializer())
-    print(tf.trainable_variables())
-    print(tf.trainable_variables(scope='pwc_net'))
 
     print('Loading pre-trained PWCNet...')
     model.load_pwcnet_weights(args.pwcnet_weights_path, session)

@@ -9,7 +9,7 @@ def forward_warp(features, flow):
     :param flow: A Tensor. Un-normalized flow in image pixel units, of shape [batch_size, H, W, 2].
                  Flow vectors should have (x, y) ordering.
     """
-    with tf.name_scope('cost_volume'):
+    with tf.name_scope('forward_warp'):
 
         # Flip (x, y) to (y, x) for flow, to avoid further confusion.
         flow = tf.reverse(flow, axis=[-1])
