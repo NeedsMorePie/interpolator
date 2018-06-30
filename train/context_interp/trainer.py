@@ -111,7 +111,7 @@ class ContextInterpTrainer(Trainer):
                 # End of validation epoch.
                 break
 
-        total_loss /= len(np_summary_dict)
+        total_loss /= batch_iter
         self.valid_logger.log_scalar(loss_key, total_loss, global_step)
 
     def _eval_global_step(self):
