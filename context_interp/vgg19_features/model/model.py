@@ -15,7 +15,6 @@ VGG_MEAN = [103.939, 116.779, 123.68]
 
 
 class Vgg19:
-
     @staticmethod
     def load_params_dict(load_small=False):
         """

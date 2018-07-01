@@ -95,7 +95,7 @@ class ContextInterp:
         return tf.reduce_mean(tf.abs(prediction - expected))
 
     def _get_laplacian_loss(self, prediction, expected):
-        with tf.variable_scope('laplacian_loss'):
+        with tf.name_scope('laplacian_loss'):
             pyr1, _, _ = self.laplacian_pyramid.get_forward(prediction)
             pyr2, _, _ = self.laplacian_pyramid.get_forward(expected)
             loss = 0

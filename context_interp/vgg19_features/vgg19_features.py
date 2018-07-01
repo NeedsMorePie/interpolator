@@ -3,6 +3,9 @@ from context_interp.vgg19_features.model.model import Vgg19
 
 
 class Vgg19Features:
+    def __init__(self):
+        self.vgg19 = None
+
     def load_pretrained_weights(self):
         vgg19_data = Vgg19.load_params_dict(load_small=True)
         self.vgg19 = Vgg19(data_dict=vgg19_data)

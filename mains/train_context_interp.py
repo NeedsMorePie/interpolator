@@ -6,22 +6,6 @@ from context_interp.model import ContextInterp
 from train.context_interp.trainer import ContextInterpTrainer
 
 
-def add_args(parser):
-    parser.add_argument('-d', '--directory', type=str,
-                        help='Directory of the TFRecords.')
-    parser.add_argument('-v', '--validate_every', type=int, default=4000,
-                        help='Defines the frequency of validation.')
-    parser.add_argument('-b', '--batch_size', type=int, default=8,
-                        help='Size of the batch.')
-    parser.add_argument('-c', '--checkpoint_directory', type=str,
-                        help='Directory of saved checkpoints.')
-    parser.add_argument('-f', '--fine_tune', dest='fine_tune',
-                        action='store_true',
-                        help='Whether to use fine tuning loss')
-    parser.add_argument('-w', '--pwcnet_weights_path', type=str,
-                        help='Path to the .npz weights for a pre-trained PWCNet.')
-
-
 def main():
     parser = argparse.ArgumentParser()
     add_args(parser)
@@ -58,6 +42,22 @@ def main():
     model.load_pwcnet_weights(args.pwcnet_weights_path, session)
     trainer.restore()
     trainer.train(validate_every=args.validate_every)
+
+
+def add_args(parser):
+    parser.add_argument('-d', '--directory', type=str,
+                        help='Directory of the TFRecords.')
+    parser.add_argument('-v', '--validate_every', type=int, default=4000,
+                        help='Defines the frequency of validation.')
+    parser.add_argument('-b', '--batch_size', type=int, default=8,
+                        help='Size of the batch.')
+    parser.add_argument('-c', '--checkpoint_directory', type=str,
+                        help='Directory of saved checkpoints.')
+    parser.add_argument('-f', '--fine_tune', dest='fine_tune',
+                        action='store_true',
+                        help='Whether to use fine tuning loss')
+    parser.add_argument('-w', '--pwcnet_weights_path', type=str,
+                        help='Path to the .npz weights for a pre-trained PWCNet.')
 
 
 if __name__ == "__main__":

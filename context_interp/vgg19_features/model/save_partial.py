@@ -9,25 +9,7 @@ import inspect
 # Put it wherever the variable data_path looks.
 # After running this script a partial model (up to layer conv4_4) will be saved to output_path.
 # The full model is ~574.7MB, the partial one ~64MB.
-
 cur_dir = os.path.dirname(os.path.realpath(__file__))
-
-# This does not work nicely with our modules, would need to move this script to mains folder.
-# parser = optparse.OptionParser()
-# parser.add_option('-d', '--data-path',
-#     action="store", dest="data_path",
-#     help="Full path to the full vgg19 npy file to process.", default="")
-#
-# parser.add_option('-o', '--output-path',
-#     action="store", dest="output_path",
-#     help="Full path to directory in which the partial vgg19 npy file, up to conv4_4, will be output.",
-#     default=cur_dir)
-#
-# options, args = parser.parse_args()
-#
-# if args.data_path == "":
-#     parser.error('--data-path argument must be provided.')
-
 data_path = os.path.join(cur_dir, 'vgg19.npy')
 output_path = os.path.join(cur_dir, 'vgg19_conv4_4.npy')
 config = tf.ConfigProto()

@@ -7,12 +7,11 @@ import numpy as np
 # http://www.cse.psu.edu/~rtc12/CSE486/lecture10.pdf
 # https://docs.opencv.org/2.4/modules/imgproc/doc/filtering.html?highlight=pyrup#pyrup
 class LaplacianPyramid:
-
     def __init__(self, num_levels, name='laplacian_pyramid', filter_side_len=5):
         """
         :param num_levels: The number of pyramid levels.
                            At each level the image width and height are 2x lower than the previous one.
-        :param name: Str. For variable scoping.
+        :param name: Str. For name scoping.
         :param filter_side_len: The width and height of the approximate gaussian blur filter.
         """
         self.name = name
@@ -27,7 +26,7 @@ class LaplacianPyramid:
                  gaussian_levels: Same format as laplacian_levels.
                  reconstructed: A Tensor. Input reconstruction of shape [batch_size, H, W, C].
         """
-        with tf.variable_scope(self.name):
+        with tf.name_scope(self.name):
             image_height = tf.shape(images)[1]
             image_width = tf.shape(images)[2]
             num_channels = tf.shape(images)[-1]
@@ -41,25 +40,28 @@ class LaplacianPyramid:
             with tf.control_dependencies([height_check, width_check]):
 
                 # Build the gaussian pyramid.
-                gaussian_levels = [images]
-                blur_filter = self._get_blur_filter(num_channels)
-                for i in range(1, self.num_levels):
-                    downsampled = self._pyr_down(gaussian_levels[i - 1], blur_filter)
-                    gaussian_levels.append(downsampled)
+                with tf.name_scope('gaussian_pyramid'):
+                    gaussian_levels = [images]
+                    blur_filter = self._get_blur_filter(num_channels)
+                    for i in range(1, self.num_levels):
+                        downsampled = self._pyr_down(gaussian_levels[i - 1], blur_filter)
+                        gaussian_levels.append(downsampled)
 
                 # Build the laplacian pyramid.
-                laplacian_levels = []
-                for i in range(len(gaussian_levels) - 1):
-                    upsampled = self._pyr_up(gaussian_levels[i + 1], blur_filter)
-                    diff = gaussian_levels[i] - upsampled
-                    laplacian_levels.append(diff)
-                laplacian_levels.append(gaussian_levels[-1])
+                with tf.name_scope('laplacian_pyramid'):
+                    laplacian_levels = []
+                    for i in range(len(gaussian_levels) - 1):
+                        upsampled = self._pyr_up(gaussian_levels[i + 1], blur_filter)
+                        diff = gaussian_levels[i] - upsampled
+                        laplacian_levels.append(diff)
+                    laplacian_levels.append(gaussian_levels[-1])
 
                 # Build the reconstruction.
-                reconstructed = gaussian_levels[-1]
-                for i in range(self.num_levels - 2, -1, -1):
-                    reconstructed = self._pyr_up(reconstructed, blur_filter)
-                    reconstructed += laplacian_levels[i]
+                with tf.name_scope('reconstruction'):
+                    reconstructed = gaussian_levels[-1]
+                    for i in range(self.num_levels - 2, -1, -1):
+                        reconstructed = self._pyr_up(reconstructed, blur_filter)
+                        reconstructed += laplacian_levels[i]
 
         return laplacian_levels, gaussian_levels, reconstructed
 
@@ -91,6 +93,8 @@ class LaplacianPyramid:
         """
 
         # Generate Pascal's triangle.
+        # The final row of the triangle is an integer approximation of the normal distribution.
+        # See: http://www.cse.psu.edu/~rtc12/CSE486/lecture10.pdf for more details.
         triangle = [[1, 1]]
         for i in range(1, self.filter_side_len - 1):
             cur_row = [1]

@@ -22,7 +22,7 @@ def main():
     args = parser.parse_args()
 
     input_directory = os.path.join(args.directory, 'JPEGImages', '480p')
-    tf_records_directory = os.path.join(args.out_directory)
+    tf_records_directory = args.out_directory
     if not os.path.exists(tf_records_directory):
         os.mkdir(tf_records_directory)
 
