@@ -36,23 +36,27 @@ class ContextInterp:
         """
         self.enclosing_scope = tf.get_variable_scope()
         with tf.variable_scope(self.name, reuse=reuse_variables):
-            image_a_contexts = self.feature_extractor.get_context_features(image_a)
-            image_b_contexts = self.feature_extractor.get_context_features(image_b)
+            batch_size = tf.shape(image_a)[0]
+            from_frames = tf.concat([image_a, image_b], axis=0)
+            to_frames = tf.concat([image_b, image_a], axis=0)
+            all_contexts = self.feature_extractor.get_context_features(from_frames)
 
             # TODO: Add instance normalization. Described in 3.3 of https://arxiv.org/pdf/1803.10967.pdf.
 
             # Get a->b and b->a flows from PWCNet.
-            flow_a_b, _ = self.pwcnet.get_forward(image_a, image_b)
-            flow_b_a, _ = self.pwcnet.get_forward(image_b, image_a)
+            all_flows, _ = self.pwcnet.get_forward(from_frames, to_frames)
+            flow_a_b = all_flows[:batch_size]
+            flow_b_a = all_flows[batch_size:]
 
-            features_a = tf.concat([image_a, image_a_contexts], axis=-1)
-            features_b = tf.concat([image_b, image_b_contexts], axis=-1)
+            features_a = tf.concat([image_a, all_contexts[:batch_size]], axis=-1)
+            features_b = tf.concat([image_b, all_contexts[batch_size:]], axis=-1)
+            all_features = tf.concat([features_a, features_b], axis=0)
+            all_warp_flows = tf.concat([t * flow_a_b, (1.0 - t) * flow_b_a], axis=0)
 
             # Warp images and their contexts from a->b and from b->a.
-            warped_a_b = forward_warp(features_a, t * flow_a_b)
-            warped_b_a = forward_warp(features_b, (1.0 - t) * flow_b_a)
-            warped_a_b = tf.stop_gradient(warped_a_b)
-            warped_b_a = tf.stop_gradient(warped_b_a)
+            all_warped = forward_warp(all_features, all_warp_flows)
+            warped_a_b = tf.stop_gradient(all_warped[:batch_size])
+            warped_b_a = tf.stop_gradient(all_warped[batch_size:])
 
             # Feed into GridNet for final synthesis.
             warped_combined = tf.concat([warped_a_b, warped_b_a], axis=-1)
@@ -91,18 +95,20 @@ class ContextInterp:
 
     def _get_feature_loss(self, prediction, expected):
         with tf.variable_scope('feature_loss'):
-            prediction_features = self.feature_extractor.get_perceptual_features(prediction)
-            expected_features = self.feature_extractor.get_perceptual_features(expected)
-            return tf.reduce_mean(tf.squared_difference(prediction_features, expected_features))
+            batch_size = tf.shape(prediction)[0]
+            combined = tf.concat([prediction, expected], axis=0)
+            all_features = self.feature_extractor.get_perceptual_features(combined)
+            return tf.reduce_mean(tf.squared_difference(all_features[:batch_size], all_features[batch_size:]))
 
     def _get_l1_loss(self, prediction, expected):
         return tf.reduce_mean(tf.abs(prediction - expected))
 
     def _get_laplacian_loss(self, prediction, expected):
         with tf.name_scope('laplacian_loss'):
-            pyr1, _, _ = self.laplacian_pyramid.get_forward(prediction)
-            pyr2, _, _ = self.laplacian_pyramid.get_forward(expected)
+            batch_size = tf.shape(prediction)[0]
+            combined = tf.concat([prediction, expected], axis=0)
+            pyrs, _, _ = self.laplacian_pyramid.get_forward(combined)
             loss = 0
-            for i in range(len(pyr2)):
-                loss += 2 ** i * tf.reduce_sum(tf.abs(pyr1[i] - pyr2[i]))
+            for i in range(len(pyrs)):
+                loss += 2 ** i * tf.reduce_sum(tf.abs(pyrs[i][:batch_size] - pyrs[i][batch_size:]))
             return loss
