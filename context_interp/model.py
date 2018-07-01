@@ -14,6 +14,7 @@ class ContextInterp:
         :param name: Str. For Tf variable scoping.
         """
         self.name = name
+        self.enclosing_scope = None
         self.gridnet = GridNet([32, 64, 96], 6, num_output_channels=3)
         self.laplacian_pyramid = LaplacianPyramid(5)
         self.pwcnet = PWCNet()
@@ -33,6 +34,7 @@ class ContextInterp:
                  flow_a_b: Flow from a to b (centered at a).
                  flow_b_a: Flow from b to a (centered at b).
         """
+        self.enclosing_scope = tf.get_variable_scope()
         with tf.variable_scope(self.name, reuse=reuse_variables):
             image_a_contexts = self.feature_extractor.get_context_features(image_a)
             image_b_contexts = self.feature_extractor.get_context_features(image_b)
@@ -49,10 +51,11 @@ class ContextInterp:
             # Warp images and their contexts from a->b and from b->a.
             warped_a_b = forward_warp(features_a, t * flow_a_b)
             warped_b_a = forward_warp(features_b, (1.0 - t) * flow_b_a)
+            warped_a_b = tf.stop_gradient(warped_a_b)
+            warped_b_a = tf.stop_gradient(warped_b_a)
 
             # Feed into GridNet for final synthesis.
             warped_combined = tf.concat([warped_a_b, warped_b_a], axis=-1)
-            warped_combined = tf.stop_gradient(warped_combined)
             synthesized, _, _, _ = self.gridnet.get_forward(warped_combined, training=True)
             return synthesized, warped_a_b, warped_b_a, flow_a_b, flow_b_a
 
@@ -61,13 +64,14 @@ class ContextInterp:
         Loads pre-trained PWCNet weights.
         For this to work:
             - It must be called after get_forward.
-            - get_forward must not have been called in an enclosing variable scope.
             - The pwcnet weights must have been saved under variable scope 'pwcnet'.
-        :param pwcnet_weights_path: The full path to PWCNet weights that will be loaded via
+        :param pwcnet_weights_path: The full path to the PWCNet weights that will be loaded via
                                     the RestorableNetwork interface.
         :param sess: Tf Session.
         """
-        self.pwcnet.restore_from(pwcnet_weights_path, sess, scope_prefix=self.name)
+        assert self.enclosing_scope is not None, 'get_forward must have been called beforehand.'
+        scope_prefix = self.enclosing_scope.name + self.name
+        self.pwcnet.restore_from(pwcnet_weights_path, sess, scope_prefix=scope_prefix)
 
     def get_training_loss(self, prediction, expected):
         """

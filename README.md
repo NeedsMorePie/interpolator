@@ -165,7 +165,7 @@ python -m unittest pwcnet.warp.warp_test
     
 #### Training
 
-1.  Have your tf records prepared.
+1.  Have your tf records and pre-trained PWC-Net weights prepared.
 
 2.  Run the following command:
 

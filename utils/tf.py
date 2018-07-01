@@ -96,6 +96,7 @@ def sliding_window_slice(x, slice_locations):
     return slices
 
 
+# Use this to restore when the variables from the checkpoint and current graph aren't exactly the same.
 # Copied from: https://github.com/tensorflow/tensorflow/issues/312
 def optimistic_restore(session, save_file):
     reader = tf.train.NewCheckpointReader(save_file)

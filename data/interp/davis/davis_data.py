@@ -1,7 +1,6 @@
 import glob
 import os.path
 from data.interp.interp_data import InterpDataSet
-from utils.img import read_image
 from PIL import Image
 from io import BytesIO
 
@@ -23,17 +22,10 @@ class DavisDataSet(InterpDataSet):
         buffered = BytesIO()
         im = Image.open(filename)
         width, height = im.size
-
-        # This just takes the whole image currently.
-        crop_width, crop_height = width, height
-        crop_left = int(width / 2 - crop_width / 2)
-        crop_top = int(height / 2 - crop_height / 2)
-        im = im.crop((crop_left, crop_top, crop_left + crop_width, crop_top + crop_height))
         im.save(buffered, format='JPEG')
         bytes = buffered.getvalue()
         buffered.close()
-
-        return bytes, crop_height, crop_width
+        return bytes, height, width
 
     def _get_data_paths(self, raw_directory):
         """

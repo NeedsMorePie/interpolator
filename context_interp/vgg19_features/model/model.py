@@ -4,7 +4,6 @@
 import os
 import time
 import inspect
-from utils.tf import print_tensor_shape
 import tensorflow as tf
 import numpy as np
 import types
@@ -55,15 +54,11 @@ class Vgg19:
             # Convert RGB to BGR
             assert rgb.get_shape().as_list()[-1] == 3
             red, green, blue = tf.split(axis=3, num_or_size_splits=3, value=rgb_scaled)
-            # assert red.get_shape().as_list()[1:] == [224, 224, 1]
-            # assert green.get_shape().as_list()[1:] == [224, 224, 1]
-            # assert blue.get_shape().as_list()[1:] == [224, 224, 1]
             bgr = tf.concat(axis=3, values=[
                 blue - VGG_MEAN[0],
                 green - VGG_MEAN[1],
                 red - VGG_MEAN[2],
             ])
-            # assert bgr.get_shape().as_list()[1:] == [224, 224, 3]
             layers = types.SimpleNamespace()
             layers.conv1_1 = self.conv_layer(bgr, 3, 64, "conv1_1", trainable)
             layers.conv1_2 = self.conv_layer(layers.conv1_1, 64, 64, "conv1_2", trainable)
@@ -183,8 +178,6 @@ class Vgg19:
 
         var = tf.Variable(value, name=var_name, trainable=trainable)
         self.var_dict[(name, idx)] = var
-
-        # print var_name, var.get_shape().as_list()
         assert var.get_shape() == initial_value.get_shape()
 
         return var

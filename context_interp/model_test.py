@@ -34,10 +34,12 @@ class TestContextInterp(unittest.TestCase):
         loss_tensor = model.get_training_loss(interpolated_tensor, gt_placeholder)
 
         # Currently a stop_gradient is applied to the input of GridNet.
-        # _, warped_a_b_tensor, warped_b_a_tensor, _, _ = output_tensors
-        # grad_tensors = tf.gradients(interpolated_tensor, [warped_a_b_tensor, warped_b_a_tensor])
-        # for grad_tensor in grad_tensors:
-        #     self.assertNotEqual(grad_tensor, None)
+        do_grads_flow_to_input = False
+        if do_grads_flow_to_input:
+            _, warped_a_b_tensor, warped_b_a_tensor, _, _ = output_tensors
+            grad_tensors = tf.gradients(interpolated_tensor, [warped_a_b_tensor, warped_b_a_tensor])
+            for grad_tensor in grad_tensors:
+                self.assertNotEqual(grad_tensor, None)
 
         query = [loss_tensor] + list(output_tensors)
         self.sess.run(tf.global_variables_initializer())
@@ -60,7 +62,7 @@ class TestContextInterp(unittest.TestCase):
         self.assertTrue(np.allclose(warped_feat_a_b.shape, warped_feat_b_a.shape))
 
         # Check the gradients with the loss.
-        grad_tensors = tf.gradients(loss_tensor, interpolated_tensor)
+        grad_tensors = tf.gradients(loss_tensor, [interpolated_tensor, warped_a_b_tensor, warped_b_a_tensor])
         grads = self.sess.run(grad_tensors, feed_dict={image_a_placeholder: image_a,
                                                    image_b_placeholder: image_b,
                                                    gt_placeholder: np.zeros(shape=image_a.shape)})
