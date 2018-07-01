@@ -37,7 +37,7 @@ class ContextInterp:
             image_a_contexts = self.feature_extractor.get_context_features(image_a)
             image_b_contexts = self.feature_extractor.get_context_features(image_b)
 
-            # TODO Add instance normalization. Described in 3.3 of https://arxiv.org/pdf/1803.10967.pdf.
+            # TODO: Add instance normalization. Described in 3.3 of https://arxiv.org/pdf/1803.10967.pdf.
 
             # Get a->b and b->a flows from PWCNet.
             flow_a_b, _ = self.pwcnet.get_forward(image_a, image_b)

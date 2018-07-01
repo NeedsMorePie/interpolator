@@ -13,7 +13,6 @@ class TestContextInterp(unittest.TestCase):
         self.sess = tf.Session(config=config)
 
     def test_network(self):
-
         height = 128
         width = 64
         im_channels = 3
