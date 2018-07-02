@@ -9,6 +9,7 @@
     *   opencv-python
     *   matplotlib
     *   joblib
+    *   pillow
     
 ### Running tests
 
@@ -134,4 +135,60 @@ python -m unittest pwcnet.warp.warp_test
 
     ```
     tensorboard --logdir="<path>/<to>/<checkpoint_output>"
+    ```
+
+### Test-running the Context-Aware Interpolation training
+
+#### Creating a TFRecord dataset
+
+1.  Download [DAVIS](https://davischallenge.org/davis2017/code.html).
+
+2.  If you wish to add more images, be sure that they are organized like DAVIS.
+    For example, in DAVIS/JPEGImages/(480p | 1080p), the structure is:
+
+    ```
+    <directory to images>
+        <shot_0>
+            <image_0>.(png | jpg)
+            ...
+            <image_n>.(png | jpg)
+        <shot_1>
+        ...
+        <shot_n>
+    ```
+    
+3.  Run the following command from the project root directory:
+
+    ```
+    python -m mains.create_davis_dataset -d path/to/DAVIS -o path/to/tfrecords_dir
+    ```
+
+4.  Expected output in the specified output directory should be:
+
+    ```
+    <tfrecords_dir>
+        ...
+        0_interp_dataset_train.tfrecords
+        ...
+        n_interp_dataset_train.tfrecords
+        
+        0_interp_dataset_valid.tfrecords
+        ...
+        n_interp_dataset_valid.tfrecords
+    ```
+    
+#### Training
+
+1.  Have your tf records and pre-trained PWC-Net weights prepared.
+
+2.  Run the following command:
+
+    ```
+    python -m mains.train_context_interp -d path/to/tfrecords_dir -c path/to/checkpoints_dir -w path/to/pwcnet_weights.npz
+    ```
+
+3.  Launch tensorboard.
+
+    ```
+    tensorboard --logdir=path/to/checkpoints_dir
     ```

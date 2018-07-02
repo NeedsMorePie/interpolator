@@ -14,7 +14,6 @@ class TestInterpDataSet(unittest.TestCase):
     """
     DavisDataSet is used here to test functions in InterpDataSet, which is an abstract class.
     """
-
     def setUp(self):
         cur_dir = os.path.dirname(__file__)
         self.data_directory = os.path.join(cur_dir, 'davis', 'test_data')
@@ -42,7 +41,7 @@ class TestInterpDataSet(unittest.TestCase):
         self.sess = tf.Session(config=config)
 
     def test_maximum_shot_len(self):
-        data_set = DavisDataSet(self.tf_record_directory, [[1]], maximum_shot_len=3)
+        data_set = DavisDataSet(self.tf_record_directory, [[1]])
         image_paths = [
             ['a0', 'a1', 'a2'],
             ['b0', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6'],
@@ -56,7 +55,7 @@ class TestInterpDataSet(unittest.TestCase):
             ['c1', 'c2', 'c3'],
             ['c4']
         ]
-        split_paths = data_set._enforce_maximum_shot_len(image_paths)
+        split_paths = data_set._enforce_maximum_shot_len(image_paths, 3)
         self.assertListEqual(split_paths, expected_split)
 
     def test_val_split(self):
@@ -121,7 +120,7 @@ class TestInterpDataSet(unittest.TestCase):
 
             self.assertListEqual(next_sequence_timing[0].tolist(), [0.0, 0.5, 1.0])
             self.assertListEqual(next_sequence_timing[1].tolist(), [0.0, 0.5, 1.0])
-            self.assertTupleEqual(np.shape(next_sequence), (2, 3, 264, 470, 3))
+            self.assertTupleEqual(np.shape(next_sequence), (2, 3, 256, 256, 3))
 
     def test_val_data_read_write(self):
         data_set = DavisDataSet(self.tf_record_directory, [[1]], batch_size=2)
@@ -143,7 +142,12 @@ class TestInterpDataSet(unittest.TestCase):
 
         self.assertListEqual(next_sequence_timing[0].tolist(), [0.0, 0.5, 1.0])
         self.assertListEqual(next_sequence_timing[1].tolist(), [0.0, 0.5, 1.0])
-        self.assertTupleEqual(np.shape(next_sequence), (2, 3, 264, 470, 3))
+        self.assertTupleEqual(np.shape(next_sequence), (2, 3, 256, 256, 3))
+
+        if VISUALIZE:
+            print('Showing dense sequence (val set) with timings [0.0, 0.5, 1.0] ...')
+            for j in range(3):
+                show_image(next_sequence[0][j])
 
         end_of_val = False
         try:
@@ -188,7 +192,7 @@ class TestInterpDataSet(unittest.TestCase):
                 num_sparse_sequences += 1
                 is_sparse = True
 
-            self.assertTupleEqual(np.shape(next_sequence), (1, 3, 264, 470, 3))
+            self.assertTupleEqual(np.shape(next_sequence), (1, 3, 256, 256, 3))
             if VISUALIZE:
                 if is_sparse:
                     print('Showing sparse sequence with timings [0.0, 0.25, 1.0] ...')

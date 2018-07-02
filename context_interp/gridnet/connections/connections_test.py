@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import unittest
-from gridnet.connections.connections import LateralConnection, UpSamplingConnection, DownSamplingConnection
+from context_interp.gridnet.connections.connections import LateralConnection, UpSamplingConnection, DownSamplingConnection
 from tensorflow.contrib.layers import l2_regularizer
 
 

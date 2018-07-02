@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import unittest
-from gridnet.gridnet import GridNet
+from context_interp.gridnet.model import GridNet
 from tensorflow.contrib.layers import l2_regularizer
 
 
@@ -16,7 +16,8 @@ class TestGridNet(unittest.TestCase):
 
         # Note that test might fail if you change one of these parameters without modifying the expected values.
         name='gridnet'
-        num_input_channels = 8
+        num_input_channels = 16
+        num_output_channels = 3
         num_channels = [num_input_channels, 16, 32]
         grid_height = len(num_channels)
         grid_width = 4
@@ -26,6 +27,7 @@ class TestGridNet(unittest.TestCase):
         gridnet = GridNet(num_channels,
                           grid_width,
                           name=name,
+                          num_output_channels=num_output_channels,
                           num_lateral_convs=num_lateral_convs_per_connection,
                           num_downsampling_convs=num_downsampling_convs_per_connection,
                           num_upsample_convs=num_upsampling_convs_per_connection,
@@ -53,7 +55,7 @@ class TestGridNet(unittest.TestCase):
         final_output_np, node_outputs_np, lateral_inputs_np, vertical_inputs_np = outputs_np
 
         # Check final output shape.
-        self.assertTrue(np.allclose(final_output_np.shape, np.asarray([batch_size, height, width, num_input_channels])))
+        self.assertTrue(np.allclose(final_output_np.shape, np.asarray([batch_size, height, width, num_output_channels])))
 
         # Check the number of grid outputs.
         num_grid_nodes = len(node_outputs_np) * len(node_outputs_np[0])
@@ -227,7 +229,6 @@ class TestGridNet(unittest.TestCase):
         gradients = self.sess.run(grad_op, feed_dict={input_features_tensor: input_features})
 
         nonzero_grad_names = {'up_03', 'up_13', 'right_04'}
-        zero_sum = 0
         nonzero_sum = 0
         for i, gradient in enumerate(gradients):
             nonzero = False
@@ -237,7 +238,6 @@ class TestGridNet(unittest.TestCase):
                     nonzero_sum += np.sum(gradient)
                     nonzero = True
             if not nonzero:
-                zero_sum += np.sum(gradient)
+                self.assertEqual(np.sum(gradient), 0)
 
-        self.assertEqual(zero_sum, 0.0)
         self.assertNotEqual(nonzero_sum, 0)

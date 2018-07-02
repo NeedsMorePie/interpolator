@@ -34,7 +34,7 @@ class FlowDataSet(DataSet):
         :param data_source: Source of the data.
         :param augmentation_config: Configurations for data augmentation. If None, the default will be used.
         """
-        super().__init__(directory, batch_size, validation_size)
+        super().__init__(directory, batch_size, validation_size, training_augmentations=training_augmentations)
 
         # Initialized during load().
         self.train_dataset = None  # Tensorflow DataSet object.
@@ -50,9 +50,7 @@ class FlowDataSet(DataSet):
         self.next_flows = None  # Data iterator batch.
 
         self.crop_size = crop_size
-        self.training_augmentations = training_augmentations
         self.data_source = data_source
-
         self.train_filename = 'flowdataset_train.tfrecords'
         self.valid_filename = 'flowdataset_valid.tfrecords'
 
