@@ -122,37 +122,16 @@ class TestSpacialTransformTranslate(unittest.TestCase):
     def test_optical_flow_warp_flyingchairs(self):
         """
         Runs warp test against FlyingChairs ground truth and checks for <3% average pixel error.
-        Also masks out the occluded warp regions when computing the error.
         """
-        # Load from files.
-        flow_ab = read_flow_file('pwcnet/warp/test_data/06530_flow.flo')
-        img_a = read_image('pwcnet/warp/test_data/06530_img1.ppm', as_float=True)
-        img_b = read_image('pwcnet/warp/test_data/06530_img2.ppm', as_float=True)
-        mask_ab = np.ones(shape=img_a.shape)
+        self.single_warp_test_helper('pwcnet/warp/test_data/06530_flow.flo', 'pwcnet/warp/test_data/06530_img1.ppm',
+                                     'pwcnet/warp/test_data/06530_img2.ppm', 0.03)
 
-        H = img_a.shape[0]
-        W = img_a.shape[1]
-        C = img_a.shape[2]
-
-        # Create the graph.
-        img_shape = [None, H, W, C]
-        flow_shape = [None, H, W, 2]
-        input = tf.placeholder(shape=img_shape, dtype=tf.float32)
-        flow_tensor = tf.placeholder(shape=flow_shape, dtype=tf.float32)
-        warped_tensor = warp_via_flow(input, flow_tensor)
-
-        # Run.
-        warped_image = self.sess.run(warped_tensor, feed_dict={input: [img_b, mask_ab],
-                                                               flow_tensor: [flow_ab, flow_ab]})
-        # Get the masked errors.
-        error_ab_img = np.abs(warped_image[0] - img_a) * warped_image[1]
-        error_ab = np.mean(error_ab_img)
-        # Assert a < 3% average error.
-        self.assertLess(error_ab, 0.03)
-
-        if SHOW_WARPED_IMAGES:
-            show_image(warped_image[0])
-            show_image(error_ab_img)
+    def test_optical_flow_warp_flyingthings(self):
+        """
+        Runs warp test against FlyingChairs ground truth and checks for <3% average pixel error.
+        """
+        self.single_warp_test_helper('pwcnet/warp/test_data/OpticalFlowIntoFuture_0006_L.pfm',
+                                     'pwcnet/warp/test_data/0006.png', 'pwcnet/warp/test_data/0007.png', 0.025)
 
     def test_gradients(self):
         """
@@ -176,6 +155,45 @@ class TestSpacialTransformTranslate(unittest.TestCase):
         grads = self.sess.run(grad_op, feed_dict={input: [img_b], flow_tensor: [flow_ab]})
         for gradient in grads:
             self.assertNotAlmostEqual(np.sum(gradient), 0.0)
+
+    def single_warp_test_helper(self, flow_ab_path, img_a_path, img_b_path, tolerance):
+        """
+        Runs warp test for a set of 2 images and a flow between them.
+        Also masks out the occluded warp regions when computing the error.
+        :param flow_ab_path: Str.
+        :param img_a_path: Str.
+        :param img_b_path: Str.
+        :param tolerance: Float. Usually a percentage like 0.03.
+        """
+        # Load from files.
+        flow_ab = read_flow_file(flow_ab_path)
+        img_a = read_image(img_a_path, as_float=True)
+        img_b = read_image(img_b_path, as_float=True)
+        mask_ab = np.ones(shape=img_a.shape)
+
+        H = img_a.shape[0]
+        W = img_a.shape[1]
+        C = img_a.shape[2]
+
+        # Create the graph.
+        img_shape = [None, H, W, C]
+        flow_shape = [None, H, W, 2]
+        input = tf.placeholder(shape=img_shape, dtype=tf.float32)
+        flow_tensor = tf.placeholder(shape=flow_shape, dtype=tf.float32)
+        warped_tensor = warp_via_flow(input, flow_tensor)
+
+        # Run.
+        warped_image = self.sess.run(warped_tensor, feed_dict={input: [img_b, mask_ab],
+                                                               flow_tensor: [flow_ab, flow_ab]})
+        # Get the masked errors.
+        error_ab_img = np.abs(warped_image[0] - img_a) * warped_image[1]
+        error_ab = np.mean(error_ab_img)
+        # Assert a < tolerance average error.
+        self.assertLess(error_ab, tolerance)
+
+        if SHOW_WARPED_IMAGES:
+            show_image(warped_image[0])
+            show_image(error_ab_img)
 
 
 if __name__ == '__main__':

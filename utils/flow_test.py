@@ -5,7 +5,7 @@ from utils.flow import read_flow_file, show_flow_image, get_flow_visualization, 
 from utils.img import show_image
 
 
-SHOW_SINTEL_TEST_IMAGES = False
+SHOW_FLOW_TEST_IMAGES = False
 
 
 class TestSintelFlowReader(unittest.TestCase):
@@ -18,16 +18,16 @@ class TestSintelFlowReader(unittest.TestCase):
         flow_image = read_flow_file('utils/test_data/frame_0001.flo')
         self.assertTrue(flow_image is not None)
 
-        expected_shape = np.asarray([436, 1024, 2], dtype=np.int)
-        self.assertTrue(np.allclose(expected_shape, np.asarray(flow_image.shape)))
-        if SHOW_SINTEL_TEST_IMAGES:
+        expected_shape = (436, 1024, 2)
+        self.assertTupleEqual((436, 1024, 2), flow_image.shape)
+        if SHOW_FLOW_TEST_IMAGES:
             show_flow_image(flow_image)
 
         flow_image = read_flow_file('utils/test_data/frame_0011.flo')
         self.assertTrue(flow_image is not None)
 
-        self.assertTrue(np.allclose(expected_shape, np.asarray(flow_image.shape)))
-        if SHOW_SINTEL_TEST_IMAGES:
+        self.assertTupleEqual(expected_shape, flow_image.shape)
+        if SHOW_FLOW_TEST_IMAGES:
             show_flow_image(flow_image)
 
     def test_tensorflow_vis(self):
@@ -49,9 +49,18 @@ class TestSintelFlowReader(unittest.TestCase):
         self.assertTrue(np.allclose(target_visualization, visualization[0], atol=0.06))
         self.assertTrue(np.allclose(target_visualization_2, visualization[1], atol=0.06))
 
-        if SHOW_SINTEL_TEST_IMAGES:
+        if SHOW_FLOW_TEST_IMAGES:
             show_image(visualization[0])
             show_image(visualization[1])
+
+
+class TestPFMFlowReader(unittest.TestCase):
+    def test_pfm_read(self):
+        flow_image = read_flow_file('utils/test_data/flow.pfm')
+        self.assertTrue(flow_image is not None)
+        self.assertTupleEqual((540, 960, 2), flow_image.shape)
+        if SHOW_FLOW_TEST_IMAGES:
+            show_flow_image(flow_image)
 
 
 if __name__ == '__main__':

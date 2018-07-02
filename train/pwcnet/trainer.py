@@ -104,7 +104,17 @@ class PWCNetTrainer(Trainer):
             tf.summary.image('image_b', tf.clip_by_value(self.images_b, 0.0, 1.0))
             tf.summary.image('final_flow', get_tf_flow_visualization(self.final_flow))
             tf.summary.image('gt_flow', get_tf_flow_visualization(self.flows))
-
             self.merged_summ = tf.summary.merge_all()
+
+            # Config summary.
+            text = []
+            for key in sorted(self.config.keys()):
+                text.append([key, str(self.config[key])])
+            config_summary = tf.summary.text('Configurations', tf.convert_to_tensor(text))
+
             self.train_writer = tf.summary.FileWriter(self.train_log_dir, self.session.graph)
             self.valid_writer = tf.summary.FileWriter(self.valid_log_dir)
+
+        # Write the config summary.
+        self.train_writer.add_summary(self.session.run(config_summary), global_step=0)
+        self.train_writer.flush()
