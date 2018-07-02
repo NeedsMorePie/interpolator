@@ -10,6 +10,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 
+from utils.pfm import load_pfm
+
 
 FLOW_CHANNELS = 2
 FLOW_TAG_FLOAT = 202021.25
@@ -17,22 +19,33 @@ FLOW_TAG_FLOAT = 202021.25
 
 def read_flow_file(file_name):
     """
-    :param file_name: str.
+    Supports .pfm or .flo extensions.
+    :param file_name: Str.
     :return: Numpy array of shape (height, width, FLOW_CHANNELS).
         Returns None if the tag in the file header was invalid.
     """
-    with open(file_name, 'rb') as f:
-        tag = np.fromfile(f, dtype=np.float32, count=1)[0]
-        if tag != FLOW_TAG_FLOAT:
-            return None
-        width = np.fromfile(f, dtype=np.int32, count=1)[0]
-        height = np.fromfile(f, dtype=np.int32, count=1)[0]
+    if file_name.endswith('.flo'):
+        with open(file_name, 'rb') as f:
+            tag = np.fromfile(f, dtype=np.float32, count=1)[0]
+            if tag != FLOW_TAG_FLOAT:
+                return None
+            width = np.fromfile(f, dtype=np.int32, count=1)[0]
+            height = np.fromfile(f, dtype=np.int32, count=1)[0]
 
-        num_image_floats = width * height * FLOW_CHANNELS
-        image = np.fromfile(f, dtype=np.float32, count=num_image_floats)
-        image = image.reshape((height, width, FLOW_CHANNELS))
+            num_image_floats = width * height * FLOW_CHANNELS
+            image = np.fromfile(f, dtype=np.float32, count=num_image_floats)
+            image = image.reshape((height, width, FLOW_CHANNELS))
 
-        return image
+            return image
+    elif file_name.endswith('.pfm'):
+        np_array, scale = load_pfm(file_name)
+        if scale != 1.0:
+            raise Exception('Pfm flow scale must be 1.0.')
+        # PFM file convention has the y axis going upward. This is unconventional, so we need to flip it.
+        # Also, PFM can only have 1 or 3 colour channels. For flow, the last channel is set to 0.0.
+        return np.flip(np_array[..., 0:2], axis=0)
+    else:
+        raise Exception('Not a supported flow format.')
 
 
 def get_flow_visualization(flow):

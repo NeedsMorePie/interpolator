@@ -36,6 +36,8 @@ def main():
         data_source = FlowDataSet.SINTEL
     elif args.data_source == 'flyingchairs':
         data_source = FlowDataSet.FLYING_CHAIRS
+    elif args.data_source == 'flyingthings':
+        data_source = FlowDataSet.FLYING_THINGS
 
     dataset = FlowDataSet(args.directory, validation_size=args.num_validation, data_source=data_source)
     dataset.set_verbose(True)
@@ -50,7 +52,7 @@ def add_args(parser):
     parser.add_argument('-s', '--shard_size', type=int, default=25,
                         help='Maximum number of data examples in a shard.')
     parser.add_argument('-src', '--data_source', type=str, default='sintel',
-                        help='Data source can be sintel or flyingchairs.')
+                        help='Data source can be sintel, flyingchairs, or flyingthings.')
 
 
 if __name__ == "__main__":
