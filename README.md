@@ -109,7 +109,7 @@ python -m unittest pwcnet.warp.warp_test
 
 1.  Have your tf records prepared.
 
-2.  Modify mains/configs/train_pwcnet.json as needed.
+2.  If you need to modify the config, make a copy of mains/configs/train_pwcnet.json.
 
     For FlyingChairs make sure:
     
@@ -122,6 +122,12 @@ python -m unittest pwcnet.warp.warp_test
 
     ```
     python -m mains.train_pwcnet --directory="<path>/<to>/<tf_records>" --checkpoint_directory="<path>/<to>/<checkpoint_output>"
+    ```
+    
+    Or if you modified the config add:
+    
+    ```
+    --config="<path>/<to>/<config>.json"
     ```
 
 4.  Launch tensorboard.
