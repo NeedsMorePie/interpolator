@@ -87,8 +87,10 @@ class FlowDataSet(DataSet):
         Overridden.
         """
         if self.verbose:
-            print('Checking directory for data.')
+            print('Checking directory for data...')
         image_a_paths, image_b_paths, flow_paths = self._get_data_paths()
+        if self.verbose:
+            print('Converting to tf records...')
         self._convert_to_tf_record(image_a_paths, image_b_paths, flow_paths, shard_size)
 
     def load(self, session):
@@ -154,9 +156,13 @@ class FlowDataSet(DataSet):
         """
         # Get sorted lists.
         images = glob.glob(os.path.join(self.directory, '**', '*.png'), recursive=True)
-        images.sort()
         flows = glob.glob(os.path.join(self.directory, '**', '*.flo'), recursive=True)
+        if self.verbose:
+            print('Sorting file paths...')
+        images.sort()
         flows.sort()
+        if self.verbose:
+            print('Filtering file paths...')
         # Make sure the tuples are all under the same directory.
         filtered_images_a = []
         filtered_images_b = []
@@ -179,6 +185,8 @@ class FlowDataSet(DataSet):
         :return: List of image_path strings, list of flow_path strings.
         """
         images_a = glob.glob(os.path.join(self.directory, '**', '*_img1.ppm'), recursive=True)
+        if self.verbose:
+            print('Sorting file paths...')
         images_a.sort()
         images_b = [image_a.replace('img1', 'img2') for image_a in images_a]
         flows = [image_a.replace('img1', 'flow').replace('ppm', 'flo') for image_a in images_a]
@@ -191,11 +199,15 @@ class FlowDataSet(DataSet):
         """
         # Get sorted lists.
         images = glob.glob(os.path.join(self.directory, '**', 'TRAIN', '**', 'left', '*.png'), recursive=True)
-        images.sort()
         flows = glob.glob(os.path.join(self.directory, '**', 'TRAIN', '**', 'into_future', 'left', '*.pfm'),
                           recursive=True)
+        if self.verbose:
+            print('Sorting file paths...')
+        images.sort()
         flows.sort()
         assert len(images) == len(flows)
+        if self.verbose:
+            print('Filtering file paths...')
         # Make sure the tuples are all under the same directory.
         filtered_images_a = []
         filtered_images_b = []
