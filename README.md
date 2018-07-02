@@ -85,6 +85,11 @@ python -m unittest pwcnet.warp.warp_test
     ```
     python -m mains.create_flow_dataset --directory="<path>/<to>/<training_dataset>" --num_validation=100 --shard_size=25 --data_source="flyingchairs"
     ```
+    
+    For FlyingThings:
+    ```
+    python -m mains.create_flow_dataset --directory="<path>/<to>/<training_dataset>" --num_validation=100 --shard_size=25 --data_source="flyingthings"
+    ```
 
 4.  Expected output should be:
 
