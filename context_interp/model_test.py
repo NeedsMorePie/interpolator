@@ -13,7 +13,7 @@ class TestContextInterp(unittest.TestCase):
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
         self.sess = tf.Session(config=config)
-        self.do_grads_flow_to_input = True
+        self.do_grads_flow_to_input = False
 
     def test_network(self):
         height = 128
@@ -39,7 +39,7 @@ class TestContextInterp(unittest.TestCase):
 
         # Currently a stop_gradient is applied to the input of GridNet.
         if self.do_grads_flow_to_input:
-            grad_tensors = tf.gradients(interpolated_tensor, [warped_a_b_tensor, warped_b_a_tensor])
+            grad_tensors = tf.gradients(interpolated_tensor, [image_a_placeholder, image_b_placeholder])
             for grad_tensor in grad_tensors:
                 self.assertNotEqual(grad_tensor, None)
 
