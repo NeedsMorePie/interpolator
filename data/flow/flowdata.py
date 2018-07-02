@@ -20,6 +20,7 @@ class FlowDataSet(DataSet):
     # Data sources.
     SINTEL = 0
     FLYING_CHAIRS = 1
+    FLYING_THINGS = 2
 
     def __init__(self, directory, batch_size=1, validation_size=1, crop_size=None, training_augmentations=True,
                  data_source=SINTEL, augmentation_config=None):
@@ -142,6 +143,8 @@ class FlowDataSet(DataSet):
             return self._get_data_paths_sintel()
         elif self.data_source == self.FLYING_CHAIRS:
             return self._get_data_paths_flying_chairs()
+        elif self.data_source == self.FLYING_THINGS:
+            return self._get_data_paths_flying_things()
         return None
 
     def _get_data_paths_sintel(self):
@@ -180,6 +183,31 @@ class FlowDataSet(DataSet):
         images_b = [image_a.replace('img1', 'img2') for image_a in images_a]
         flows = [image_a.replace('img1', 'flow').replace('ppm', 'flo') for image_a in images_a]
         return images_a, images_b, flows
+
+    def _get_data_paths_flying_things(self):
+        """
+        Gets the paths of [image_a, image_b, flow] tuples from a typical flying things flow data directory structure.
+        :return: List of image_path strings, list of flow_path strings.
+        """
+        # Get sorted lists.
+        images = glob.glob(os.path.join(self.directory, '**', 'TRAIN', '**', 'left', '*.png'), recursive=True)
+        images.sort()
+        flows = glob.glob(os.path.join(self.directory, '**', 'TRAIN', '**', 'into_future', 'left', '*.pfm'),
+                          recursive=True)
+        flows.sort()
+        assert len(images) == len(flows)
+        # Make sure the tuples are all under the same directory.
+        filtered_images_a = []
+        filtered_images_b = []
+        filtered_flows = []
+        for i in range(len(images) - 1):
+            directory_a = os.path.dirname(images[i])
+            directory_b = os.path.dirname(images[i + 1])
+            if directory_a == directory_b:
+                filtered_images_a.append(images[i])
+                filtered_images_b.append(images[i + 1])
+                filtered_flows.append(flows[i])
+        return filtered_images_a, filtered_images_b, filtered_flows
 
     def _convert_to_tf_record(self, image_a_paths, image_b_paths, flow_paths, shard_size):
         """
