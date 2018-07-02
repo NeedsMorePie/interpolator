@@ -20,9 +20,10 @@ class FlowDataSet(DataSet):
     # Data sources.
     SINTEL = 0
     FLYING_CHAIRS = 1
+    FLYING_THINGS = 2
 
     def __init__(self, directory, batch_size=1, validation_size=1, crop_size=None, training_augmentations=True,
-                 data_source=SINTEL):
+                 data_source=SINTEL, augmentation_config=None):
         """
         :param directory: Str. Directory of the dataset file structure and tf records.
         :param batch_size: Int.
@@ -31,6 +32,7 @@ class FlowDataSet(DataSet):
                           If None, then no cropping will be performed.
         :param training_augmentations: Whether to do live augmentations while training.
         :param data_source: Source of the data.
+        :param augmentation_config: Configurations for data augmentation. If None, the default will be used.
         """
         super().__init__(directory, batch_size, validation_size)
 
@@ -53,6 +55,20 @@ class FlowDataSet(DataSet):
 
         self.train_filename = 'flowdataset_train.tfrecords'
         self.valid_filename = 'flowdataset_valid.tfrecords'
+
+        self.config = augmentation_config
+        if augmentation_config is None:
+            self.config = {
+                'contrast_min': 0.8, 'contrast_max': 1.25,
+                'gamma_min': 0.8, 'gamma_max': 1.25,
+                'gain_min': 0.8, 'gain_max': 1.25,
+                'brightness_stddev': 0.2,
+                'hue_min': -0.3, 'hue_max': 0.3,
+                'noise_stddev': 0.04,
+                'scale_min': 0.5, 'scale_max': 2.0,
+                'do_scaling': True,
+                'do_flipping': True
+            }
 
     def get_train_file_names(self):
         """
@@ -127,6 +143,8 @@ class FlowDataSet(DataSet):
             return self._get_data_paths_sintel()
         elif self.data_source == self.FLYING_CHAIRS:
             return self._get_data_paths_flying_chairs()
+        elif self.data_source == self.FLYING_THINGS:
+            return self._get_data_paths_flying_things()
         return None
 
     def _get_data_paths_sintel(self):
@@ -165,6 +183,31 @@ class FlowDataSet(DataSet):
         images_b = [image_a.replace('img1', 'img2') for image_a in images_a]
         flows = [image_a.replace('img1', 'flow').replace('ppm', 'flo') for image_a in images_a]
         return images_a, images_b, flows
+
+    def _get_data_paths_flying_things(self):
+        """
+        Gets the paths of [image_a, image_b, flow] tuples from a typical flying things flow data directory structure.
+        :return: List of image_path strings, list of flow_path strings.
+        """
+        # Get sorted lists.
+        images = glob.glob(os.path.join(self.directory, '**', 'TRAIN', '**', 'left', '*.png'), recursive=True)
+        images.sort()
+        flows = glob.glob(os.path.join(self.directory, '**', 'TRAIN', '**', 'into_future', 'left', '*.pfm'),
+                          recursive=True)
+        flows.sort()
+        assert len(images) == len(flows)
+        # Make sure the tuples are all under the same directory.
+        filtered_images_a = []
+        filtered_images_b = []
+        filtered_flows = []
+        for i in range(len(images) - 1):
+            directory_a = os.path.dirname(images[i])
+            directory_b = os.path.dirname(images[i + 1])
+            if directory_a == directory_b:
+                filtered_images_a.append(images[i])
+                filtered_images_b.append(images[i + 1])
+                filtered_flows.append(flows[i])
+        return filtered_images_a, filtered_images_b, filtered_flows
 
     def _convert_to_tf_record(self, image_a_paths, image_b_paths, flow_paths, shard_size):
         """
@@ -227,23 +270,16 @@ class FlowDataSet(DataSet):
             image_a, image_b, flow = tf_random_crop([image_a, image_b, flow], self.crop_size)
 
             if do_augmentations:
-                config = {
-                    'contrast_min': 0.8, 'contrast_max': 1.25,
-                    'gamma_min': 0.8, 'gamma_max': 1.25,
-                    'gain_min': 0.8, 'gain_max': 1.25,
-                    'brightness_stddev': 0.2,
-                    'hue_min': -0.3, 'hue_max': 0.3,
-                    'noise_stddev': 0.04,
-                    'scale_min': 0.5, 'scale_max': 2.0
-                }
                 # Basic image augmentations.
-                image_a, image_b = tf_image_augmentation([image_a, image_b], config)
-                # Flip randomly in unison.
-                flow, images = tf_random_flip_flow(flow, [image_a, image_b])
-                image_a, image_b = images
-                # Scale randomly in unison.
-                flow, images = tf_random_scale_flow(flow, [image_a, image_b], config)
-                image_a, image_b = images
+                image_a, image_b = tf_image_augmentation([image_a, image_b], self.config)
+                if self.config['do_scaling']:
+                    # Flip randomly in unison.
+                    flow, images = tf_random_flip_flow(flow, [image_a, image_b])
+                    image_a, image_b = images
+                if self.config['do_flipping']:
+                    # Scale randomly in unison.
+                    flow, images = tf_random_scale_flow(flow, [image_a, image_b], self.config)
+                    image_a, image_b = images
 
             return image_a, image_b, flow
 

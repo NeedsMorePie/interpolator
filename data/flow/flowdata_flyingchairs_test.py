@@ -5,6 +5,25 @@ from data.flow.flowdata import FlowDataSet
 from data.flow.flowdata_test_base import TestFlowDataSet
 
 
+class FlyingChairsTestPaths:
+    full_directory = os.path.join('data', 'flow', 'test_data', 'flying_chairs', 'data')
+    expected_image_a_paths = [os.path.join(full_directory, '06530_img1.ppm'),
+                              os.path.join(full_directory, '06531_img1.ppm'),
+                              os.path.join(full_directory, '06532_img1.ppm'),
+                              os.path.join(full_directory, '06533_img1.ppm'),
+                              os.path.join(full_directory, '22871_img1.ppm')]
+    expected_image_b_paths = [os.path.join(full_directory, '06530_img2.ppm'),
+                              os.path.join(full_directory, '06531_img2.ppm'),
+                              os.path.join(full_directory, '06532_img2.ppm'),
+                              os.path.join(full_directory, '06533_img2.ppm'),
+                              os.path.join(full_directory, '22871_img2.ppm')]
+    expected_flow_paths = [os.path.join(full_directory, '06530_flow.flo'),
+                           os.path.join(full_directory, '06531_flow.flo'),
+                           os.path.join(full_directory, '06532_flow.flo'),
+                           os.path.join(full_directory, '06533_flow.flo'),
+                           os.path.join(full_directory, '22871_flow.flo')]
+
+
 class TestFlyingChairsFlowDataSet(TestFlowDataSet.TestCases):
     def setUp(self):
         super().setUp()
@@ -16,22 +35,9 @@ class TestFlyingChairsFlowDataSet(TestFlowDataSet.TestCases):
                                     data_source=FlowDataSet.FLYING_CHAIRS)
 
         # Test paths.
-        full_directory = os.path.join('data', 'flow', 'test_data', 'flying_chairs', 'data')
-        self.expected_image_a_paths = [os.path.join(full_directory, '06530_img1.ppm'),
-                                       os.path.join(full_directory, '06531_img1.ppm'),
-                                       os.path.join(full_directory, '06532_img1.ppm'),
-                                       os.path.join(full_directory, '06533_img1.ppm'),
-                                       os.path.join(full_directory, '22871_img1.ppm')]
-        self.expected_image_b_paths = [os.path.join(full_directory, '06530_img2.ppm'),
-                                       os.path.join(full_directory, '06531_img2.ppm'),
-                                       os.path.join(full_directory, '06532_img2.ppm'),
-                                       os.path.join(full_directory, '06533_img2.ppm'),
-                                       os.path.join(full_directory, '22871_img2.ppm')]
-        self.expected_flow_paths = [os.path.join(full_directory, '06530_flow.flo'),
-                                    os.path.join(full_directory, '06531_flow.flo'),
-                                    os.path.join(full_directory, '06532_flow.flo'),
-                                    os.path.join(full_directory, '06533_flow.flo'),
-                                    os.path.join(full_directory, '22871_flow.flo')]
+        self.expected_image_a_paths = FlyingChairsTestPaths.expected_image_a_paths
+        self.expected_image_b_paths = FlyingChairsTestPaths.expected_image_b_paths
+        self.expected_flow_paths = FlyingChairsTestPaths.expected_flow_paths
 
 
 class TestFlyingChairsFlowDataSetWithCrop(TestFlowDataSet.TestCases):
@@ -45,22 +51,9 @@ class TestFlyingChairsFlowDataSetWithCrop(TestFlowDataSet.TestCases):
                                     data_source=FlowDataSet.FLYING_CHAIRS, crop_size=(384, 448))
 
         # Test paths.
-        full_directory = os.path.join('data', 'flow', 'test_data', 'flying_chairs', 'data')
-        self.expected_image_a_paths = [os.path.join(full_directory, '06530_img1.ppm'),
-                                       os.path.join(full_directory, '06531_img1.ppm'),
-                                       os.path.join(full_directory, '06532_img1.ppm'),
-                                       os.path.join(full_directory, '06533_img1.ppm'),
-                                       os.path.join(full_directory, '22871_img1.ppm')]
-        self.expected_image_b_paths = [os.path.join(full_directory, '06530_img2.ppm'),
-                                       os.path.join(full_directory, '06531_img2.ppm'),
-                                       os.path.join(full_directory, '06532_img2.ppm'),
-                                       os.path.join(full_directory, '06533_img2.ppm'),
-                                       os.path.join(full_directory, '22871_img2.ppm')]
-        self.expected_flow_paths = [os.path.join(full_directory, '06530_flow.flo'),
-                                    os.path.join(full_directory, '06531_flow.flo'),
-                                    os.path.join(full_directory, '06532_flow.flo'),
-                                    os.path.join(full_directory, '06533_flow.flo'),
-                                    os.path.join(full_directory, '22871_flow.flo')]
+        self.expected_image_a_paths = FlyingChairsTestPaths.expected_image_a_paths
+        self.expected_image_b_paths = FlyingChairsTestPaths.expected_image_b_paths
+        self.expected_flow_paths = FlyingChairsTestPaths.expected_flow_paths
 
 
 if __name__ == '__main__':
