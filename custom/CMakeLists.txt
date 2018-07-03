@@ -1,3 +1,5 @@
+# Initially copied from https://stackoverflow.com/questions/44403127/adding-a-gpu-op-in-tensorflow--
+# A few changes were required to make this work with TensorFlow 1.8.0.
 cmake_minimum_required(VERSION 3.5)
 
 # Get Tf include dirs, see https://www.tensorflow.org/how_tos/adding_an_op/
@@ -12,7 +14,6 @@ execute_process(COMMAND python3 -c "import tensorflow as tf; print(tf.sysconfig.
 string(REGEX REPLACE "\n$" "" TF_LIB_DIR "${TF_LIB_DIR}")
 
 find_library(TF_FRAMEWORK tensorflow_framework HINTS "${TF_LIB_DIR}")
-message(STATUS "${TF_FRAMEWORK}")
 
 find_package(CUDA)
 set(CMAKE_CXX_FLAGS "--std=c++11 -fPIC -O2")
@@ -27,5 +28,5 @@ cuda_add_library(
 # Link libraries.
 target_link_libraries(cuda_op "${TF_FRAMEWORK}")
 
-# copy test file to build folder
+# Copy test file to build folder.
 configure_file(src/test.py test.py COPYONLY)

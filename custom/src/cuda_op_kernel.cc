@@ -1,3 +1,4 @@
+// Initially copied from https://stackoverflow.com/questions/44403127/adding-a-gpu-op-in-tensorflow--
 #include "tensorflow/core/framework/op.h"
 #include "tensorflow/core/framework/shape_inference.h"
 #include "tensorflow/core/framework/op_kernel.h"

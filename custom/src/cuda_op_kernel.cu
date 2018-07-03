@@ -1,3 +1,4 @@
+// Initially copied from https://stackoverflow.com/questions/44403127/adding-a-gpu-op-in-tensorflow--
 #define EIGEN_USE_GPU
 #include <cuda.h>
 #include <stdio.h>
