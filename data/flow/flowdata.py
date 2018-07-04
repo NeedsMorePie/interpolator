@@ -315,8 +315,8 @@ class FlowDataSet(DataSet):
 
             return image_a, image_b, flow
 
-        dataset = tf.data.Dataset.list_files(filename_pattern, shuffle=True)
-        dataset = tf.data.TFRecordDataset(dataset, compression_type='GZIP')
+        files = tf.data.Dataset.list_files(filename_pattern, shuffle=True)
+        dataset = tf.data.TFRecordDataset(files, compression_type='GZIP', num_parallel_reads=min(4, self.batch_size))
         if shuffle:
             if repeat:
                 dataset = dataset.apply(tf.contrib.data.shuffle_and_repeat(buffer_size=self.batch_size * 10))
