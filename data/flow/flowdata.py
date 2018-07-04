@@ -78,13 +78,13 @@ class FlowDataSet(DataSet):
         """
         Overridden.
         """
-        return glob.glob(os.path.join(self.directory, '*' + self.train_filename))
+        return glob.glob(self._get_train_file_name_pattern())
 
     def get_validation_file_names(self):
         """
         :return: List of string.
         """
-        return glob.glob(os.path.join(self.directory, '*' + self.valid_filename))
+        return glob.glob(self._get_valid_file_name_pattern())
 
     def preprocess_raw(self, shard_size):
         """
@@ -102,9 +102,9 @@ class FlowDataSet(DataSet):
         Overridden.
         """
         with tf.name_scope('dataset_ops'):
-            self.train_dataset = self._load_dataset(self.get_train_file_names(), True,
+            self.train_dataset = self._load_dataset(self._get_train_file_name_pattern(), True,
                                                     do_augmentations=self.training_augmentations)
-            self.valid_dataset = self._load_dataset(self.get_validation_file_names(), False, do_augmentations=False)
+            self.valid_dataset = self._load_dataset(self._get_valid_file_name_pattern(), False, do_augmentations=False)
 
             self.handle_placeholder = tf.placeholder(tf.string, shape=[])
             self.iterator = tf.data.Iterator.from_string_handle(
@@ -140,6 +140,18 @@ class FlowDataSet(DataSet):
         Overridden
         """
         session.run(self.validation_iterator.initializer)
+
+    def _get_train_file_name_pattern(self):
+        """
+        :return: Str.
+        """
+        return os.path.join(self.directory, '*' + self.train_filename)
+
+    def _get_valid_file_name_pattern(self):
+        """
+        :return: Str.
+        """
+        return os.path.join(self.directory, '*' + self.valid_filename)
 
     def _get_data_paths(self):
         """
@@ -256,14 +268,13 @@ class FlowDataSet(DataSet):
         _write(self.train_filename, range(0, valid_start_idx))
         _write(self.valid_filename, range(valid_start_idx, len(image_a_paths)))
 
-    def _load_dataset(self, filenames, repeat, do_augmentations=False):
+    def _load_dataset(self, filename_pattern, repeat, do_augmentations=False):
         """
-        :param filenames: List of strings.
+        :param filename_pattern: Str. Pattern for globbing file names.
         :param repeat: Whether to repeat the dataset indefinitely.
         :param do_augmentations: Bool. Whether to do image augmentations.
         :return: Tensorflow dataset object.
         """
-        assert len(filenames) > 0
         def _parse_function(example_proto):
             features = {
                 HEIGHT: tf.FixedLenFeature((), tf.int64, default_value=0),
@@ -299,7 +310,8 @@ class FlowDataSet(DataSet):
 
             return image_a, image_b, flow
 
-        dataset = tf.data.TFRecordDataset(filenames)
+        dataset = tf.data.Dataset.list_files(filename_pattern, shuffle=True)
+        dataset = tf.data.TFRecordDataset(dataset, compression_type='GZIP')
         if repeat:
             dataset = dataset.apply(tf.contrib.data.shuffle_and_repeat(buffer_size=self.batch_size * 10))
         else:
@@ -328,7 +340,8 @@ def _write_shard(shard_id, shard_range, image_a_paths, image_b_paths, flow_paths
         print('Writing to shard', shard_id, 'data points', shard_range[0], 'to', shard_range[-1])
 
     record_name = os.path.join(directory, str(shard_id) + '_' + filename)
-    writer = tf.python_io.TFRecordWriter(record_name)
+    options = tf.python_io.TFRecordOptions(tf.python_io.TFRecordCompressionType.GZIP)
+    writer = tf.python_io.TFRecordWriter(record_name, options=options)
     num_examples_written = 0
     for i in shard_range:
         # Read from file.
