@@ -74,21 +74,46 @@ python -m unittest pwcnet.warp.warp_test
             ...
     ```
     
+    For FlyingThings this might look like:
+    ```
+    training_dataset
+        frames
+            TEST
+            TRAIN
+                <set>
+                    <clip>
+                        left
+                            0000.png
+                            ...
+                        right
+        optical_flow
+            TEST
+            TRAIN
+                <set>
+                    <clip>
+                        into_future
+                            left
+                                OpticalFlowIntoFuture_0000_L.pfm
+                                ...
+                            right
+                        into_past
+    ```
+    
 3.  Run the following command from the project root directory:
 
     For Sintel:
     ```
-    python -m mains.create_flow_dataset --directory="<path>/<to>/<training_dataset>" --num_validation=100 --shard_size=25 --data_source="sintel"
+    python -m mains.create_flow_dataset --directory="<path>/<to>/<training_dataset>" --num_validation=100 --shard_size=1 --data_source="sintel"
     ```
     
     For FlyingChairs:
     ```
-    python -m mains.create_flow_dataset --directory="<path>/<to>/<training_dataset>" --num_validation=100 --shard_size=25 --data_source="flyingchairs"
+    python -m mains.create_flow_dataset --directory="<path>/<to>/<training_dataset>" --num_validation=100 --shard_size=1 --data_source="flyingchairs"
     ```
     
     For FlyingThings:
     ```
-    python -m mains.create_flow_dataset --directory="<path>/<to>/<training_dataset>" --num_validation=100 --shard_size=25 --data_source="flyingthings"
+    python -m mains.create_flow_dataset --directory="<path>/<to>/<training_dataset>" --num_validation=100 --shard_size=1 --data_source="flyingthings"
     ```
 
 4.  Expected output should be:
