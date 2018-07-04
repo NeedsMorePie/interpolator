@@ -275,9 +275,9 @@ class FlowDataSet(DataSet):
             parsed_features = tf.parse_single_example(example_proto, features)
             H = tf.reshape(tf.cast(parsed_features[HEIGHT], tf.int32), ())
             W = tf.reshape(tf.cast(parsed_features[WIDTH], tf.int32), ())
-            image_a = tf.decode_raw(parsed_features[IMAGE_A_RAW], tf.float32)
+            image_a = tf.cast(tf.decode_raw(parsed_features[IMAGE_A_RAW], tf.uint8), tf.float32) / 255.0
             image_a = tf.reshape(image_a, [H, W, 3])
-            image_b = tf.decode_raw(parsed_features[IMAGE_B_RAW], tf.float32)
+            image_b = tf.cast(tf.decode_raw(parsed_features[IMAGE_B_RAW], tf.uint8), tf.float32) / 255.0
             image_b = tf.reshape(image_b, [H, W, 3])
             flow = tf.decode_raw(parsed_features[FLOW_RAW], tf.float32)
             flow = tf.reshape(flow, [H, W, 2])
@@ -337,8 +337,9 @@ def _write_shard(shard_id, shard_range, image_a_paths, image_b_paths, flow_paths
             if verbose:
                 print(flow_paths[i], 'has a flow magnitude greater than', max_flow)
             continue
-        image_a = read_image(image_a_paths[i], as_float=True)
-        image_b = read_image(image_b_paths[i], as_float=True)
+        # Read and decode images as bytes to save memory.
+        image_a = read_image(image_a_paths[i], as_float=False)
+        image_b = read_image(image_b_paths[i], as_float=False)
 
         # Write to tf record.
         H = image_a.shape[0]
