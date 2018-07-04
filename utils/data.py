@@ -1,3 +1,5 @@
+import errno
+import os
 import tensorflow as tf
 
 
@@ -33,3 +35,11 @@ def tf_bytes_feature(value):
 def tf_bytes_list_feature(bytes_list):
     return tf.train.Feature(bytes_list=tf.train.BytesList(value=bytes_list))
 
+
+def silently_remove_file(filename):
+    try:
+        os.remove(filename)
+    except OSError as e:
+        # errno.ENOENT = no such file or directory.
+        if e.errno != errno.ENOENT:
+            raise

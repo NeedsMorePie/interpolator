@@ -1,5 +1,6 @@
 import glob
 import multiprocessing
+import numpy as np
 import os.path
 import random
 from data.dataset import DataSet
@@ -23,7 +24,7 @@ class FlowDataSet(DataSet):
     FLYING_THINGS = 2
 
     def __init__(self, directory, batch_size=1, validation_size=1, crop_size=None, training_augmentations=True,
-                 data_source=SINTEL, augmentation_config=None):
+                 data_source=SINTEL, augmentation_config=None, max_flow=1000.0):
         """
         :param directory: Str. Directory of the dataset file structure and tf records.
         :param batch_size: Int.
@@ -33,6 +34,8 @@ class FlowDataSet(DataSet):
         :param training_augmentations: Whether to do live augmentations while training.
         :param data_source: Source of the data.
         :param augmentation_config: Configurations for data augmentation. If None, the default will be used.
+        :param max_flow: Float. Maximum flow magnitude of the flow image. Any examples with flow magnitude greater than
+            this will be ignored.
         """
         super().__init__(directory, batch_size, validation_size)
 
@@ -69,6 +72,7 @@ class FlowDataSet(DataSet):
                 'do_scaling': True,
                 'do_flipping': True
             }
+        self.max_flow = max_flow
 
     def get_train_file_names(self):
         """
@@ -244,7 +248,7 @@ class FlowDataSet(DataSet):
 
             Parallel(n_jobs=multiprocessing.cpu_count(), backend="threading")(
                 delayed(_write_shard)(shard_id, shard_range, image_a_paths, image_b_paths,
-                                      flow_paths, filename, self.directory, self.verbose)
+                                      flow_paths, filename, self.directory, self.verbose, self.max_flow)
                 for shard_id, shard_range in enumerate(sharded_iter_ranges)
             )
 
@@ -306,7 +310,8 @@ class FlowDataSet(DataSet):
         return dataset
 
 
-def _write_shard(shard_id, shard_range, image_a_paths, image_b_paths, flow_paths, filename, directory, verbose):
+def _write_shard(shard_id, shard_range, image_a_paths, image_b_paths, flow_paths, filename, directory, verbose,
+                 max_flow):
     """
     :param shard_id: Index of the shard.
     :param shard_range: Iteration range of the shard.
@@ -314,17 +319,26 @@ def _write_shard(shard_id, shard_range, image_a_paths, image_b_paths, flow_paths
     :param flow_paths: Path of all flows.
     :param filename: Base name of the output shard.
     :param directory: Output directory.
+    :param verbose: Whether to print to console.
+    :param max_flow: Float. Maximum flow magnitude of the flow image. Any examples with flow magnitude greater than this
+        will be ignored.
     :return: Nothing.
     """
     if verbose and len(shard_range) > 0:
         print('Writing to shard', shard_id, 'data points', shard_range[0], 'to', shard_range[-1])
 
-    writer = tf.python_io.TFRecordWriter(os.path.join(directory, str(shard_id) + '_' + filename))
+    record_name = os.path.join(directory, str(shard_id) + '_' + filename)
+    writer = tf.python_io.TFRecordWriter(record_name)
+    num_examples_written = 0
     for i in shard_range:
         # Read from file.
+        flow = read_flow_file(flow_paths[i])
+        if np.amax(np.linalg.norm(flow, axis=-1)) > max_flow:
+            if verbose:
+                print(flow_paths[i], 'has a flow magnitude greater than', max_flow)
+            continue
         image_a = read_image(image_a_paths[i], as_float=True)
         image_b = read_image(image_b_paths[i], as_float=True)
-        flow = read_flow_file(flow_paths[i])
 
         # Write to tf record.
         H = image_a.shape[0]
@@ -342,4 +356,11 @@ def _write_shard(shard_id, shard_range, image_a_paths, image_b_paths, flow_paths
                     FLOW_RAW: tf_bytes_feature(flow_raw)
                 }))
         writer.write(example.SerializeToString())
+        num_examples_written += 1
     writer.close()
+
+    if num_examples_written == 0:
+        # Delete the file if nothing was written to it.
+        if verbose:
+            print(record_name, 'is empty')
+        silently_remove_file(record_name)

@@ -3,6 +3,7 @@ import os
 import os.path
 import tensorflow as tf
 import unittest
+from utils.data import silently_remove_file
 
 
 class TestFlowDataSet:
@@ -77,5 +78,4 @@ class TestFlowDataSet:
         def tearDown(self):
             output_paths = self.data_set.get_train_file_names() + self.data_set.get_validation_file_names()
             for output_path in output_paths:
-                if os.path.isfile(output_path):
-                    os.remove(output_path)
+                silently_remove_file(output_path)
