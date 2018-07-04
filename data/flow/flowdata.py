@@ -275,9 +275,9 @@ class FlowDataSet(DataSet):
     def _load_dataset(self, filename_pattern, repeat, do_augmentations=False, shuffle=False):
         """
         :param filename_pattern: Str. Pattern for globbing file names.
-        :param repeat: Whether to repeat the dataset indefinitely.
+        :param repeat: Bool. Whether to repeat the dataset indefinitely.
         :param do_augmentations: Bool. Whether to do image augmentations.
-        :param shuffle: Bool. Whether to shuffle the individual data points.
+        :param shuffle: Bool. Whether to shuffle the individual data points on top of the file name shuffle.
         :return: Tensorflow dataset object.
         """
         def _parse_function(example_proto):
