@@ -97,18 +97,15 @@ class FlowDataSet(DataSet):
             print('Converting to tf records...')
         self._convert_to_tf_record(image_a_paths, image_b_paths, flow_paths, shard_size)
 
-    def load(self, session, shuffle=False):
+    def load(self, session):
         """
-        :param session: Tensorflow session.
-        :param shuffle: Bool. Whether to shuffle individual data points. Note that the tf record files will be shuffled
-            anyway.
-        :return: Nothing.
+        Overridden.
         """
         with tf.name_scope('dataset_ops'):
             self.train_dataset = self._load_dataset(self._get_train_file_name_pattern(), True,
-                                                    do_augmentations=self.training_augmentations, shuffle=shuffle)
+                                                    do_augmentations=self.training_augmentations)
             self.valid_dataset = self._load_dataset(self._get_valid_file_name_pattern(), False,
-                                                    do_augmentations=False, shuffle=shuffle)
+                                                    do_augmentations=False)
 
             self.handle_placeholder = tf.placeholder(tf.string, shape=[])
             self.iterator = tf.data.Iterator.from_string_handle(
@@ -272,12 +269,11 @@ class FlowDataSet(DataSet):
         _write(self.train_filename, range(0, valid_start_idx))
         _write(self.valid_filename, range(valid_start_idx, len(image_a_paths)))
 
-    def _load_dataset(self, filename_pattern, repeat, do_augmentations=False, shuffle=False):
+    def _load_dataset(self, filename_pattern, repeat, do_augmentations=False):
         """
         :param filename_pattern: Str. Pattern for globbing file names.
         :param repeat: Bool. Whether to repeat the dataset indefinitely.
         :param do_augmentations: Bool. Whether to do image augmentations.
-        :param shuffle: Bool. Whether to shuffle the individual data points on top of the file name shuffle.
         :return: Tensorflow dataset object.
         """
         def _parse_function(example_proto):
@@ -317,12 +313,7 @@ class FlowDataSet(DataSet):
 
         files = tf.data.Dataset.list_files(filename_pattern, shuffle=True)
         dataset = tf.data.TFRecordDataset(files, compression_type='GZIP', num_parallel_reads=min(4, self.batch_size))
-        if shuffle:
-            if repeat:
-                dataset = dataset.apply(tf.contrib.data.shuffle_and_repeat(buffer_size=self.batch_size * 10))
-            else:
-                dataset = dataset.shuffle(buffer_size=self.batch_size * 10)
-        elif repeat:
+        if repeat:
             dataset = dataset.repeat()
         dataset = dataset.map(_parse_function, num_parallel_calls=multiprocessing.cpu_count())
         dataset = dataset.batch(self.batch_size)
