@@ -22,12 +22,14 @@ class Trainer:
     def restore(self):
         raise NotImplementedError('restore() is not implemented.')
 
-    def train(self, validate_every=100):
+    def train(self, validate_every=10000, iterations=1000000):
         """
-        Runs an infinite training loop that validates every so often.
+        Runs a training loop that validates every so often.
         :param validate_every: Perform validation at this interval.
+        :param iterations: Number of iterations to train for. This is expected to be a multiple of validate_every.
         :return: Nothing.
         """
+        num_iterations = 0
         while True:
             if self.verbose:
                 print('Training.')
@@ -35,6 +37,9 @@ class Trainer:
             if self.verbose:
                 print('Validating.')
             self.validate()
+            num_iterations += validate_every
+            if num_iterations >= iterations:
+                return
 
     def train_for(self, iterations):
         """
