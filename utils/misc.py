@@ -1,6 +1,5 @@
-import numpy as np
+import copy
 import tensorflow as tf
-import sys
 
 
 # https://stackoverflow.com/questions/9764298/is-it-possible-to-sort-two-listswhich-reference-each-other-in-the-exact-same-w
@@ -99,3 +98,43 @@ def sliding_window_slice(x, slice_locations):
         false_fn=lambda: get_zeros(sequence_len, x)
     )
     return slices
+
+
+def preprocess_var_refs(root, base_vars=None, remove_vars_dict=True):
+    """
+    Processes the dict by replacing var refs with variables declared in the 'vars' dict.
+    :param root: Dict.
+    :param vars: Dict. Vars to add to the dict.
+    :param remove_vars_dict: Bool. Whether to remove the vars dict after processing.
+    :return: Nothing
+    """
+    vars = {} if base_vars is None else base_vars
+
+    # If the value is a dict, then it can either be replaced by a var or be recursively processed.
+    def handle_dict(parent, indexer):
+        assert isinstance(parent[indexer], dict)
+        if 'var_ref' in parent[indexer]:
+            assert parent[indexer]['var_ref'] in vars
+            parent[indexer] = vars[parent[indexer]['var_ref']]
+        else:
+            preprocess_var_refs(parent[indexer], copy.deepcopy(vars), remove_vars_dict=remove_vars_dict)
+
+    # If there is a 'vars' object, use it to override the base_vars.
+    if 'vars' in root:
+        # If there is a 'vars' object, use it to override the base_vars.
+        assert isinstance(root['vars'], dict)
+        for key, value in root['vars'].items():
+            assert not isinstance(value, dict) and not isinstance(value, list)
+            vars[key] = value
+        if remove_vars_dict:
+            del root['vars']
+
+    for root_key, root_value in root.items():
+        if root_key == 'vars':
+            continue
+        elif isinstance(root_value, dict):
+            handle_dict(root, root_key)
+        elif isinstance(root_value, list):
+            for i, item in enumerate(root_value):
+                if isinstance(item, dict):
+                    handle_dict(root_value, i)
