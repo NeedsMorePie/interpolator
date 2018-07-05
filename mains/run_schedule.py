@@ -1,5 +1,6 @@
 import argparse
 import json
+from utils.misc import preprocess_var_refs
 
 
 def main():
@@ -11,8 +12,20 @@ def main():
     print('Loading schedule...')
     with open(args.schedule) as json_data:
         schedule = json.load(json_data)
+        preprocess_var_refs(schedule)
         print(schedule)
         print('')
+
+    runs = schedule['runs']
+    assert isinstance(runs, list)
+    for run in runs:
+        assert isinstance(run, dict)
+        assert 'script' in run
+        assert 'args' in run
+        script = run['script']
+        assert isinstance(script, str)
+        args = run['args']
+        assert isinstance(args, dict)
 
 
 def add_args(parser):

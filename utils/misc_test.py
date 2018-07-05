@@ -96,7 +96,10 @@ class TestPreprocessVarRefs(unittest.TestCase):
             },
             "obj": {
                 "moop": { "var_ref": "foo" },
-                "boop": { "var_ref": "two" }
+                "boop": { "var_ref": "two" },
+                "obj2": {
+                    "key": { "var_ref": "two" }
+                }
             },
             "boop": { "var_ref": "foo" }
         }
@@ -105,7 +108,10 @@ class TestPreprocessVarRefs(unittest.TestCase):
         {
             "obj": {
                 "moop": "bar",
-                "boop": 2
+                "boop": 2,
+                "obj2": {
+                    "key": 2
+                }
             },
             "boop": "bar"
         }
