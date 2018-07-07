@@ -1,6 +1,6 @@
 import tensorflow as tf
 from common.models import ConvNetwork
-from pwcnet.cost_volume.cost_volume import cost_volume
+from common.ops.cost_volume.cost_volume import cost_volume
 from pwcnet.warp.warp import warp_via_flow
 
 
