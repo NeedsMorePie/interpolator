@@ -42,6 +42,7 @@ def main():
             if not line:
                 break
             print(line.decode('utf-8'))
+        process.wait()
 
 
 def add_args(parser):
