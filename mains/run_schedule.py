@@ -36,7 +36,7 @@ def main():
 
         arg_str = ' '.join([script] + compile_args(args_dict))
         print('\nRUNNING:', arg_str, '\n')
-        process = subprocess.Popen(arg_str, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=cwd)
+        process = subprocess.Popen(arg_str, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=cwd)
         while True:
             line = process.stdout.readline().rstrip()
             if not line:
