@@ -3,8 +3,8 @@
     "executable": "python -m mains.train_pwcnet",
     "flying_chairs_data": "",
     "flying_things_data": "",
-    "checkpoint_directory": "",
-    "sintel_data": ""
+    "sintel_data": "",
+    "checkpoint_directory": ""
   },
   "runs": [
     {
@@ -94,6 +94,51 @@
         "directory": { "var_ref": "flying_things_data" },
         "checkpoint_directory": { "var_ref": "checkpoint_directory" },
         "config": "mains/configs/pwcnet_schedule/train_pwcnet_flyingthings_9.json",
+        "iterations": 100000
+      }
+    },
+    {
+      "executable": { "var_ref": "executable" },
+      "args": {
+        "directory": { "var_ref": "sintel_data" },
+        "checkpoint_directory": { "var_ref": "checkpoint_directory" },
+        "config": "mains/configs/pwcnet_schedule/train_pwcnet_sintel_10.json",
+        "iterations": 200000
+      }
+    },
+    {
+      "executable": { "var_ref": "executable" },
+      "args": {
+        "directory": { "var_ref": "sintel_data" },
+        "checkpoint_directory": { "var_ref": "checkpoint_directory" },
+        "config": "mains/configs/pwcnet_schedule/train_pwcnet_sintel_11.json",
+        "iterations": 100000
+      }
+    },
+    {
+      "executable": { "var_ref": "executable" },
+      "args": {
+        "directory": { "var_ref": "sintel_data" },
+        "checkpoint_directory": { "var_ref": "checkpoint_directory" },
+        "config": "mains/configs/pwcnet_schedule/train_pwcnet_sintel_12.json",
+        "iterations": 100000
+      }
+    },
+    {
+      "executable": { "var_ref": "executable" },
+      "args": {
+        "directory": { "var_ref": "sintel_data" },
+        "checkpoint_directory": { "var_ref": "checkpoint_directory" },
+        "config": "mains/configs/pwcnet_schedule/train_pwcnet_sintel_13.json",
+        "iterations": 100000
+      }
+    },
+    {
+      "executable": { "var_ref": "executable" },
+      "args": {
+        "directory": { "var_ref": "sintel_data" },
+        "checkpoint_directory": { "var_ref": "checkpoint_directory" },
+        "config": "mains/configs/pwcnet_schedule/train_pwcnet_sintel_14.json",
         "iterations": 100000
       }
     }
