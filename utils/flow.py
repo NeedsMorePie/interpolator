@@ -141,15 +141,17 @@ def tf_flip_flow(flow, images, left_right, up_down):
     return new_flow, new_images
 
 
-def tf_random_flip_flow(flow, images):
+def tf_random_flip_flow(flow, images, flip_hor=True, flip_ver=True):
     """
     Randomly flips a flow and a set of corresponding images in unison.
     :param flow: Optical flow tensor. Shape is (H, W, C).
     :param images: List of image tensors.
+    :param flip_hor: Whether to randomly flip horizontally.
+    :param flip_ver: Whether to randomly flip vertically.
     :return: new_flow (tensor), new_images (list of tensors).
     """
-    left_right_cond = tf.less(tf.random_uniform([], 0, 1.0), .5)
-    up_down_cond = tf.less(tf.random_uniform([], 0, 1.0), .5)
+    left_right_cond = tf.less(tf.random_uniform([], 0, 1.0), .5) if flip_hor else tf.constant(False)
+    up_down_cond = tf.less(tf.random_uniform([], 0, 1.0), .5) if flip_ver else tf.constant(False)
     return tf_flip_flow(flow, images, left_right_cond, up_down_cond)
 
 

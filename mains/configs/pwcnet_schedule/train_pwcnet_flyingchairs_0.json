@@ -14,5 +14,5 @@
   "noise_stddev": 0.04,
   "scale_min": 0.5, "scale_max": 2.0,
   "do_scaling": false,
-  "do_flipping": false
+  "do_flipping": false, "flip_hor": false, "flip_ver": false
 }

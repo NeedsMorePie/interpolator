@@ -67,7 +67,7 @@ class FlowDataSet(DataSet):
                 'hue_min': -0.3, 'hue_max': 0.3,
                 'noise_stddev': 0.04,
                 'scale_min': 0.5, 'scale_max': 2.0,
-                'do_scaling': True,
+                'do_scaling': True, 'flip_hor': True, 'flip_ver': True,
                 'do_flipping': True
             }
         self.max_flow = max_flow
@@ -300,7 +300,8 @@ class FlowDataSet(DataSet):
                 image_a, image_b = tf_image_augmentation([image_a, image_b], self.config)
                 if self.config['do_scaling']:
                     # Flip randomly in unison.
-                    flow, images = tf_random_flip_flow(flow, [image_a, image_b])
+                    flow, images = tf_random_flip_flow(flow, [image_a, image_b], flip_hor=self.config['flip_hor'],
+                                                       flip_ver=self.config['flip_ver'])
                     image_a, image_b = images
                 if self.config['do_flipping']:
                     # Scale randomly in unison.
