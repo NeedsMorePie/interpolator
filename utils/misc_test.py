@@ -160,3 +160,7 @@ class TestCompileArgs(unittest.TestCase):
     def test_multi_type_arg(self):
         args = compile_args({'foo': 'I am string.', 'bar': 3.14, 'bool': False})
         self.assertListEqual(['--bar=3.14', '--bool=False', '--foo="I am string."'], args)
+
+
+if __name__ == '__main__':
+    unittest.main()
