@@ -140,15 +140,11 @@ python -m unittest pwcnet.warp.warp_test
 3.  Run the following command:
 
     ```
-    python -m mains.train_pwcnet --directory="<path>/<to>/<tf_records>" --checkpoint_directory="<path>/<to>/<checkpoint_output>"
+    python -m mains.run_schedule --schedule="mains/configs/train_pwcnet.json"
     ```
     
-    Or if you modified the config add:
+    Replace the path to the schedule with the one you modified.
     
-    ```
-    --config="<path>/<to>/<config>.json"
-    ```
-
 4.  Launch tensorboard.
 
     ```
