@@ -133,7 +133,7 @@ class ConvNetwork(RestorableNetwork):
         :param layer_specs: Array of shape [num_layers, 4].
                             The second dimension consists of [kernel_size, num_output_features, dilation, stride].
         :param activation_fn: Tensorflow activation function.
-        :param last_activation_fn: Tensorflow activation function. Applied after the final convolution of activation_fn,
+        :param last_activation_fn: Tensorflow activation function. Applied after the final convolution
                                    in place of activation_fn. Defaults to the value of activation_fn.
         :param regularizer: Tf regularizer such as tf.contrib.layers.l2_regularizer.
         :param padding: Str. Either 'SAME' or 'VALID' case insensitive.

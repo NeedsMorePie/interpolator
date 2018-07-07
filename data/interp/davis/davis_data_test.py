@@ -7,7 +7,6 @@ import shutil
 from utils.img import show_image
 from data.interp.davis.davis_data import DavisDataSet
 
-VISUALIZE = False
 
 class TestDavisDataSet(unittest.TestCase):
     def setUp(self):

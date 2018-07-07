@@ -11,13 +11,14 @@ VERBOSE = False
 
 class PWCNet(RestorableNetwork):
     def __init__(self, name='pwc_net', regularizer=l2_regularizer(4e-4),
-                 flow_layer_loss_weights=None, flow_scaling=0.05):
+                 flow_layer_loss_weights=None, flow_scaling=0.05, search_range=4):
         """
         :param name: Str.
         :param regularizer: Tf regularizer.
         :param flow_layer_loss_weights: List of floats. Corresponds to the weight of a loss for a flow at some layer.
                                         i.e. flow_layer_loss_weights[0] corresponds to previous_flows[0].
         :param flow_scaling: In the PWC-Net paper, ground truth is scaled by this amount to normalize the flows.
+        :param search_range: The search range to use for the cost volume layer.
         """
         super().__init__(name=name)
 
@@ -42,7 +43,9 @@ class PWCNet(RestorableNetwork):
         self.iter_range = range(self.num_feature_levels, self.output_level - 1, -1)
 
         self.feature_pyramid = FeaturePyramidNetwork(regularizer=self.regularizer)
-        self.estimator_networks = [EstimatorNetwork(name='estimator_network_' + str(i), regularizer=self.regularizer)
+        self.estimator_networks = [EstimatorNetwork(name='estimator_network_' + str(i),
+                                                    regularizer=self.regularizer,
+                                                    search_range=search_range)
                                    for i in self.iter_range]
         self.context_network = ContextNetwork(regularizer=self.regularizer)
 

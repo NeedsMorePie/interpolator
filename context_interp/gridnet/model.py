@@ -1,19 +1,26 @@
 import tensorflow as tf
-from utils.misc import print_tensor_shape, pelu, prelu
-from gridnet.connections.connections import UpSamplingConnection, DownSamplingConnection, LateralConnection
+from utils.tf import print_tensor_shape, pelu, prelu
+from context_interp.gridnet.connections.connections import UpSamplingConnection, DownSamplingConnection, LateralConnection
+
 
 # Packaged 'activation' functions.
 def batch_norm_with_prelu(x):
     x = tf.layers.batch_normalization(x)
     return prelu(x)
 
+
 def batch_norm_with_relu(x):
     x = tf.layers.batch_normalization(x)
     return tf.nn.relu(x)
 
+
+_default = object()
+
+
 class GridNet:
     def __init__(self, channel_sizes, width,
                  name='gridnet',
+                 num_output_channels=_default,
                  num_lateral_convs=2,
                  num_upsample_convs=2,
                  num_downsampling_convs=2,
@@ -25,6 +32,7 @@ class GridNet:
         :param channel_sizes: List of channel sizes for rows. Height of the GridNet = len(channel_sizes).
         :param width: Width of the GridNet. Must be an even number to ensure symmetry.
         :param name: Str. For variable scoping.
+        :param num_output_channels: Number. Defaults to channel_sizes[0].
         :param num_lateral_convs: Number of convolutions in each lateral connection.
         :param num_upsample_convs: Number of convolutions in each up-sampling connection.
         :param num_downsampling_convs: Number of convolutions in each down-sampling connection.
@@ -72,6 +80,10 @@ class GridNet:
         self.connection_dropout_rate = connection_dropout_rate
         self.regularizer = regularizer
 
+        if num_output_channels == _default:
+            num_output_channels = self.channel_sizes[0]
+        self.num_output_channels = num_output_channels
+
         # More settings
         if self.use_batch_norm:
             self.activation_fn = batch_norm_with_prelu
@@ -80,6 +92,8 @@ class GridNet:
 
         # Construct specs for connections.
         # Entry specs[i][j] is the spec for the jth convolution for any connection in the ith row.
+        # An exception is made for the output lateral connection.
+        self.output_spec = [[self.num_output_channels, 1] for j in range(self.num_lateral_convs)]
         self.lateral_specs = []
         self.upsample_specs = []
         self.downsample_specs = []
@@ -156,11 +170,12 @@ class GridNet:
     def _process_rightwards(self, input, i, j, training=False):
 
         # The input and output lateral connections should never be dropped, as they cutoff gradients hard.
+        is_output = j == self.width
         force_alive = i == 0 and (j == 0 or j == self.width)
         total_dropout_rate = 0.0 if force_alive else self.connection_dropout_rate
         return LateralConnection(
             'right_%d%d' % (i, j),
-            self.lateral_specs[i],
+            self.output_spec if is_output else self.lateral_specs[i],
             activation_fn=self.activation_fn,
             total_dropout_rate=total_dropout_rate,
             regularizer=self.regularizer

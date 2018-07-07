@@ -1,6 +1,7 @@
 import tensorflow as tf
 from common.models import ConvNetwork
-from utils.misc import tf_coin_flip, print_tensor_shape
+from utils.tf import tf_coin_flip, print_tensor_shape
+
 
 class LateralConnection(ConvNetwork):
     def __init__(self, name, layer_specs,
@@ -35,12 +36,17 @@ class LateralConnection(ConvNetwork):
         """
         with tf.variable_scope(self.name, reuse=reuse_variables):
 
-            # Pass through resolution preserving convolutions, with skip connection at the end.
+            # Pass through resolution preserving convolutions.
             if self.activation_fn is not None:
                 previous_output = self.activation_fn(features)
 
             previous_output, layer_outputs = self._get_conv_tower(previous_output)
-            final_output = features + previous_output
+
+            # Add skip connection only if channels are the same size.
+            if features.get_shape().as_list()[-1] == previous_output.get_shape().as_list()[-1]:
+                final_output = features + previous_output
+            else:
+                final_output = previous_output
 
             # Total dropout.
             if training:
@@ -118,10 +124,8 @@ class UpSamplingConnection(ConvNetwork):
         with tf.variable_scope(self.name, reuse=reuse_variables):
 
             # Up-sample feature images.
-            # It's important to get the current widths and heights not as Tensors to keep the up-sized shapes explicit.
-            shape_list = features.get_shape().as_list()
-            cur_height, cur_width = shape_list[1], shape_list[2]
-            new_height, new_width = 2 * cur_height, 2 * cur_width
+            new_height = 2 * tf.shape(features)[1]
+            new_width = 2 * tf.shape(features)[2]
             previous_output = tf.image.resize_bilinear(features, (new_height, new_width))
 
             # Pass through resolution preserving convolutions.

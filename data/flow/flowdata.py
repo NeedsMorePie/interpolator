@@ -37,7 +37,7 @@ class FlowDataSet(DataSet):
         :param max_flow: Float. Maximum flow magnitude of the flow image. Any examples with flow magnitude greater than
             this will be ignored.
         """
-        super().__init__(directory, batch_size, validation_size)
+        super().__init__(directory, batch_size, validation_size, training_augmentations=training_augmentations)
 
         # Initialized during load().
         self.train_dataset = None  # Tensorflow DataSet object.
@@ -53,9 +53,7 @@ class FlowDataSet(DataSet):
         self.next_flows = None  # Data iterator batch.
 
         self.crop_size = crop_size
-        self.training_augmentations = training_augmentations
         self.data_source = data_source
-
         self.train_filename = 'flowdataset_train.tfrecords'
         self.valid_filename = 'flowdataset_valid.tfrecords'
 

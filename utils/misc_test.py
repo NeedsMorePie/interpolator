@@ -3,58 +3,6 @@ import unittest
 from utils.misc import *
 
 
-class TestMiscUtils(unittest.TestCase):
-    def setUp(self):
-        config = tf.ConfigProto()
-        config.gpu_options.allow_growth = True
-        self.sess = tf.Session(config=config)
-
-    def test_sliding_window_slice_dense(self):
-        x = tf.constant([
-            [0, 0],
-            [0, 1],
-            [1, 0],
-        ])
-        expected = [
-            [[0, 0], [0, 1]],
-            [[0, 1], [1, 0]]
-        ]
-        slice_locations = [1, 1]
-        sliced = sliding_window_slice(x, slice_locations)
-        sliced_list = self.sess.run(sliced).tolist()
-        self.assertListEqual(sliced_list, expected)
-
-    def test_sliding_window_slice_sparse(self):
-        x = tf.constant([
-            [0, 0],
-            [1, 1],
-            [0, 0],
-            [2, 2],
-            [0, 0],
-            [3, 3],
-        ])
-        expected = [
-            [[0, 0], [0, 0], [0, 0]],
-            [[1, 1], [2, 2], [3, 3]]
-        ]
-        slice_locations = [1, 0, 1, 0, 1]
-        sliced = sliding_window_slice(x, slice_locations)
-        sliced_list = self.sess.run(sliced).tolist()
-        self.assertListEqual(sliced_list, expected)
-
-    def test_sliding_window_slice_small(self):
-        x = tf.constant([
-            [1, 2.4]
-        ])
-        expected = [
-            [[0, 0], [0, 0], [0, 0]]
-        ]
-        slice_locations = [1, 1, 1]
-        sliced = sliding_window_slice(x, slice_locations)
-        sliced_list = self.sess.run(sliced).tolist()
-        self.assertListEqual(sliced_list, expected)
-
-
 class TestPreprocessVarRefs(unittest.TestCase):
     def test_no_change(self):
         json_str = """
@@ -212,7 +160,3 @@ class TestCompileArgs(unittest.TestCase):
     def test_multi_type_arg(self):
         args = compile_args({'foo': 'I am string.', 'bar': 3.14, 'bool': False})
         self.assertListEqual(['--bar=3.14', '--bool=False', '--foo="I am string."'], args)
-
-
-if __name__ == '__main__':
-    unittest.main()

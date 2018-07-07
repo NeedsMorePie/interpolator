@@ -10,13 +10,13 @@ from utils.data import *
 from utils.img import read_image
 
 SHOT_LEN = 'shot_len'
-HEIGHT = 'height'
 WIDTH = 'width'
+HEIGHT = 'height'
 SHOT = 'shot'
 
 
 class InterpDataSet(DataSet):
-    def __init__(self, tf_record_directory, inbetween_locations, batch_size=1, maximum_shot_len=10):
+    def __init__(self, tf_record_directory, inbetween_locations, batch_size=1, training_augmentations=True):
         """
         :param inbetween_locations: A list of lists. Each element specifies where inbetweens will be placed,
                                     and each configuration will appear with uniform probability.
@@ -24,9 +24,10 @@ class InterpDataSet(DataSet):
                                     With this, dataset elements will be sequences of 3 ordered frames,
                                     where the middle (inbetween) frame is 2 frames away from the first and last frames.
                                     The number of 1s must be the same for each list in this argument.
-        :param maximum_shot_len: Video shots larger than this value will be broken up.
+        :param training_augmentations: Whether to do live augmentations while training.
         """
-        super().__init__(tf_record_directory, batch_size, validation_size=0)
+        super().__init__(tf_record_directory, batch_size, validation_size=0,
+                                                          training_augmentations=training_augmentations)
 
         # Initialized during load().
         self.handle_placeholder = None  # Handle placeholder for switching between datasets.
@@ -34,14 +35,15 @@ class InterpDataSet(DataSet):
         self.next_sequence_timing = None  # Data iterator batch.
 
         self.tf_record_directory = tf_record_directory
-        self.maximum_shot_len = maximum_shot_len
         self.inbetween_locations = inbetween_locations
         self.train_tf_record_name = 'interp_dataset_train.tfrecords'
         self.validation_tf_record_name = 'interp_dataset_validation.tfrecords'
         self.train_data = InterpDataSetReader(self.tf_record_directory, inbetween_locations,
-                                              self.train_tf_record_name, batch_size=batch_size)
+                                              self.train_tf_record_name, batch_size=batch_size,
+                                              do_augment=self.training_augmentations)
         self.validation_data = InterpDataSetReader(self.tf_record_directory, inbetween_locations,
                                                    self.validation_tf_record_name, batch_size=batch_size)
+
     def get_tf_record_dir(self):
         return self.tf_record_directory
 
@@ -63,17 +65,18 @@ class InterpDataSet(DataSet):
         """
         return self.validation_data.get_tf_record_names()
 
-    def preprocess_raw(self, raw_directory, shard_size, validation_size=0):
+    def preprocess_raw(self, raw_directory, shard_size, validation_size=0, max_shot_len=10):
         """
         Processes the data in raw_directory to the tf_record_directory.
         :param raw_directory: The directory to the images to process.
         :param validation_size: The TfRecords will be partitioned such that, if possible,
                                 this number of validation sequences can be used for validation.
+        :param max_shot_len: Video shots larger than this value will be broken up.
         """
         if self.verbose:
             print('Checking directory for data.')
         image_paths = self._get_data_paths(raw_directory)
-        self._convert_to_tf_record(image_paths, shard_size, validation_size)
+        self._convert_to_tf_record(image_paths, shard_size, validation_size, max_shot_len)
 
     def load(self, session):
         """
@@ -119,18 +122,19 @@ class InterpDataSet(DataSet):
         """
         Reads from and processes the file.
         :param filename: String. Full path to the image file.
-        :return: The bytes that will be saved to the TFRecords.
-                 Must be readable with tf.image.decode_image.
+        :return: bytes: The bytes that will be saved to the TFRecords.
+                        Must be readable with tf.image.decode_image.
+                 height: Height of the processed image.
+                 width: Width of the processed image.
         """
         raise NotImplementedError
 
-    def _convert_to_tf_record(self, image_paths, shard_size, validation_size):
+    def _convert_to_tf_record(self, image_paths, shard_size, validation_size, max_shot_len):
         """
         :param image_paths: List of list of image names,
                             where image_paths[0][0] is the first image in the first video shot.
         :return: Nothing.
         """
-        random.shuffle(image_paths)
 
         if not os.path.exists(self.tf_record_directory):
             os.mkdir(self.tf_record_directory)
@@ -146,26 +150,26 @@ class InterpDataSet(DataSet):
                 for shard_id, shard_range in enumerate(sharded_iter_ranges)
             )
 
-        image_paths = self._enforce_maximum_shot_len(image_paths)
+        image_paths = self._enforce_maximum_shot_len(image_paths, max_shot_len)
         val_paths, train_paths = self._split_for_validation(image_paths, validation_size)
         image_paths = val_paths + train_paths
         train_start_idx = len(val_paths)
         _write(self.validation_tf_record_name, range(0, train_start_idx), image_paths)
         _write(self.train_tf_record_name, range(train_start_idx, len(image_paths)), image_paths)
 
-    def _enforce_maximum_shot_len(self, image_paths):
+    def _enforce_maximum_shot_len(self, image_paths, max_shot_len):
         """
         :param image_paths: List of list of image names,
                             where image_paths[0][0] is the first image in the first video shot.
         :return: List in the same format as image_paths,
-                 where len(return_value)[i] for all i <= self.maximum_shot_len.
+                 where len(return_value)[i] for all i <= max_shot_len.
         """
         cur_len = len(image_paths)
         i = 0
         while i < cur_len:
-            if len(image_paths[i]) > self.maximum_shot_len:
-                part_1 = image_paths[i][:self.maximum_shot_len]
-                part_2 = image_paths[i][self.maximum_shot_len:]
+            if len(image_paths[i]) > max_shot_len:
+                part_1 = image_paths[i][:max_shot_len]
+                part_2 = image_paths[i][max_shot_len:]
                 image_paths = image_paths[:i] + [part_1] + [part_2] + image_paths[i+1:]
                 cur_len += 1
             i += 1
@@ -238,24 +242,19 @@ def _write_shard(shard_id, shard_range, image_paths, filename, directory, proces
         if len(image_paths[i]) <= 0:
             continue
 
-        # Read sequence from file.
-        reference_image = read_image(image_paths[i][0], as_float=True)
-
         shot_raw = []
         for image_path in image_paths[i]:
-            shot_raw.append(processor_fn(image_path))
-
-        H = reference_image.shape[0]
-        W = reference_image.shape[1]
+            bytes, h, w = processor_fn(image_path)
+            shot_raw.append(bytes)
 
         # Write to tf record.
         example = tf.train.Example(
             features=tf.train.Features(
                 feature={
                     SHOT_LEN: tf_int64_feature(len(shot_raw)),
-                    HEIGHT: tf_int64_feature(H),
-                    WIDTH: tf_int64_feature(W),
                     SHOT: tf_bytes_list_feature(shot_raw),
+                    HEIGHT: tf_int64_feature(h),
+                    WIDTH: tf_int64_feature(w)
                 }))
         writer.write(example.SerializeToString())
     writer.close()

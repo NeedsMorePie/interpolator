@@ -1,24 +1,31 @@
 import glob
 import os.path
 from data.interp.interp_data import InterpDataSet
-from utils.img import read_image
+from PIL import Image
+from io import BytesIO
 
 
 class DavisDataSet(InterpDataSet):
 
-    def __init__(self, directory, inbetween_locations, batch_size=1, maximum_shot_len=10):
+    def __init__(self, directory, inbetween_locations, batch_size=1):
         """
         See InterpDataSet.
         """
-        super().__init__(directory, inbetween_locations, batch_size=batch_size, maximum_shot_len=maximum_shot_len)
+        super().__init__(directory, inbetween_locations, batch_size=batch_size)
 
     def _process_image(self, filename):
         """
         Overriden.
-        TODO Consider cropping or downsizing the image first as they can be quite large.
         """
-        with open(filename, 'rb') as fp:
-            return fp.read()
+
+        # https://stackoverflow.com/questions/31826335/how-to-convert-pil-image-image-object-to-base64-string
+        buffered = BytesIO()
+        im = Image.open(filename)
+        width, height = im.size
+        im.save(buffered, format='JPEG')
+        bytes = buffered.getvalue()
+        buffered.close()
+        return bytes, height, width
 
     def _get_data_paths(self, raw_directory):
         """
@@ -28,7 +35,7 @@ class DavisDataSet(InterpDataSet):
         :return: List of list of image names, where image_paths[0][0] is the first image in the first video shot.
         """
         image_names = []
-        extensions = ['*.jpg']
+        extensions = ['*.jpg', '*.png']
         for item in sorted(os.listdir(raw_directory)):
             path = os.path.join(raw_directory, item)
             if os.path.isdir(path):
