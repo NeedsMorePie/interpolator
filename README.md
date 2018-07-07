@@ -134,14 +134,7 @@ python -m unittest pwcnet.warp.warp_test
 
 1.  Have your tf records prepared.
 
-2.  If you need to modify the config, make a copy of mains/configs/train_pwcnet.json.
-
-    For FlyingChairs make sure:
-    
-    ```
-    "crop_width": 448,
-    "crop_height": 384
-    ```
+2.  Make a copy of mains/configs/train_pwcnet.json and fill in the missing "var" fields.
 
 3.  Run the following command:
 

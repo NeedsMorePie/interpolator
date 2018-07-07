@@ -65,7 +65,7 @@ class TestPreprocessVarRefs(unittest.TestCase):
             "array": [ 1, 2, 3 ]
         }
         """
-        self.jsonEquals(json_str, json_str)
+        self.json_equals(json_str, json_str)
 
     def test_basic_change(self):
         json_str = """
@@ -85,7 +85,7 @@ class TestPreprocessVarRefs(unittest.TestCase):
             "three": 3
         }
         """
-        self.jsonEquals(json_str, expected_json_str)
+        self.json_equals(json_str, expected_json_str)
 
     def test_recursive_change(self):
         json_str = """
@@ -116,7 +116,7 @@ class TestPreprocessVarRefs(unittest.TestCase):
             "boop": "bar"
         }
         """
-        self.jsonEquals(json_str, expected_json_str)
+        self.json_equals(json_str, expected_json_str)
 
     def test_recursive_override(self):
         json_str = """
@@ -144,7 +144,7 @@ class TestPreprocessVarRefs(unittest.TestCase):
             "boop": "bar"
         }
         """
-        self.jsonEquals(json_str, expected_json_str)
+        self.json_equals(json_str, expected_json_str)
 
     def test_list_changes(self):
         json_str = """
@@ -187,13 +187,31 @@ class TestPreprocessVarRefs(unittest.TestCase):
             ]
         }
         """
-        self.jsonEquals(json_str, expected_json_str)
+        self.json_equals(json_str, expected_json_str)
 
-    def jsonEquals(self, json_str, expected_json_str):
+    def json_equals(self, json_str, expected_json_str):
         content = json.loads(json_str)
         expected_content = json.loads(expected_json_str)
         preprocess_var_refs(content)
         self.assertDictEqual(expected_content, content)
+
+
+class TestCompileArgs(unittest.TestCase):
+    def test_number_arg(self):
+        args = compile_args({'foo': 3e-4, 'bar': 200000})
+        self.assertListEqual(['--bar=200000', '--foo=0.0003'], args)
+
+    def test_bool_arg(self):
+        args = compile_args({'foo': True})
+        self.assertListEqual(['--foo=True'], args)
+
+    def test_str_arg(self):
+        args = compile_args({'foo': 'I am string.'})
+        self.assertListEqual(['--foo="I am string."'], args)
+
+    def test_multi_type_arg(self):
+        args = compile_args({'foo': 'I am string.', 'bar': 3.14, 'bool': False})
+        self.assertListEqual(['--bar=3.14', '--bool=False', '--foo="I am string."'], args)
 
 
 if __name__ == '__main__':

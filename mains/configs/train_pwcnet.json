@@ -1,18 +1,101 @@
 {
-  "validate_every": 10000,
-  "batch_size": 8,
-  "learning_rate": 0.0001,
-  "crop_width":  768,
-  "crop_height": 384,
-  "fine_tune": false,
-
-  "contrast_min": 0.8, "contrast_max": 1.25,
-  "gamma_min": 0.8, "gamma_max": 1.25,
-  "gain_min": 0.8, "gain_max": 1.25,
-  "brightness_stddev": 0.2,
-  "hue_min": -0.3, "hue_max": 0.3,
-  "noise_stddev": 0.04,
-  "scale_min": 0.5, "scale_max": 2.0,
-  "do_scaling": true,
-  "do_flipping": true
+  "vars": {
+    "executable": "python -m mains.train_pwcnet",
+    "flying_chairs_data": "",
+    "flying_things_data": "",
+    "checkpoint_directory": "",
+    "sintel_data": ""
+  },
+  "runs": [
+    {
+      "executable": { "var_ref": "executable" },
+      "args": {
+        "directory": { "var_ref": "flying_chairs_data" },
+        "checkpoint_directory": { "var_ref": "checkpoint_directory" },
+        "config": "mains/configs/pwcnet_schedule/train_pwcnet_flyingchairs_0.json",
+        "iterations": 400000
+      }
+    },
+    {
+      "executable": { "var_ref": "executable" },
+      "args": {
+        "directory": { "var_ref": "flying_chairs_data" },
+        "checkpoint_directory": { "var_ref": "checkpoint_directory" },
+        "config": "mains/configs/pwcnet_schedule/train_pwcnet_flyingchairs_1.json",
+        "iterations": 200000
+      }
+    },
+    {
+      "executable": { "var_ref": "executable" },
+      "args": {
+        "directory": { "var_ref": "flying_chairs_data" },
+        "checkpoint_directory": { "var_ref": "checkpoint_directory" },
+        "config": "mains/configs/pwcnet_schedule/train_pwcnet_flyingchairs_2.json",
+        "iterations": 200000
+      }
+    },
+    {
+      "executable": { "var_ref": "executable" },
+      "args": {
+        "directory": { "var_ref": "flying_chairs_data" },
+        "checkpoint_directory": { "var_ref": "checkpoint_directory" },
+        "config": "mains/configs/pwcnet_schedule/train_pwcnet_flyingchairs_3.json",
+        "iterations": 200000
+      }
+    },
+    {
+      "executable": { "var_ref": "executable" },
+      "args": {
+        "directory": { "var_ref": "flying_chairs_data" },
+        "checkpoint_directory": { "var_ref": "checkpoint_directory" },
+        "config": "mains/configs/pwcnet_schedule/train_pwcnet_flyingchairs_4.json",
+        "iterations": 200000
+      }
+    },
+    {
+      "executable": { "var_ref": "executable" },
+      "args": {
+        "directory": { "var_ref": "flying_things_data" },
+        "checkpoint_directory": { "var_ref": "checkpoint_directory" },
+        "config": "mains/configs/pwcnet_schedule/train_pwcnet_flyingthings_5.json",
+        "iterations": 200000
+      }
+    },
+    {
+      "executable": { "var_ref": "executable" },
+      "args": {
+        "directory": { "var_ref": "flying_things_data" },
+        "checkpoint_directory": { "var_ref": "checkpoint_directory" },
+        "config": "mains/configs/pwcnet_schedule/train_pwcnet_flyingthings_6.json",
+        "iterations": 100000
+      }
+    },
+    {
+      "executable": { "var_ref": "executable" },
+      "args": {
+        "directory": { "var_ref": "flying_things_data" },
+        "checkpoint_directory": { "var_ref": "checkpoint_directory" },
+        "config": "mains/configs/pwcnet_schedule/train_pwcnet_flyingthings_7.json",
+        "iterations": 100000
+      }
+    },
+    {
+      "executable": { "var_ref": "executable" },
+      "args": {
+        "directory": { "var_ref": "flying_things_data" },
+        "checkpoint_directory": { "var_ref": "checkpoint_directory" },
+        "config": "mains/configs/pwcnet_schedule/train_pwcnet_flyingthings_8.json",
+        "iterations": 100000
+      }
+    },
+    {
+      "executable": { "var_ref": "executable" },
+      "args": {
+        "directory": { "var_ref": "flying_things_data" },
+        "checkpoint_directory": { "var_ref": "checkpoint_directory" },
+        "config": "mains/configs/pwcnet_schedule/train_pwcnet_flyingthings_9.json",
+        "iterations": 100000
+      }
+    }
+  ]
 }

@@ -25,6 +25,7 @@ def main():
     # Add extra fields to the config from argparse.
     config['checkpoint_directory'] = args.checkpoint_directory
     config['directory'] = args.directory
+    config['config'] = args.config
 
     if not os.path.exists(args.checkpoint_directory):
         os.makedirs(args.checkpoint_directory)
