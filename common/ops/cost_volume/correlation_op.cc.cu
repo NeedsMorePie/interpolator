@@ -2,7 +2,6 @@
 
 #define EIGEN_USE_GPU
 
-//#include "tensorflow/core/framework/register_types.h"
 #include "tensorflow/core/framework/tensor_types.h"
 #include "tensorflow/core/platform/types.h"
 #include "tensorflow/core/util/cuda_kernel_helper.h"
@@ -12,6 +11,7 @@
 using namespace tensorflow;
 using CPUDevice = Eigen::ThreadPoolDevice;
 using GPUDevice = Eigen::GpuDevice;
+
 // ---------------------------------------------------------
 // DIRECT PORT OF CAFFE CODE WITH MINIMAL CHANGES
 // ---------------------------------------------------------

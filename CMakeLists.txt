@@ -13,17 +13,18 @@ execute_process(COMMAND python3 -c "import tensorflow as tf; print(tf.sysconfig.
 string(REGEX REPLACE "\n$" "" TF_LIB_DIR ${TF_LIB_DIR})
 
 find_library(TF_FRAMEWORK tensorflow_framework HINTS ${TF_LIB_DIR})
-
 find_package(CUDA)
-
 set(CMAKE_CXX_FLAGS "-fPIC -std=c++11 ${CMAKE_CXX_FLAGS} -march=native -DGOOGLE_CUDA=1 -D_GLIBCXX_USE_CXX11_ABI=0")
 set(CUDA_NVCC_FLAGS "-I ${TF_INCLUDE_DIRS} -D GOOGLE_CUDA=1 -x cu -Xcompiler -fPIC --expt-relaxed-constexpr")
 set(CUDA_PROPAGATE_HOST_FLAGS ON)
 
-# # Get source files.
-# file(GLOB CORRELATION_OP_SRC "common/ops/cost_volume/*.cc")
+# Create symlink to cuda home. This is needed due to tensorflow headers looking for "cuda/include/cuda.h".
+set(CUDA_SYMLINK "cuda")
+message(STATUS "Creating symlink ${CUDA_SYMLINK} to $ENV{CUDA_BIN_PATH}")
+execute_process(COMMAND python3 -c "import os; os.symlink('$ENV{CUDA_BIN_PATH}', '${CUDA_SYMLINK}')")
 
-include_directories("/u/tianxingli/")
+# Set header include directories.
+include_directories("build")
 include_directories(${TF_INCLUDE_DIRS})
 
 # Create library.
