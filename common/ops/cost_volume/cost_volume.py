@@ -19,12 +19,21 @@ def cost_volume(c1, c2, search_range=4, batched_reduce=False):
     # if batched_reduce:
     #     return cost_volume_grouped_reduce(c1, c2, search_range)
     # return cost_volume_separate_reduce(c1, c2, search_range)
-    return mod.correlation(c1, c2, max_displacement=search_range)
- 
+    c1 = tf.transpose(c1, [0, 3, 1, 2])
+    c2 = tf.transpose(c2, [0, 3, 1, 2])
+    results = mod.correlation(
+        c1, c2, 
+        max_displacement=search_range, 
+        pad=search_range, 
+        stride_1=1,
+        stride_2=1
+    )
+    print('Using the custom correlation op...')
+    return tf.transpose(results[0], [0, 2, 3, 1])
+    
 
 # Load op and register gradients.
 mod = tf.load_op_library(os.path.join('build', 'libcorrelation_op.so'))
-print(mod)
 
 @ops.RegisterGradient("Correlation")
 def _CorrelationGrad(op, in_grad, in_grad1, in_grad2):
@@ -39,120 +48,120 @@ def _CorrelationGrad(op, in_grad, in_grad1, in_grad2):
     return [grad0, grad1]
 
 
-# def cost_volume_separate_reduce(c1, c2, search_range=4):
-#     with tf.name_scope('cost_volume'):
-#         square_len = 2 * search_range + 1
-#         square_area = square_len ** 2
-#         cv_shape = tf.concat([tf.shape(c1)[:-1], [square_area]], axis=0)
+def cost_volume_separate_reduce(c1, c2, search_range=4):
+    with tf.name_scope('cost_volume'):
+        square_len = 2 * search_range + 1
+        square_area = square_len ** 2
+        cv_shape = tf.concat([tf.shape(c1)[:-1], [square_area]], axis=0)
 
-#         # Form an index matrix to help us update sparsely later on.
-#         cv_height, cv_width = cv_shape[1], cv_shape[2]
-#         x_1d, y_1d, z_1d = tf.range(0, cv_width), tf.range(0, cv_height), tf.range(0, square_area)
-#         x_3d, y_3d, z_3d = tf.meshgrid(x_1d, y_1d, z_1d)
-#         indices_3d = tf.stack([y_3d, x_3d, z_3d], axis=-1)
+        # Form an index matrix to help us update sparsely later on.
+        cv_height, cv_width = cv_shape[1], cv_shape[2]
+        x_1d, y_1d, z_1d = tf.range(0, cv_width), tf.range(0, cv_height), tf.range(0, square_area)
+        x_3d, y_3d, z_3d = tf.meshgrid(x_1d, y_1d, z_1d)
+        indices_3d = tf.stack([y_3d, x_3d, z_3d], axis=-1)
 
-#         all_indices, all_costs = [], []
-#         cur_z_index = square_area - 1
-#         for i in range(-search_range, search_range + 1):
-#             for j in range(-search_range, search_range + 1):
+        all_indices, all_costs = [], []
+        cur_z_index = square_area - 1
+        for i in range(-search_range, search_range + 1):
+            for j in range(-search_range, search_range + 1):
 
-#                 # Note that 'Python'[slice(None)] returns 'Python'.
-#                 if i < 0:
-#                     slice_h, slice_h_r = slice(None, i), slice(-i, None)
-#                 elif i > 0:
-#                     slice_h, slice_h_r = slice(i, None), slice(None, -i)
-#                 else:
-#                     slice_h, slice_h_r = slice(None), slice(None)
+                # Note that 'Python'[slice(None)] returns 'Python'.
+                if i < 0:
+                    slice_h, slice_h_r = slice(None, i), slice(-i, None)
+                elif i > 0:
+                    slice_h, slice_h_r = slice(i, None), slice(None, -i)
+                else:
+                    slice_h, slice_h_r = slice(None), slice(None)
 
-#                 if j < 0:
-#                     slice_w, slice_w_r = slice(None, j), slice(-j, None)
-#                 elif j > 0:
-#                     slice_w, slice_w_r = slice(j, None), slice(None, -j)
-#                 else:
-#                     slice_w, slice_w_r = slice(None), slice(None)
+                if j < 0:
+                    slice_w, slice_w_r = slice(None, j), slice(-j, None)
+                elif j > 0:
+                    slice_w, slice_w_r = slice(j, None), slice(None, -j)
+                else:
+                    slice_w, slice_w_r = slice(None), slice(None)
 
-#                 costs = tf.reduce_mean(c1[:, slice_h, slice_w, :] * c2[:, slice_h_r, slice_w_r, :], axis=-1)
+                costs = tf.reduce_mean(c1[:, slice_h, slice_w, :] * c2[:, slice_h_r, slice_w_r, :], axis=-1)
 
-#                 # Get the coordinates for scatter update, where each element is a (y, x, z) coordinate.
-#                 cur_indices = indices_3d[slice_h, slice_w, cur_z_index]
-#                 cur_indices = tf.reshape(cur_indices, (-1, 3))
+                # Get the coordinates for scatter update, where each element is a (y, x, z) coordinate.
+                cur_indices = indices_3d[slice_h, slice_w, cur_z_index]
+                cur_indices = tf.reshape(cur_indices, (-1, 3))
 
-#                 # The batch dimension needs to be moved to the end to make slicing work correctly.
-#                 costs = tf.reshape(costs, (tf.shape(costs)[0], -1))
-#                 all_costs.append(costs)
-#                 all_indices.append(cur_indices)
-#                 cur_z_index -= 1
+                # The batch dimension needs to be moved to the end to make slicing work correctly.
+                costs = tf.reshape(costs, (tf.shape(costs)[0], -1))
+                all_costs.append(costs)
+                all_indices.append(cur_indices)
+                cur_z_index -= 1
 
-#         all_costs = tf.concat(all_costs[::-1], axis=1)
-#         all_costs = tf.transpose(all_costs, [1, 0])
-#         all_indices = tf.concat(all_indices[::-1], axis=0)
-#         batch_dim = tf.shape(c1)[0]
-#         target_shape = [cv_height, cv_width, square_area, batch_dim]
-#         cv = tf.scatter_nd(all_indices, all_costs, target_shape)
-#         cv = tf.transpose(cv, [3, 0, 1, 2])
-#         return cv
+        all_costs = tf.concat(all_costs[::-1], axis=1)
+        all_costs = tf.transpose(all_costs, [1, 0])
+        all_indices = tf.concat(all_indices[::-1], axis=0)
+        batch_dim = tf.shape(c1)[0]
+        target_shape = [cv_height, cv_width, square_area, batch_dim]
+        cv = tf.scatter_nd(all_indices, all_costs, target_shape)
+        cv = tf.transpose(cv, [3, 0, 1, 2])
+        return cv
 
 
-# def cost_volume_grouped_reduce(c1, c2, search_range=4):
-#     with tf.name_scope('cost_volume'):
-#         square_len = 2 * search_range + 1
-#         square_area = square_len ** 2
-#         cv_shape = tf.concat([tf.shape(c1)[:-1], [square_area]], axis=0)
+def cost_volume_grouped_reduce(c1, c2, search_range=4):
+    with tf.name_scope('cost_volume'):
+        square_len = 2 * search_range + 1
+        square_area = square_len ** 2
+        cv_shape = tf.concat([tf.shape(c1)[:-1], [square_area]], axis=0)
 
-#         # The batch dimension needs to be moved to the end to make slicing work correctly.
-#         c1_transposed = tf.transpose(c1, [1, 2, 3, 0])
-#         c2_transposed = tf.transpose(c2, [1, 2, 3, 0])
+        # The batch dimension needs to be moved to the end to make slicing work correctly.
+        c1_transposed = tf.transpose(c1, [1, 2, 3, 0])
+        c2_transposed = tf.transpose(c2, [1, 2, 3, 0])
 
-#         # Form an index matrix to help us update sparsely later on.
-#         cv_height, cv_width = cv_shape[1], cv_shape[2]
-#         x_1d, y_1d, z_1d = tf.range(0, cv_width), tf.range(0, cv_height), tf.range(0, square_area)
-#         x_3d, y_3d, z_3d = tf.meshgrid(x_1d, y_1d, z_1d)
-#         indices_3d = tf.stack([y_3d, x_3d, z_3d], axis=-1)
+        # Form an index matrix to help us update sparsely later on.
+        cv_height, cv_width = cv_shape[1], cv_shape[2]
+        x_1d, y_1d, z_1d = tf.range(0, cv_width), tf.range(0, cv_height), tf.range(0, square_area)
+        x_3d, y_3d, z_3d = tf.meshgrid(x_1d, y_1d, z_1d)
+        indices_3d = tf.stack([y_3d, x_3d, z_3d], axis=-1)
 
-#         all_indices, all_c2_indices, all_costs = [], [], []
-#         cur_z_index = square_area - 1
-#         num_channels = tf.shape(c1)[-1]
-#         batch_size = tf.shape(c1)[0]
-#         for i in range(-search_range, search_range + 1):
-#             for j in range(-search_range, search_range + 1):
+        all_indices, all_c2_indices, all_costs = [], [], []
+        cur_z_index = square_area - 1
+        num_channels = tf.shape(c1)[-1]
+        batch_size = tf.shape(c1)[0]
+        for i in range(-search_range, search_range + 1):
+            for j in range(-search_range, search_range + 1):
 
-#                 # Note that 'Python'[slice(None)] returns 'Python'.
-#                 if i < 0:
-#                     slice_h, slice_h_r = slice(None, i), slice(-i, None)
-#                 elif i > 0:
-#                     slice_h, slice_h_r = slice(i, None), slice(None, -i)
-#                 else:
-#                     slice_h, slice_h_r = slice(None), slice(None)
+                # Note that 'Python'[slice(None)] returns 'Python'.
+                if i < 0:
+                    slice_h, slice_h_r = slice(None, i), slice(-i, None)
+                elif i > 0:
+                    slice_h, slice_h_r = slice(i, None), slice(None, -i)
+                else:
+                    slice_h, slice_h_r = slice(None), slice(None)
 
-#                 if j < 0:
-#                     slice_w, slice_w_r = slice(None, j), slice(-j, None)
-#                 elif j > 0:
-#                     slice_w, slice_w_r = slice(j, None), slice(None, -j)
-#                 else:
-#                     slice_w, slice_w_r = slice(None), slice(None)
+                if j < 0:
+                    slice_w, slice_w_r = slice(None, j), slice(-j, None)
+                elif j > 0:
+                    slice_w, slice_w_r = slice(j, None), slice(None, -j)
+                else:
+                    slice_w, slice_w_r = slice(None), slice(None)
 
-#                 # Get the coordinates for scatter update, where each element is a (y, x, z) coordinate.
-#                 cur_indices = indices_3d[slice_h, slice_w, cur_z_index]
-#                 cur_indices = tf.reshape(cur_indices, (-1, 3))
-#                 cur_c2_indices = indices_3d[slice_h_r, slice_w_r, 0][..., :-1]
-#                 cur_c2_indices = tf.reshape(cur_c2_indices, (-1, 2))
-#                 all_indices.append(cur_indices)
-#                 all_c2_indices.append(cur_c2_indices)
-#                 cur_z_index -= 1
+                # Get the coordinates for scatter update, where each element is a (y, x, z) coordinate.
+                cur_indices = indices_3d[slice_h, slice_w, cur_z_index]
+                cur_indices = tf.reshape(cur_indices, (-1, 3))
+                cur_c2_indices = indices_3d[slice_h_r, slice_w_r, 0][..., :-1]
+                cur_c2_indices = tf.reshape(cur_c2_indices, (-1, 2))
+                all_indices.append(cur_indices)
+                all_c2_indices.append(cur_c2_indices)
+                cur_z_index -= 1
 
-#         # Gather values from c1 and c2 for dot product-ing.
-#         all_indices = tf.concat(all_indices[::-1], axis=0)
-#         all_c1_indices = all_indices[:, :-1]
-#         all_c2_indices = tf.concat(all_c2_indices[::-1], axis=0)
-#         all_c2_regions = tf.gather_nd(c2_transposed, all_c2_indices)
-#         all_c2_regions = tf.reshape(all_c2_regions, (-1, num_channels, batch_size))
-#         all_c1_regions = tf.gather_nd(c1_transposed, all_c1_indices)
-#         all_c1_regions = tf.reshape(all_c1_regions, (-1, num_channels, batch_size))
+        # Gather values from c1 and c2 for dot product-ing.
+        all_indices = tf.concat(all_indices[::-1], axis=0)
+        all_c1_indices = all_indices[:, :-1]
+        all_c2_indices = tf.concat(all_c2_indices[::-1], axis=0)
+        all_c2_regions = tf.gather_nd(c2_transposed, all_c2_indices)
+        all_c2_regions = tf.reshape(all_c2_regions, (-1, num_channels, batch_size))
+        all_c1_regions = tf.gather_nd(c1_transposed, all_c1_indices)
+        all_c1_regions = tf.reshape(all_c1_regions, (-1, num_channels, batch_size))
 
-#         # Compute costs and scatter into output.
-#         all_costs = tf.reduce_mean(all_c1_regions * all_c2_regions, axis=1)
-#         batch_dim = tf.shape(c1)[0]
-#         target_shape = [cv_height, cv_width, square_area, batch_dim]
-#         cv = tf.scatter_nd(all_indices, all_costs, target_shape)
-#         cv = tf.transpose(cv, [3, 0, 1, 2])
-#         return cv
+        # Compute costs and scatter into output.
+        all_costs = tf.reduce_mean(all_c1_regions * all_c2_regions, axis=1)
+        batch_dim = tf.shape(c1)[0]
+        target_shape = [cv_height, cv_width, square_area, batch_dim]
+        cv = tf.scatter_nd(all_indices, all_costs, target_shape)
+        cv = tf.transpose(cv, [3, 0, 1, 2])
+        return cv
