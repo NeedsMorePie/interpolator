@@ -28,12 +28,12 @@ def cost_volume(c1, c2, search_range=4, batched_reduce=False):
         stride_1=1,
         stride_2=1
     )
-    print('Using the custom correlation op...')
     return tf.transpose(results[0], [0, 2, 3, 1])
     
 
 # Load op and register gradients.
 mod = tf.load_op_library(os.path.join('build', 'libcorrelation_op.so'))
+
 
 @ops.RegisterGradient("Correlation")
 def _CorrelationGrad(op, in_grad, in_grad1, in_grad2):

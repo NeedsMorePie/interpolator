@@ -17,8 +17,7 @@
 
 #include "correlation_op.h"
 
-typedef Eigen::GpuDevice GPUDevice;
-
+using GPUDevice = Eigen::GpuDevice;
 using namespace tensorflow;
 
 void Correlation(const GPUDevice& d,
@@ -36,7 +35,7 @@ void CorrelationGrad(const GPUDevice& d,
                      typename TTypes<float, 4>::Tensor output_grad_0,
                      typename TTypes<float, 4>::Tensor output_grad_1,
                      CorrelationState params);
-
+                
 class CorrelationOp : public OpKernel {
 public:
   explicit CorrelationOp(OpKernelConstruction* context)
