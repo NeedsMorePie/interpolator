@@ -3,19 +3,22 @@ import tensorflow as tf
 import unittest
 import time
 from common.ops.cost_volume.cost_volume import cost_volume
+from tensorflow.python.ops import gradient_checker
 
 
 PROFILE = False
 
 
 class TestCostVolume(unittest.TestCase):
-
     def setUp(self):
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
         self.sess = tf.Session(config=config)
 
-    def testTinyImageSearch0(self):
+        # Inputs should be normalized in some manner, i.e in range [0, 1].
+        self.max_allowable_grad_err = 1E-4
+
+    def test_tiny_image_search_0(self):
         image_shape = (1, 2, 2, 1)
         c1 = np.zeros(image_shape)
         c2 = np.ones(image_shape)
@@ -26,7 +29,7 @@ class TestCostVolume(unittest.TestCase):
         cv = self.sess.run(cv, feed_dict={input1: c1, input2: c2})
         self.assertEqual(cv.tolist(), expected.tolist())
 
-    def testTinyImageOnesSearch0(self):
+    def test_tiny_image_ones_search_0(self):
         image_shape = (1, 2, 2, 1)
         c1 = np.ones(image_shape)
         expected = np.ones(image_shape)
@@ -36,7 +39,7 @@ class TestCostVolume(unittest.TestCase):
         cv = self.sess.run(cv, feed_dict={input1: c1, input2: c1})
         self.assertEqual(cv.tolist(), expected.tolist())
 
-    def testTinyImageOnesLargerWidthSearch0(self):
+    def test_tiny_image_ones_larger_width_search_0(self):
         image_shape = (1, 2, 3, 1)
         c1 = np.ones(image_shape)
         expected = np.ones(image_shape)
@@ -46,7 +49,7 @@ class TestCostVolume(unittest.TestCase):
         cv = self.sess.run(cv, feed_dict={input1: c1, input2: c1})
         self.assertEqual(cv.tolist(), expected.tolist())
 
-    def testTinyImageSearch1(self):
+    def test_tiny_image_search_1(self):
         image_shape = (1, 2, 2, 1)
         c1 = [[1, 2], [2, 3]]
         c2 = [[1, 3], [4, 5]]
@@ -62,7 +65,7 @@ class TestCostVolume(unittest.TestCase):
         cv = self.sess.run(cv, feed_dict={input1: c1, input2: c2})
         self.assertEqual(np.squeeze(cv).tolist(), expected.tolist())
 
-    def testTinyImageLargerWidthSearch1(self):
+    def test_tiny_image_larger_width_search_1(self):
         image_shape = (1, 2, 3, 1)
         c1 = [
             [1, 2, 1],
@@ -84,7 +87,7 @@ class TestCostVolume(unittest.TestCase):
         cv = self.sess.run(cv, feed_dict={input1: c1, input2: c2})
         self.assertEqual(np.squeeze(cv).tolist(), expected.tolist())
 
-    def testTinyImageLargerHeightSearch1(self):
+    def test_tiny_image_larger_height_search_1(self):
         image_shape = (1, 3, 2, 1)
         c1 = [
             [1, 2],
@@ -109,7 +112,7 @@ class TestCostVolume(unittest.TestCase):
         cv = self.sess.run(cv, feed_dict={input1: c1, input2: c2})
         self.assertEqual(np.squeeze(cv).tolist(), expected.tolist())
 
-    def testTinyImageSearch1Batch(self):
+    def test_tiny_image_search_1_batch(self):
         image_shape = (2, 2, 2, 1)
         c1 = [[1, 2], [2, 3]]
         c2 = [[1, 3], [4, 5]]
@@ -127,7 +130,7 @@ class TestCostVolume(unittest.TestCase):
         cv = self.sess.run(cv, feed_dict={input1: c1, input2: c2})
         self.assertEqual(np.squeeze(cv).tolist(), expected.tolist())
 
-    def testTinyImageSearch1BatchOnes(self):
+    def test_tiny_image_search_1_batch_one(self):
         image_shape = (2, 2, 2, 1)
         c1 = [[1, 2], [2, 3]]
         c2 = [[1, 3], [4, 5]]
@@ -158,7 +161,7 @@ class TestCostVolume(unittest.TestCase):
         cv = self.sess.run(cv, feed_dict={input1: c1, input2: c2})
         self.assertEqual(np.squeeze(cv).tolist(), expected.tolist())
 
-    def testSmallImageSearch1(self):
+    def test_small_image_search_1(self):
         image_shape = (1, 3, 3, 2)
         c1 = [
             [[0, 0], [2, 3], [5, 3]],
@@ -182,6 +185,97 @@ class TestCostVolume(unittest.TestCase):
         cv = self.sess.run(cv, feed_dict={input1: c1, input2: c2})
         self.assertEqual(np.squeeze(cv).tolist(), expected.tolist())
 
+    def test_small_image_search_2(self):
+        image_shape = (1, 2, 3, 4)
+        c1 = [
+            [[0, 0, 1, 1], [2, 3, -2, 1], [5, 3, 1, 2]],
+            [[3, 0, 1, 3], [0, 0, 3, 1], [7, 4, 0, 1]],
+        ]
+        c2 = [
+            [[4, 2, 5, 2], [2, 0, 2, 1], [6, 2, 1, -1]],
+            [[-3, 5, -10, 1], [3, 1, -2, 0], [0, 2, 10, 3]],
+        ]
+        c1, c2 = np.expand_dims(c1, axis=0), np.expand_dims(c2, axis=0)
+        expected = np.array([[[[ 0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,
+             0.  ,  0.  ,  0.  ,  1.75,  0.75,  0.  ,  0.  ,  0.  , -2.25,
+            -0.5 ,  3.25,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ],
+           [ 0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,
+             0.  ,  0.  ,  1.5 ,  0.25,  3.75,  0.  ,  0.  ,  7.5 ,  3.25,
+            -2.75,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ],
+           [ 0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,
+             0.  ,  8.75,  3.5 ,  8.75,  0.  ,  0.  , -2.  ,  4.  ,  5.5 ,
+             0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ]],
+          [[ 0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  5.75,  2.75,
+             4.  ,  0.  ,  0.  , -4.  ,  1.75,  4.75,  0.  ,  0.  ,  0.  ,
+             0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ],
+           [ 0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  4.25,  1.75,  0.5 ,
+             0.  ,  0.  , -7.25, -1.5 ,  8.25,  0.  ,  0.  ,  0.  ,  0.  ,
+             0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ],
+           [ 0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  9.5 ,  3.75, 12.25,  0.  ,
+             0.  ,  0.  ,  6.25,  2.75,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,
+             0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ]]]])
+
+        input1 = tf.placeholder(shape=image_shape, dtype=tf.float32)
+        input2 = tf.placeholder(shape=image_shape, dtype=tf.float32)
+        cv = cost_volume(input1, input2, 2)
+        cv = self.sess.run(cv, feed_dict={input1: c1, input2: c2})
+        self.assertEqual(cv.tolist(), expected.tolist())
+
+    def test_gradient_small_image_search_0(self):
+        image_shape = (1, 2, 2, 1)
+        c1 = np.zeros(image_shape)
+        c2 = np.ones(image_shape)
+        input1 = tf.constant(c1, dtype=tf.float32)
+        input2 = tf.constant(c2, dtype=tf.float32)
+        cv = cost_volume(input1, input2, 0)
+
+        with self.sess:
+            cv_shape = [1, 2, 2, 1]
+            err_c1 = gradient_checker.compute_gradient_error(input1, image_shape, cv, cv_shape, x_init_value=c1)
+            err_c2 = gradient_checker.compute_gradient_error(input2, image_shape, cv, cv_shape, x_init_value=c2)
+            self.assertLessEqual(err_c1, self.max_allowable_grad_err)
+            self.assertLessEqual(err_c2, self.max_allowable_grad_err)
+
+    def test_gradient_tiny_image_larger_height_search_1(self):
+        image_shape = (1, 3, 2, 1)
+        c1 = [
+            [1, 2],
+            [2, 3],
+            [1, 1]
+        ]
+        c2 = [
+            [1, 3],
+            [0, 1],
+            [1, 0]
+        ]
+        c1 = np.expand_dims(np.expand_dims(c1, axis=0), axis=-1) / np.max(c1)
+        c2 = np.expand_dims(np.expand_dims(c2, axis=0), axis=-1) / np.max(c2)
+        input1 = tf.constant(c1, dtype=tf.float32)
+        input2 = tf.constant(c2, dtype=tf.float32)
+        cv = cost_volume(input1, input2, 1)
+
+        with self.sess:
+            cv_shape = [1, 3, 2, 9]
+            err_c1 = gradient_checker.compute_gradient_error(input1, image_shape, cv, cv_shape, x_init_value=c1)
+            err_c2 = gradient_checker.compute_gradient_error(input2, image_shape, cv, cv_shape, x_init_value=c2)
+            self.assertLessEqual(err_c1, self.max_allowable_grad_err)
+            self.assertLessEqual(err_c2, self.max_allowable_grad_err)
+
+    def test_gradient_small_image_search_2_batch(self):
+        image_shape = (4, 3, 2, 1)
+        c1 = np.random.rand(*image_shape)
+        c2 = np.random.rand(*image_shape)
+        input1 = tf.constant(c1, dtype=tf.float32)
+        input2 = tf.constant(c2, dtype=tf.float32)
+        cv = cost_volume(input1, input2, 2)
+
+        with self.sess:
+            cv_shape = [4, 3, 2, 25]
+            err_c1 = gradient_checker.compute_gradient_error(input1, image_shape, cv, cv_shape, x_init_value=c1)
+            err_c2 = gradient_checker.compute_gradient_error(input2, image_shape, cv, cv_shape, x_init_value=c2)
+            self.assertLessEqual(err_c1, self.max_allowable_grad_err)
+            self.assertLessEqual(err_c2, self.max_allowable_grad_err)
+
     def testPerformance(self):
         if not PROFILE:
             return
@@ -202,8 +296,6 @@ class TestCostVolume(unittest.TestCase):
                 print('Current cost volume runtime: %.3f' % run_times[-1])
 
         print('Average cost volume runtime: %.3f' % np.average(run_times))
-
-
 
 
 if __name__ == '__main__':

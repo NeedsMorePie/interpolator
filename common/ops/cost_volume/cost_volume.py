@@ -16,36 +16,36 @@ def cost_volume(c1, c2, search_range=4, batched_reduce=False):
     :param batched_reduce: If True, will enable more aggressive batching of TF ops, at the cost of more memory.
     :return: Tensor. Cost volume of shape [batch_size, H, W, s * s], where s is equal to 2 * search_range + 1.
     """
-    # if batched_reduce:
-    #     return cost_volume_grouped_reduce(c1, c2, search_range)
-    # return cost_volume_separate_reduce(c1, c2, search_range)
-    c1 = tf.transpose(c1, [0, 3, 1, 2])
-    c2 = tf.transpose(c2, [0, 3, 1, 2])
-    results = mod.correlation(
-        c1, c2, 
-        max_displacement=search_range, 
-        pad=search_range, 
-        stride_1=1,
-        stride_2=1
-    )
-    return tf.transpose(results[0], [0, 2, 3, 1])
+    if batched_reduce:
+        return cost_volume_grouped_reduce(c1, c2, search_range)
+    return cost_volume_separate_reduce(c1, c2, search_range)
+    # c1 = tf.transpose(c1, [0, 3, 1, 2])
+    # c2 = tf.transpose(c2, [0, 3, 1, 2])
+    # results = mod.correlation(
+    #     c1, c2,
+    #     max_displacement=search_range,
+    #     pad=search_range,
+    #     stride_1=1,
+    #     stride_2=1
+    # )
+    # return tf.transpose(results[0], [0, 2, 3, 1])
     
 
 # Load op and register gradients.
-mod = tf.load_op_library(os.path.join('build', 'libcorrelation_op.so'))
-
-
-@ops.RegisterGradient("Correlation")
-def _CorrelationGrad(op, in_grad, in_grad1, in_grad2):
-    grad0, grad1 = mod.correlation_grad(
-        in_grad, op.inputs[0], op.inputs[1],
-        op.outputs[1], op.outputs[2],
-        kernel_size=op.get_attr('kernel_size'),
-        max_displacement=op.get_attr('max_displacement'),
-        pad=op.get_attr('pad'),
-        stride_1=op.get_attr('stride_1'),
-        stride_2=op.get_attr('stride_2'))
-    return [grad0, grad1]
+# mod = tf.load_op_library(os.path.join('build', 'libcorrelation_op.so'))
+#
+#
+# @ops.RegisterGradient("Correlation")
+# def _CorrelationGrad(op, in_grad, in_grad1, in_grad2):
+#     grad0, grad1 = mod.correlation_grad(
+#         in_grad, op.inputs[0], op.inputs[1],
+#         op.outputs[1], op.outputs[2],
+#         kernel_size=op.get_attr('kernel_size'),
+#         max_displacement=op.get_attr('max_displacement'),
+#         pad=op.get_attr('pad'),
+#         stride_1=op.get_attr('stride_1'),
+#         stride_2=op.get_attr('stride_2'))
+#     return [grad0, grad1]
 
 
 def cost_volume_separate_reduce(c1, c2, search_range=4):
