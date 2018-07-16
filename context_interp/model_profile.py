@@ -89,7 +89,7 @@ if __name__ == '__main__':
         if i >= warmup_runs:
             dt = time.time() - t1
             print('Current training time: %f' % dt)
-        training_avg += dt
+            training_avg += dt
 
     print('Averaged training time: %f' % (training_avg / num_runs))
     for profile_cmd in profile_cmds:
