@@ -276,27 +276,6 @@ class TestCostVolume(unittest.TestCase):
             self.assertLessEqual(err_c1, self.max_allowable_grad_err)
             self.assertLessEqual(err_c2, self.max_allowable_grad_err)
 
-    def testPerformance(self):
-        if not PROFILE:
-            return
-
-        image_shape = (8, 128, 128, 32)
-        test_runs = 100
-        c1 = np.zeros(image_shape)
-        c2 = np.ones(image_shape)
-        input1 = tf.placeholder(shape=image_shape, dtype=tf.float32)
-        input2 = tf.placeholder(shape=image_shape, dtype=tf.float32)
-        cv = cost_volume(input1, input2, 4)
-        run_times = []
-        for i in range(test_runs + 5):
-            t1 = time.time()
-            _ = self.sess.run(cv, feed_dict={input1: c1, input2: c2})
-            if i > 4:
-                run_times.append(time.time() - t1)
-                print('Current cost volume runtime: %.3f' % run_times[-1])
-
-        print('Average cost volume runtime: %.3f' % np.average(run_times))
-
 
 if __name__ == '__main__':
     unittest.main()

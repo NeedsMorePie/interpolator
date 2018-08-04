@@ -22,7 +22,7 @@ if(CUDA_FOUND)
     # Create symlink to cuda home. This is needed due to tensorflow headers looking for "cuda/include/cuda.h".
     set(CUDA_SYMLINK "cuda")
     message(STATUS "Creating symlink ${CUDA_SYMLINK} to $ENV{CUDA_BIN_PATH}")
-    execute_process(COMMAND python3 -c "import os; os.symlink('$ENV{CUDA_BIN_PATH}', '${CUDA_SYMLINK}')")
+    execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink $ENV{CUDA_BIN_PATH} ${CUDA_SYMLINK})
 else()
     set(CUDA_LIBRARIES "")
     message(STATUS "Compilation of ops will be for the CPU only")

@@ -27,27 +27,37 @@ inline int CAFFE_GET_BLOCKS(const int N) {
   return (N + CAFFE_CUDA_NUM_THREADS - 1) / CAFFE_CUDA_NUM_THREADS;
 }
 
+// Adds padding by moving the elements in the array around.
+// Also moves the channels to the last dimension.
 template <typename Dtype>
 __global__ void blob_rearrange_kernel2(const Dtype* in, Dtype* out, int num, int channels, int width, int height, int widthheight, int padding, int pwidthheight)
 {
-    int xy = blockIdx.x*blockDim.x + threadIdx.x;
-    if(xy>=widthheight)
-        return;
+  int xy = blockIdx.x*blockDim.x + threadIdx.x;
+  if(xy>=widthheight)
+    return;
 
-    int ch = blockIdx.y;
-    int n  = blockIdx.z;
+  int ch = blockIdx.y;
+  int n  = blockIdx.z;
 
-    Dtype value=in[(n*channels+ch)*widthheight+xy];
+  Dtype value=in[(n*channels+ch)*widthheight+xy];
 
-    __syncthreads();
+  __syncthreads();
 
-    int xpad  = (xy % width + padding);
-    int ypad  = (xy / width + padding);
-    int xypad = ypad * (width+2*padding) + xpad;
+  // Compute the new position of this pixel, after padding has been added.
+  int xpad  = (xy % width + padding);
+  int ypad  = (xy / width + padding);
+  int xypad = ypad * (width+2*padding) + xpad;
 
-    out[(n*pwidthheight+xypad)*channels + ch] = value;
+  out[(n*pwidthheight+xypad)*channels + ch] = value;
 }
 
+// High level outline:
+// Let c0 be the features over which correlation neighborhoods are centered on, and c1 be the other features.
+// Each block is responsible for computing the correlations across the input channel dimension.
+// 1. Load the kernel-size dependent patches in c0 into shared memory for the block.
+// 2. Each thread (they are spread across the input channel dimension) in the block iterates 
+//    over the spatial neighborhood in c1 to compute correlations.
+// 3. Finally, we use 1 thread in the block to reduce sum over the input channel dimension.
 template <typename Dtype>
 __global__ void CorrelateData(const int nthreads, int num, int topwidth, int topheight, int topchannels, int topcount,
   int max_displacement, int neighborhood_grid_radius, int neighborhood_grid_width, int kernel_radius, int kernel_size, int stride1, int stride2,
@@ -58,20 +68,21 @@ __global__ void CorrelateData(const int nthreads, int num, int topwidth, int top
 
   Dtype *patch_data = (Dtype *)patch_data_char;
 
-    // First (upper left) position of kernel upper-left corner in current center position of neighborhood in image 1
+  // Kernel for c0 is not centered. Its top left is always at the center regardless of kernel size.
   int x1 = blockIdx.x*stride1 + max_displacement;
   int y1 = blockIdx.y*stride1 + max_displacement;
   int item = blockIdx.z;
   int ch_off = threadIdx.x;
 
-  // Load 3D patch into shared shared memory
+  // Load 3D patch into shared memory.
+  // Threads are spread across the channel dimension (i.e thread0, ... threadN, thread0, ... threadN, ...).
   for(int j = 0; j < kernel_size; j++) { // HEIGHT
     for(int i = 0; i < kernel_size; i++) { // WIDTH
       int ji_off = ((j * kernel_size) + i) * bottomchannels;
       for(int ch = ch_off; ch < bottomchannels; ch += (WARPS_PER_BLOCK*THREADS_PER_WARP)) { // CHANNELS
-          int idx1 = ((item * bottomheight + y1+j) * bottomwidth + x1+i) * bottomchannels + ch;
-          int idxPatchData = ji_off + ch;
-          patch_data[idxPatchData] = bottom0[idx1];
+        int idx1 = ((item * bottomheight + y1+j) * bottomwidth + x1+i) * bottomchannels + ch;
+        int idxPatchData = ji_off + ch;
+        patch_data[idxPatchData] = bottom0[idx1];
       }
     }
   }
@@ -80,10 +91,12 @@ __global__ void CorrelateData(const int nthreads, int num, int topwidth, int top
 
   __shared__ Dtype sum[WARPS_PER_BLOCK*THREADS_PER_WARP];
 
-  // Compute correlation
+  // For this input channel, compute correlation over the spatial neighborhood. 
+  // top_channel (output channel) is an index into the spatial neighborhood.
   for(int top_channel = 0; top_channel < topchannels; top_channel++) {
     sum[ch_off] = 0;
 
+    // Compute x and y offsets from neighborhood center.
     int s2o = (top_channel % neighborhood_grid_width - neighborhood_grid_radius) * stride2;
     int s2p = (top_channel / neighborhood_grid_width - neighborhood_grid_radius) * stride2;
 
@@ -102,12 +115,13 @@ __global__ void CorrelateData(const int nthreads, int num, int topwidth, int top
       }
     }
 
+    // Reduce sum over the input channel dimension, using the thread at channel idx 0.
     __syncthreads();
 
     if(ch_off == 0) {
         Dtype total_sum = 0;
         for(int idx = 0; idx < WARPS_PER_BLOCK*THREADS_PER_WARP; idx++) {
-            total_sum += sum[idx];
+          total_sum += sum[idx];
         }
         const int sumelems = kernel_size*kernel_size*bottomchannels;
         const int index = ((top_channel*topheight + blockIdx.y)*topwidth)+blockIdx.x;
@@ -116,6 +130,12 @@ __global__ void CorrelateData(const int nthreads, int num, int topwidth, int top
   }
 }
 
+// Notes on gradient computation kernels:
+// bottom holds gradients dl/dx that we need to compute. topdiff holds gradients dl/dy.
+// xmin, xmax, ymin, ymax index into topdiff (i.e they define the range for which the output is affected by dx).
+// For a kernel size larger than 1, we need to shift around topdiff, although the underlying dy/dx is the same.
+
+// Computing the gradients with respect to c0.
 template <typename Dtype>
 __global__ void CorrelateDataBackward0(const int nthreads, int num, int item, int topwidth, int topheight, int topchannels,
   int max_displacement, int neighborhood_grid_radius, int neighborhood_grid_width, int kernel_radius, int stride1, int stride2,
@@ -180,6 +200,9 @@ __global__ void CorrelateDataBackward0(const int nthreads, int num, int item, in
 
 }
 
+// Computing the gradients with respect to c1.
+// Note that the structure of the code is almost identical to the gradient for c0, 
+// except that our indexing into topdiff moves around a lot more (in addition to the shifting for the kernel).
 template <typename Dtype>
 __global__ void CorrelateDataBackward1(const int nthreads, int num, int item, int topwidth, int topheight, int topchannels,
   int max_displacement, int neighborhood_grid_radius, int neighborhood_grid_width, int kernel_radius, int stride1, int stride2,
@@ -187,9 +210,6 @@ __global__ void CorrelateDataBackward1(const int nthreads, int num, int item, in
   const Dtype *bottom0, Dtype *bottom1diff, const Dtype *topdiff)
 {
   CUDA_1D_KERNEL_LOOP(index, nthreads) {
-    //int l = index % bottomwidth + pad_size; //w-pos
-    //int m = (index / bottomwidth) % bottomheight + pad_size; //h-pos
-    //int n = (index / bottomwidth / bottomheight) % bottomchannels; //channels
     int n = index % bottomchannels; //channels
     int l = (index / bottomchannels) % bottomwidth + pad_size; //w-pos
     int m = (index / bottomchannels / bottomwidth) % bottomheight + pad_size; //h-pos
