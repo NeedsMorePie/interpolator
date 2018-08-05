@@ -15,8 +15,6 @@ def cost_volume(c1, c2, search_range=4):
     :param search_range: The search square's side length is equal to 2 * search_range + 1.
     :return: Tensor. Cost volume of shape [batch_size, H, W, s * s], where s is equal to 2 * search_range + 1.
     """
-    c1 = tf.transpose(c1, [0, 3, 1, 2])
-    c2 = tf.transpose(c2, [0, 3, 1, 2])
     results = mod.correlation(
         c1, c2,
         max_displacement=search_range,
@@ -24,7 +22,7 @@ def cost_volume(c1, c2, search_range=4):
         stride_1=1,
         stride_2=1
     )
-    return tf.transpose(results[0], [0, 2, 3, 1])
+    return results[0]
     
 
 # Load op and register gradients.

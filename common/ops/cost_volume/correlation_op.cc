@@ -52,9 +52,9 @@ public:
     typename TTypes<float, 4>::ConstTensor input_1_data = input_1.tensor<float, 4>();
 
     const int batch = input_0_data.dimension(0);
-    const int in_channels = input_0_data.dimension(1);
-    const int in_height = input_0_data.dimension(2);
-    const int in_width = input_0_data.dimension(3);
+    const int in_channels = input_0_data.dimension(3);
+    const int in_height = input_0_data.dimension(1);
+    const int in_width = input_0_data.dimension(2);
 
     CorrelationState st(attrs, in_height, in_width, in_channels);
 
@@ -62,7 +62,7 @@ public:
                 errors::InvalidArgument("Invalid correlation settings"));
 
     Tensor* output = NULL;
-    TensorShape output_shape({batch, st.out_channels, st.out_height, st.out_width});
+    TensorShape output_shape({batch, st.out_height, st.out_width, st.out_channels});
     OP_REQUIRES_OK(context, context->allocate_output(0, output_shape, &output));
 
     Tensor* padded_0 = NULL;
@@ -103,9 +103,9 @@ public:
     typename TTypes<float, 4>::ConstTensor padded_0_data = padded_0.tensor<float, 4>();
     typename TTypes<float, 4>::ConstTensor padded_1_data = padded_1.tensor<float, 4>();
 
-    const int in_channels = input_0_data.dimension(1);
-    const int in_height = input_0_data.dimension(2);
-    const int in_width = input_0_data.dimension(3);
+    const int in_channels = input_0_data.dimension(3);
+    const int in_height = input_0_data.dimension(1);
+    const int in_width = input_0_data.dimension(2);
 
     CorrelationState st(attrs, in_height, in_width, in_channels);
 
@@ -164,7 +164,7 @@ REGISTER_OP("Correlation")
 
     // TODO: support passing on output width and height
 
-    c->set_output(0, c->MakeShape({batch, out_channels, c->UnknownDim(), c->UnknownDim()}));
+    c->set_output(0, c->MakeShape({batch, c->UnknownDim(), c->UnknownDim(), out_channels}));
     return Status::OK();
   });
 

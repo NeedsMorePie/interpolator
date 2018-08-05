@@ -28,9 +28,9 @@ inline int CAFFE_GET_BLOCKS(const int N) {
 }
 
 // Adds padding by moving the elements in the array around.
-// Also moves the channels to the last dimension.
+// Also moves the channels to the last dimension, if it wasn't already.
 template <typename Dtype>
-__global__ void blob_rearrange_kernel2(const Dtype* in, Dtype* out, int num, int channels, int width, int height, int widthheight, int padding, int pwidthheight)
+__global__ void RearrangeWithPadding(const Dtype* in, Dtype* out, int num, int channels, int width, int height, int widthheight, int padding, int pwidthheight)
 {
   int xy = blockIdx.x*blockDim.x + threadIdx.x;
   if(xy>=widthheight)
@@ -39,7 +39,8 @@ __global__ void blob_rearrange_kernel2(const Dtype* in, Dtype* out, int num, int
   int ch = blockIdx.y;
   int n  = blockIdx.z;
 
-  Dtype value=in[(n*channels+ch)*widthheight+xy];
+  int index = (n * widthheight + xy) * channels + ch;
+  Dtype value = in[index];
 
   __syncthreads();
 
@@ -50,6 +51,7 @@ __global__ void blob_rearrange_kernel2(const Dtype* in, Dtype* out, int num, int
 
   out[(n*pwidthheight+xypad)*channels + ch] = value;
 }
+
 
 // High level outline:
 // Let c0 be the features over which correlation neighborhoods are centered on, and c1 be the other features.
@@ -109,7 +111,7 @@ __global__ void CorrelateData(const int nthreads, int num, int topwidth, int top
 
           int idxPatchData = ji_off + ch;
           int idx2 = ((item * bottomheight + y2+j) * bottomwidth + x2+i) * bottomchannels + ch;
-
+          
           sum[ch_off] += patch_data[idxPatchData] * bottom1[idx2];
         }
       }
@@ -123,8 +125,9 @@ __global__ void CorrelateData(const int nthreads, int num, int topwidth, int top
         for(int idx = 0; idx < WARPS_PER_BLOCK*THREADS_PER_WARP; idx++) {
           total_sum += sum[idx];
         }
+
         const int sumelems = kernel_size*kernel_size*bottomchannels;
-        const int index = ((top_channel*topheight + blockIdx.y)*topwidth)+blockIdx.x;
+        const int index = (blockIdx.y * topwidth + blockIdx.x) * topchannels + top_channel;
         top[index + item*topcount] = total_sum / (float)sumelems;
     }
   }
@@ -182,11 +185,10 @@ __global__ void CorrelateDataBackward0(const int nthreads, int num, int item, in
 
             // Index offset for topdiff in following loops:
             int op = (p+neighborhood_grid_radius) * neighborhood_grid_width + (o+neighborhood_grid_radius); // index [o,p]
-            int idxopoffset = (item * topchannels + op);
 
             for(int y = ymin; y <= ymax; y++) {
               for(int x = xmin; x <= xmax; x++) {
-                int idxtopdiff = (idxopoffset * topheight + y) * topwidth + x; // topdiff[x,y,o,p]
+                int idxtopdiff = ((item * topheight + y) * topwidth + x) * topchannels + op;
                 sum += topdiff[idxtopdiff] * bot1tmp;
               }
             }
@@ -194,7 +196,7 @@ __global__ void CorrelateDataBackward0(const int nthreads, int num, int item, in
         }
     }
     const int sumelems = (kernel_radius*2+1)*(kernel_radius*2+1)*bottomchannels;
-		const int bot0index = ((n * bottomheight) + (m-pad_size)) * bottomwidth + (l-pad_size);
+    const int bot0index = ((m - pad_size) * bottomwidth + (l - pad_size)) * bottomchannels + n;
     bottom0diff[bot0index + item*bottomcount] = sum / (float)sumelems;
   }
 
@@ -253,7 +255,7 @@ __global__ void CorrelateDataBackward1(const int nthreads, int num, int item, in
 
             for(int y = ymin; y <= ymax; y++) {
               for(int x = xmin; x <= xmax; x++) {
-                int idxtopdiff = (idxOpOffset * topheight + y) * topwidth + x; // topdiff[x,y,o,p]
+                int idxtopdiff = ((item * topheight + y) * topwidth + x) * topchannels + op;
                 sum += topdiff[idxtopdiff] * bot0tmp;
               }
             }
@@ -261,7 +263,7 @@ __global__ void CorrelateDataBackward1(const int nthreads, int num, int item, in
       }
     }
     const int sumelems = (kernel_radius*2+1)*(kernel_radius*2+1)*bottomchannels;
-		const int bot1index = ((n * bottomheight) + (m-pad_size)) * bottomwidth + (l-pad_size);
+    const int bot1index = ((m - pad_size) * bottomwidth + (l - pad_size)) * bottomchannels + n;
 		bottom1diff[bot1index + item*bottomcount] = sum / (float)sumelems;
   }
 
@@ -275,9 +277,9 @@ void Correlation(const GPUDevice& d,
                  typename TTypes<float, 4>::Tensor padded_1,
                  CorrelationState st) {
 
-  const int top_channels_ = output.dimension(1);
-  const int top_height_ = output.dimension(2);
-  const int top_width_ = output.dimension(3);
+  const int top_channels_ = output.dimension(3);
+  const int top_height_ = output.dimension(1);
+  const int top_width_ = output.dimension(2);
   const int pad_size_ = st.pad_size;
   const int stride1_ = st.stride_1;
   const int stride2_ = st.stride_2;
@@ -290,9 +292,9 @@ void Correlation(const GPUDevice& d,
   // PORTED CAFFE CODE
 
   const int bnum = input_0.dimension(0);
-  const int bchannels = input_0.dimension(1);
-  const int bheight = input_0.dimension(2);
-  const int bwidth = input_0.dimension(3);
+  const int bchannels = input_0.dimension(3);
+  const int bheight = input_0.dimension(1);
+  const int bwidth = input_0.dimension(2);
   const int bwidthheight = bwidth * bheight;
 
   const int topcount = top_width_ * top_height_ * top_channels_;
@@ -306,10 +308,10 @@ void Correlation(const GPUDevice& d,
   dim3 totalBlocksRearr((bwidthheight-1)/threads_per_block+1, bchannels, bnum);
   const int pwidthheight = (bwidth + 2 * pad_size_) * (bheight + 2 * pad_size_);
 
-  blob_rearrange_kernel2<float><<<totalBlocksRearr,threads_per_block>>>
+  RearrangeWithPadding<float><<<totalBlocksRearr,threads_per_block>>>
           (input_0.data(),padded_0.data(),bnum,bchannels,bwidth,bheight,bwidthheight,pad_size_,pwidthheight);
 
-  blob_rearrange_kernel2<float><<<totalBlocksRearr,threads_per_block>>>
+  RearrangeWithPadding<float><<<totalBlocksRearr,threads_per_block>>>
           (input_1.data(),padded_1.data(),bnum,bchannels,bwidth,bheight,bwidthheight,pad_size_,pwidthheight);
 
   const int num = bnum;
@@ -342,9 +344,9 @@ void CorrelationGrad(const GPUDevice& d,
                      typename TTypes<float, 4>::Tensor output_grad_1,
                      CorrelationState st) {
 
-  const int top_channels_ = input_grad.dimension(1);
-  const int top_height_ = input_grad.dimension(2);
-  const int top_width_ = input_grad.dimension(3);
+  const int top_channels_ = input_grad.dimension(3);
+  const int top_height_ = input_grad.dimension(1);
+  const int top_width_ = input_grad.dimension(2);
 
   const int pad_size_ = st.pad_size;
   const int stride1_ = st.stride_1;
@@ -364,9 +366,9 @@ void CorrelationGrad(const GPUDevice& d,
   float* bottom1_diff = output_grad_1.data();
 
   const int num = output_grad_0.dimension(0);
-  const int channels = output_grad_0.dimension(1);
-  const int height = output_grad_0.dimension(2);
-  const int width = output_grad_0.dimension(3);
+  const int channels = output_grad_0.dimension(3);
+  const int height = output_grad_0.dimension(1);
+  const int width = output_grad_0.dimension(2);
 
   const int paddedheight = height + 2*pad_size_;
   const int paddedwidth = width + 2*pad_size_;

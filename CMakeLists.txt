@@ -15,8 +15,11 @@ string(REGEX REPLACE "\n$" "" TF_LIB_DIR ${TF_LIB_DIR})
 find_package(CUDA)
 find_library(TF_FRAMEWORK tensorflow_framework HINTS ${TF_LIB_DIR})
 
-set(CMAKE_CXX_FLAGS "-fPIC -DGOOGLE_CUDA=${CUDA_FOUND} -std=c++11 ${CMAKE_CXX_FLAGS} -march=native -D_GLIBCXX_USE_CXX11_ABI=0")
+set(CMAKE_CXX_FLAGS "-fPIC -std=c++11 ${CMAKE_CXX_FLAGS} -march=native -D_GLIBCXX_USE_CXX11_ABI=0")
 if(CUDA_FOUND)
+    message(STATUS "CUDA was found")
+    set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} --expt-relaxed-constexpr")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DGOOGLE_CUDA=1")
     set(CUDA_PROPAGATE_HOST_FLAGS ON)
 
     # Create symlink to cuda home. This is needed due to tensorflow headers looking for "cuda/include/cuda.h".

@@ -39,10 +39,8 @@ if __name__ == '__main__':
         os.mkdir(folder)
 
     # Profile both forward and backward passes together.
-    training_avg = 0
     profiler = Profiler(sess.graph)
     for i in range(num_runs + warmup_runs):
-        t1 = time.time()
         _ = sess.run([cv, grads],
                      options=tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE),
                      run_metadata=run_metadata,
@@ -50,11 +48,6 @@ if __name__ == '__main__':
                                 image_b_placeholder: image_b})
         if i >= warmup_runs:
             profiler.add_step(i - warmup_runs, run_metadata)
-            dt = time.time() - t1
-            print('Current time: %f' % dt)
-            training_avg += dt
-
-    print('Averaged time: %f' % (training_avg / num_runs))
 
     # Print timing and memory.
     opts = (option_builder.ProfileOptionBuilder(
