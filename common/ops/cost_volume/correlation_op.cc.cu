@@ -32,9 +32,6 @@ template <typename Dtype>
 __global__ void RearrangeWithPadding(const Dtype* in, Dtype* out, int num, int channels, int width, int height, int widthheight, int padding, int pwidthheight)
 {
   int xy = blockIdx.y * gridDim.x + blockIdx.x;
-  if(xy>=widthheight)
-    return;
-
   int ch = threadIdx.x;
   int n  = blockIdx.z;
 
@@ -60,6 +57,7 @@ __global__ void RearrangeWithPadding(const Dtype* in, Dtype* out, int num, int c
 //    over the spatial neighborhood in c1 to compute correlations.
 // 3. Finally, we use 1 thread in the block to reduce sum over the input channel dimension,
 //    by gathering summed results from the other threads.
+//
 // Note that experimentally WARPS_PER_BLOCK should be 1 for optimal performance. 
 // The reduction in performance for larger values might be due to increased memory pressure as the 
 // kernel is bottlenecked by reads from global memory.
@@ -137,11 +135,11 @@ __global__ void CorrelateData(const int nthreads, int num, int topwidth, int top
 }
 
 // Notes on gradient computation kernels:
-// bottom holds gradients dl/dx that we need to compute. topdiff holds gradients dl/dy.
-// xmin, xmax, ymin, ymax index into topdiff (i.e they define the range for which the output is affected by dx).
-// For a kernel size larger than 1, we need to shift around topdiff, although the underlying dy/dx is the same.
+// - bottom holds gradients dl/dx that we need to compute. topdiff holds gradients dl/dy.
+// - xmin, xmax, ymin, ymax index into topdiff (i.e they define the range for which the output is affected by dx).
+// - For a kernel size larger than 1, we need to shift around topdiff, although the underlying dy/dx is the same.
 
-// Computing the gradients with respect to c0.
+// Computes the gradients with respect to c0.
 template <typename Dtype>
 __global__ void CorrelateDataBackward0(const int nthreads, int num, int item, int topwidth, int topheight, int topchannels,
   int max_displacement, int neighborhood_grid_radius, int neighborhood_grid_width, int kernel_radius, int stride1, int stride2,
@@ -153,7 +151,7 @@ __global__ void CorrelateDataBackward0(const int nthreads, int num, int item, in
     int l = (index / bottomchannels) % bottomwidth + pad_size; //w-pos
     int m = (index / bottomchannels / bottomwidth) % bottomheight + pad_size; //h-pos
 
-    //Get X,Y ranges and clamp
+    // Get X,Y ranges and clamp
     // round_off is a trick to enable integer division with ceil, even for negative numbers
     // We use a large offset, for the inner part not to become negative.
     const int round_off = ROUND_OFF;
@@ -205,7 +203,7 @@ __global__ void CorrelateDataBackward0(const int nthreads, int num, int item, in
 
 }
 
-// Computing the gradients with respect to c1.
+// Computes the gradients with respect to c1.
 // Note that the structure of the code is almost identical to the gradient for c0, 
 // except that our indexing into topdiff moves around a lot more (in addition to the shifting for the kernel).
 template <typename Dtype>
@@ -231,7 +229,7 @@ __global__ void CorrelateDataBackward1(const int nthreads, int num, int item, in
         int s2o = stride2 * o;
         int s2p = stride2 * p;
 
-        //Get X,Y ranges and clamp
+        // Get X,Y ranges and clamp
         // We add round_off before_s1 the int division and subtract round_off after it, to ensure the formula matches ceil behavior:
         int xmin = (l - 2*kernel_radius - max_displacement - s2o + round_off_s1 - 1) / stride1 + 1 - round_off; // ceil (l - 2*kernel_radius - max_displacement - s2o) / stride1
         int ymin = (m - 2*kernel_radius - max_displacement - s2p + round_off_s1 - 1) / stride1 + 1 - round_off; // ceil (l - 2*kernel_radius - max_displacement - s2o) / stride1
@@ -254,7 +252,6 @@ __global__ void CorrelateDataBackward1(const int nthreads, int num, int item, in
 
             // Index offset for topdiff in following loops:
             int op = (p+neighborhood_grid_radius) * neighborhood_grid_width + (o+neighborhood_grid_radius); // index [o,p]
-            int idxOpOffset = (item * topchannels + op);
 
             for(int y = ymin; y <= ymax; y++) {
               for(int x = xmin; x <= xmax; x++) {
@@ -307,10 +304,7 @@ void Correlation(const GPUDevice& d,
   cudaMemset(padded_0.data(), 0, padded_0.size()*sizeof(float));
   cudaMemset(padded_1.data(), 0, padded_1.size()*sizeof(float));
 
-  // int threads_per_block=16;
   int threads_per_block = bchannels;
-  // dim3 totalBlocksRearr((bwidthheight-1)/threads_per_block+1, bchannels, bnum);
-  //dim3 totalBlocksRearr(bchannels, (bwidthheight-1)/threads_per_block+1, bnum);
   dim3 totalBlocksRearr(bwidth, bheight, bnum);
   const int pwidthheight = (bwidth + 2 * pad_size_) * (bheight + 2 * pad_size_);
 
@@ -339,7 +333,7 @@ void Correlation(const GPUDevice& d,
     stride1_, stride2_,
     width, height, channels,
     padded_0.data(), padded_1.data(), output.data()
-    );
+  );
 }
 
 void CorrelationGrad(const GPUDevice& d,
@@ -357,7 +351,6 @@ void CorrelationGrad(const GPUDevice& d,
   const int pad_size_ = st.pad_size;
   const int stride1_ = st.stride_1;
   const int stride2_ = st.stride_2;
-  const int kernel_size_ = st.kernel_size;
   const int kernel_radius_ = st.kernel_radius;
   const int max_displacement_ = st.max_displacement;
   const int neighborhood_grid_radius_ = st.neighborhood_grid_radius;
