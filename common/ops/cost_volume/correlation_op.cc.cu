@@ -266,7 +266,6 @@ __global__ void CorrelateDataBackward1(const int nthreads, int num, int item, in
     const int bot1index = ((m - pad_size) * bottomwidth + (l - pad_size)) * bottomchannels + n;
 		bottom1diff[bot1index + item*bottomcount] = sum / (float)sumelems;
   }
-
 }
 
 void Correlation(const GPUDevice& d,
