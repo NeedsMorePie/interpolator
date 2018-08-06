@@ -28,15 +28,14 @@ inline int CAFFE_GET_BLOCKS(const int N) {
 }
 
 // Adds padding by moving the elements in the array around.
-// Also moves the channels to the last dimension, if it wasn't already.
 template <typename Dtype>
 __global__ void RearrangeWithPadding(const Dtype* in, Dtype* out, int num, int channels, int width, int height, int widthheight, int padding, int pwidthheight)
 {
-  int xy = blockIdx.x*blockDim.x + threadIdx.x;
+  int xy = blockIdx.y * gridDim.x + blockIdx.x;
   if(xy>=widthheight)
     return;
 
-  int ch = blockIdx.y;
+  int ch = threadIdx.x;
   int n  = blockIdx.z;
 
   int index = (n * widthheight + xy) * channels + ch;
@@ -59,7 +58,11 @@ __global__ void RearrangeWithPadding(const Dtype* in, Dtype* out, int num, int c
 // 1. Load the kernel-size dependent patches in c0 into shared memory for the block.
 // 2. Each thread (they are spread across the input channel dimension) in the block iterates 
 //    over the spatial neighborhood in c1 to compute correlations.
-// 3. Finally, we use 1 thread in the block to reduce sum over the input channel dimension.
+// 3. Finally, we use 1 thread in the block to reduce sum over the input channel dimension,
+//    by gathering summed results from the other threads.
+// Note that experimentally WARPS_PER_BLOCK should be 1 for optimal performance. 
+// The reduction in performance for larger values might be due to increased memory pressure as the 
+// kernel is bottlenecked by reads from global memory.
 template <typename Dtype>
 __global__ void CorrelateData(const int nthreads, int num, int topwidth, int topheight, int topchannels, int topcount,
   int max_displacement, int neighborhood_grid_radius, int neighborhood_grid_width, int kernel_radius, int kernel_size, int stride1, int stride2,
@@ -304,8 +307,11 @@ void Correlation(const GPUDevice& d,
   cudaMemset(padded_0.data(), 0, padded_0.size()*sizeof(float));
   cudaMemset(padded_1.data(), 0, padded_1.size()*sizeof(float));
 
-  int threads_per_block=16;
-  dim3 totalBlocksRearr((bwidthheight-1)/threads_per_block+1, bchannels, bnum);
+  // int threads_per_block=16;
+  int threads_per_block = bchannels;
+  // dim3 totalBlocksRearr((bwidthheight-1)/threads_per_block+1, bchannels, bnum);
+  //dim3 totalBlocksRearr(bchannels, (bwidthheight-1)/threads_per_block+1, bnum);
+  dim3 totalBlocksRearr(bwidth, bheight, bnum);
   const int pwidthheight = (bwidth + 2 * pad_size_) * (bheight + 2 * pad_size_);
 
   RearrangeWithPadding<float><<<totalBlocksRearr,threads_per_block>>>
