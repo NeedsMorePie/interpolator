@@ -1,7 +1,9 @@
 import unittest
 import numpy as np
 import tensorflow as tf
-from utils.flow import read_flow_file, show_flow_image, get_flow_visualization, get_tf_flow_visualization
+from utils.data import silently_remove_file
+from utils.flow import read_flow_file, write_flow_file, show_flow_image,\
+    get_flow_visualization, get_tf_flow_visualization
 from utils.img import show_image
 
 
@@ -61,6 +63,22 @@ class TestPFMFlowReader(unittest.TestCase):
         self.assertTupleEqual((540, 960, 2), flow_image.shape)
         if SHOW_FLOW_TEST_IMAGES:
             show_flow_image(flow_image)
+
+
+class TestFlowWriter(unittest.TestCase):
+    def setUp(self):
+        self.out_file = 'utils/test_data/temp_flow_write_test_file.flo'
+
+    def test_write(self):
+        flow_image_expected = read_flow_file('utils/test_data/frame_0001.flo')
+        write_flow_file(self.out_file, flow_image_expected)
+        flow_image = read_flow_file(self.out_file)
+        self.assertTrue(np.allclose(flow_image_expected, flow_image))
+        if SHOW_FLOW_TEST_IMAGES:
+            show_flow_image(flow_image)
+
+    def tearDown(self):
+        silently_remove_file(self.out_file)
 
 
 if __name__ == '__main__':

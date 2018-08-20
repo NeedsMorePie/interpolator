@@ -1,5 +1,6 @@
 import glob
 import multiprocessing
+import numpy as np
 import os.path
 import random
 from data.dataset import DataSet
@@ -23,7 +24,7 @@ class FlowDataSet(DataSet):
     FLYING_THINGS = 2
 
     def __init__(self, directory, batch_size=1, validation_size=1, crop_size=None, training_augmentations=True,
-                 data_source=SINTEL, augmentation_config=None):
+                 data_source=SINTEL, augmentation_config=None, max_flow=1000.0):
         """
         :param directory: Str. Directory of the dataset file structure and tf records.
         :param batch_size: Int.
@@ -33,6 +34,8 @@ class FlowDataSet(DataSet):
         :param training_augmentations: Whether to do live augmentations while training.
         :param data_source: Source of the data.
         :param augmentation_config: Configurations for data augmentation. If None, the default will be used.
+        :param max_flow: Float. Maximum flow magnitude of the flow image. Any examples with flow magnitude greater than
+            this will be ignored.
         """
         super().__init__(directory, batch_size, validation_size, training_augmentations=training_augmentations)
 
@@ -64,29 +67,32 @@ class FlowDataSet(DataSet):
                 'hue_min': -0.3, 'hue_max': 0.3,
                 'noise_stddev': 0.04,
                 'scale_min': 0.5, 'scale_max': 2.0,
-                'do_scaling': True,
+                'do_scaling': True, 'flip_hor': True, 'flip_ver': True,
                 'do_flipping': True
             }
+        self.max_flow = max_flow
 
     def get_train_file_names(self):
         """
         Overridden.
         """
-        return glob.glob(os.path.join(self.directory, '*' + self.train_filename))
+        return glob.glob(self._get_train_file_name_pattern())
 
     def get_validation_file_names(self):
         """
         :return: List of string.
         """
-        return glob.glob(os.path.join(self.directory, '*' + self.valid_filename))
+        return glob.glob(self._get_valid_file_name_pattern())
 
     def preprocess_raw(self, shard_size):
         """
         Overridden.
         """
         if self.verbose:
-            print('Checking directory for data.')
+            print('Checking directory for data...')
         image_a_paths, image_b_paths, flow_paths = self._get_data_paths()
+        if self.verbose:
+            print('Converting to tf records...')
         self._convert_to_tf_record(image_a_paths, image_b_paths, flow_paths, shard_size)
 
     def load(self, session):
@@ -94,9 +100,10 @@ class FlowDataSet(DataSet):
         Overridden.
         """
         with tf.name_scope('dataset_ops'):
-            self.train_dataset = self._load_dataset(self.get_train_file_names(), True,
+            self.train_dataset = self._load_dataset(self._get_train_file_name_pattern(), True,
                                                     do_augmentations=self.training_augmentations)
-            self.valid_dataset = self._load_dataset(self.get_validation_file_names(), False, do_augmentations=False)
+            self.valid_dataset = self._load_dataset(self._get_valid_file_name_pattern(), False,
+                                                    do_augmentations=False)
 
             self.handle_placeholder = tf.placeholder(tf.string, shape=[])
             self.iterator = tf.data.Iterator.from_string_handle(
@@ -133,6 +140,18 @@ class FlowDataSet(DataSet):
         """
         session.run(self.validation_iterator.initializer)
 
+    def _get_train_file_name_pattern(self):
+        """
+        :return: Str.
+        """
+        return os.path.join(self.directory, '*' + self.train_filename)
+
+    def _get_valid_file_name_pattern(self):
+        """
+        :return: Str.
+        """
+        return os.path.join(self.directory, '*' + self.valid_filename)
+
     def _get_data_paths(self):
         """
         :return: List of image_path strings, list of flow_path strings.
@@ -152,9 +171,13 @@ class FlowDataSet(DataSet):
         """
         # Get sorted lists.
         images = glob.glob(os.path.join(self.directory, '**', '*.png'), recursive=True)
-        images.sort()
         flows = glob.glob(os.path.join(self.directory, '**', '*.flo'), recursive=True)
+        if self.verbose:
+            print('Sorting file paths...')
+        images.sort()
         flows.sort()
+        if self.verbose:
+            print('Filtering file paths...')
         # Make sure the tuples are all under the same directory.
         filtered_images_a = []
         filtered_images_b = []
@@ -177,6 +200,8 @@ class FlowDataSet(DataSet):
         :return: List of image_path strings, list of flow_path strings.
         """
         images_a = glob.glob(os.path.join(self.directory, '**', '*_img1.ppm'), recursive=True)
+        if self.verbose:
+            print('Sorting file paths...')
         images_a.sort()
         images_b = [image_a.replace('img1', 'img2') for image_a in images_a]
         flows = [image_a.replace('img1', 'flow').replace('ppm', 'flo') for image_a in images_a]
@@ -189,11 +214,15 @@ class FlowDataSet(DataSet):
         """
         # Get sorted lists.
         images = glob.glob(os.path.join(self.directory, '**', 'TRAIN', '**', 'left', '*.png'), recursive=True)
-        images.sort()
         flows = glob.glob(os.path.join(self.directory, '**', 'TRAIN', '**', 'into_future', 'left', '*.pfm'),
                           recursive=True)
+        if self.verbose:
+            print('Sorting file paths...')
+        images.sort()
         flows.sort()
         assert len(images) == len(flows)
+        if self.verbose:
+            print('Filtering file paths...')
         # Make sure the tuples are all under the same directory.
         filtered_images_a = []
         filtered_images_b = []
@@ -230,7 +259,7 @@ class FlowDataSet(DataSet):
 
             Parallel(n_jobs=multiprocessing.cpu_count(), backend="threading")(
                 delayed(_write_shard)(shard_id, shard_range, image_a_paths, image_b_paths,
-                                      flow_paths, filename, self.directory, self.verbose)
+                                      flow_paths, filename, self.directory, self.verbose, self.max_flow)
                 for shard_id, shard_range in enumerate(sharded_iter_ranges)
             )
 
@@ -238,14 +267,13 @@ class FlowDataSet(DataSet):
         _write(self.train_filename, range(0, valid_start_idx))
         _write(self.valid_filename, range(valid_start_idx, len(image_a_paths)))
 
-    def _load_dataset(self, filenames, repeat, do_augmentations=False):
+    def _load_dataset(self, filename_pattern, repeat, do_augmentations=False):
         """
-        :param filenames: List of strings.
-        :param repeat: Whether to repeat the dataset indefinitely.
+        :param filename_pattern: Str. Pattern for globbing file names.
+        :param repeat: Bool. Whether to repeat the dataset indefinitely.
         :param do_augmentations: Bool. Whether to do image augmentations.
         :return: Tensorflow dataset object.
         """
-        assert len(filenames) > 0
         def _parse_function(example_proto):
             features = {
                 HEIGHT: tf.FixedLenFeature((), tf.int64, default_value=0),
@@ -257,9 +285,9 @@ class FlowDataSet(DataSet):
             parsed_features = tf.parse_single_example(example_proto, features)
             H = tf.reshape(tf.cast(parsed_features[HEIGHT], tf.int32), ())
             W = tf.reshape(tf.cast(parsed_features[WIDTH], tf.int32), ())
-            image_a = tf.decode_raw(parsed_features[IMAGE_A_RAW], tf.float32)
+            image_a = tf.cast(tf.decode_raw(parsed_features[IMAGE_A_RAW], tf.uint8), tf.float32) / 255.0
             image_a = tf.reshape(image_a, [H, W, 3])
-            image_b = tf.decode_raw(parsed_features[IMAGE_B_RAW], tf.float32)
+            image_b = tf.cast(tf.decode_raw(parsed_features[IMAGE_B_RAW], tf.uint8), tf.float32) / 255.0
             image_b = tf.reshape(image_b, [H, W, 3])
             flow = tf.decode_raw(parsed_features[FLOW_RAW], tf.float32)
             flow = tf.reshape(flow, [H, W, 2])
@@ -272,7 +300,8 @@ class FlowDataSet(DataSet):
                 image_a, image_b = tf_image_augmentation([image_a, image_b], self.config)
                 if self.config['do_scaling']:
                     # Flip randomly in unison.
-                    flow, images = tf_random_flip_flow(flow, [image_a, image_b])
+                    flow, images = tf_random_flip_flow(flow, [image_a, image_b], flip_hor=self.config['flip_hor'],
+                                                       flip_ver=self.config['flip_ver'])
                     image_a, image_b = images
                 if self.config['do_flipping']:
                     # Scale randomly in unison.
@@ -281,18 +310,18 @@ class FlowDataSet(DataSet):
 
             return image_a, image_b, flow
 
-        dataset = tf.data.TFRecordDataset(filenames)
+        files = tf.data.Dataset.list_files(filename_pattern, shuffle=True)
+        dataset = tf.data.TFRecordDataset(files, compression_type='GZIP', num_parallel_reads=min(4, self.batch_size))
         if repeat:
-            dataset = dataset.apply(tf.contrib.data.shuffle_and_repeat(buffer_size=self.batch_size * 10))
-        else:
-            dataset = dataset.shuffle(buffer_size=self.batch_size * 10)
+            dataset = dataset.repeat()
         dataset = dataset.map(_parse_function, num_parallel_calls=multiprocessing.cpu_count())
         dataset = dataset.batch(self.batch_size)
         dataset = dataset.prefetch(2)
         return dataset
 
 
-def _write_shard(shard_id, shard_range, image_a_paths, image_b_paths, flow_paths, filename, directory, verbose):
+def _write_shard(shard_id, shard_range, image_a_paths, image_b_paths, flow_paths, filename, directory, verbose,
+                 max_flow):
     """
     :param shard_id: Index of the shard.
     :param shard_range: Iteration range of the shard.
@@ -300,17 +329,28 @@ def _write_shard(shard_id, shard_range, image_a_paths, image_b_paths, flow_paths
     :param flow_paths: Path of all flows.
     :param filename: Base name of the output shard.
     :param directory: Output directory.
+    :param verbose: Whether to print to console.
+    :param max_flow: Float. Maximum flow magnitude of the flow image. Any examples with flow magnitude greater than this
+        will be ignored.
     :return: Nothing.
     """
     if verbose and len(shard_range) > 0:
         print('Writing to shard', shard_id, 'data points', shard_range[0], 'to', shard_range[-1])
 
-    writer = tf.python_io.TFRecordWriter(os.path.join(directory, str(shard_id) + '_' + filename))
+    record_name = os.path.join(directory, str(shard_id) + '_' + filename)
+    options = tf.python_io.TFRecordOptions(tf.python_io.TFRecordCompressionType.GZIP)
+    writer = tf.python_io.TFRecordWriter(record_name, options=options)
+    num_examples_written = 0
     for i in shard_range:
         # Read from file.
-        image_a = read_image(image_a_paths[i], as_float=True)
-        image_b = read_image(image_b_paths[i], as_float=True)
         flow = read_flow_file(flow_paths[i])
+        if np.amax(np.linalg.norm(flow, axis=-1)) > max_flow:
+            if verbose:
+                print(flow_paths[i], 'has a flow magnitude greater than', max_flow)
+            continue
+        # Read and decode images as bytes to save memory.
+        image_a = read_image(image_a_paths[i], as_float=False)
+        image_b = read_image(image_b_paths[i], as_float=False)
 
         # Write to tf record.
         H = image_a.shape[0]
@@ -328,4 +368,11 @@ def _write_shard(shard_id, shard_range, image_a_paths, image_b_paths, flow_paths
                     FLOW_RAW: tf_bytes_feature(flow_raw)
                 }))
         writer.write(example.SerializeToString())
+        num_examples_written += 1
     writer.close()
+
+    if num_examples_written == 0:
+        # Delete the file if nothing was written to it.
+        if verbose:
+            print(record_name, 'is empty')
+        silently_remove_file(record_name)

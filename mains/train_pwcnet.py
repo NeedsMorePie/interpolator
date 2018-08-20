@@ -25,6 +25,7 @@ def main():
     # Add extra fields to the config from argparse.
     config['checkpoint_directory'] = args.checkpoint_directory
     config['directory'] = args.directory
+    config['config'] = args.config
 
     if not os.path.exists(args.checkpoint_directory):
         os.makedirs(args.checkpoint_directory)
@@ -44,7 +45,7 @@ def main():
     session.run(tf.global_variables_initializer())
     trainer.restore()
 
-    trainer.train(validate_every=config['validate_every'])
+    trainer.train(validate_every=config['validate_every'], iterations=args.iterations)
 
 
 def add_args(parser):
@@ -54,6 +55,8 @@ def add_args(parser):
                         help='Directory of saved checkpoints.')
     parser.add_argument('-j', '--config', type=str, default='mains/configs/train_pwcnet.json',
                         help='Config json file path.')
+    parser.add_argument('-i', '--iterations', type=int, default=1000000,
+                        help='Number of iterations to train for.')
 
 
 if __name__ == "__main__":

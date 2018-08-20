@@ -6,7 +6,6 @@ if platform.system() == 'Darwin':
     matplotlib.use('TkAgg')
 from matplotlib import pyplot as plt
 import io
-import numpy as np
 import tensorflow as tf
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import math_ops

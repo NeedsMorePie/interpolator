@@ -25,15 +25,15 @@ def read_flow_file(file_name):
         Returns None if the tag in the file header was invalid.
     """
     if file_name.endswith('.flo'):
-        with open(file_name, 'rb') as f:
-            tag = np.fromfile(f, dtype=np.float32, count=1)[0]
+        with open(file_name, 'rb') as file:
+            tag = np.fromfile(file, dtype=np.float32, count=1)[0]
             if tag != FLOW_TAG_FLOAT:
                 return None
-            width = np.fromfile(f, dtype=np.int32, count=1)[0]
-            height = np.fromfile(f, dtype=np.int32, count=1)[0]
+            width = np.fromfile(file, dtype=np.int32, count=1)[0]
+            height = np.fromfile(file, dtype=np.int32, count=1)[0]
 
             num_image_floats = width * height * FLOW_CHANNELS
-            image = np.fromfile(f, dtype=np.float32, count=num_image_floats)
+            image = np.fromfile(file, dtype=np.float32, count=num_image_floats)
             image = image.reshape((height, width, FLOW_CHANNELS))
 
             return image
@@ -46,6 +46,23 @@ def read_flow_file(file_name):
         return np.flip(np_array[..., 0:2], axis=0)
     else:
         raise Exception('Not a supported flow format.')
+
+
+def write_flow_file(file_name, flow):
+    """
+    Writes .flo formatted file.
+    :param file_name: Str.
+    :param flow: Np array.
+    :return: Nothing.
+    """
+    tag = np.array([FLOW_TAG_FLOAT], np.float32)
+    height, width = flow.shape[:2]
+    height, width = np.array([height], np.int32), np.array([width], np.int32)
+    with open(file_name, 'wb') as file:
+        tag.tofile(file)
+        width.tofile(file)
+        height.tofile(file)
+        flow.tofile(file)
 
 
 def get_flow_visualization(flow):
@@ -141,15 +158,17 @@ def tf_flip_flow(flow, images, left_right, up_down):
     return new_flow, new_images
 
 
-def tf_random_flip_flow(flow, images):
+def tf_random_flip_flow(flow, images, flip_hor=True, flip_ver=True):
     """
     Randomly flips a flow and a set of corresponding images in unison.
     :param flow: Optical flow tensor. Shape is (H, W, C).
     :param images: List of image tensors.
+    :param flip_hor: Whether to randomly flip horizontally.
+    :param flip_ver: Whether to randomly flip vertically.
     :return: new_flow (tensor), new_images (list of tensors).
     """
-    left_right_cond = tf.less(tf.random_uniform([], 0, 1.0), .5)
-    up_down_cond = tf.less(tf.random_uniform([], 0, 1.0), .5)
+    left_right_cond = tf.less(tf.random_uniform([], 0, 1.0), .5) if flip_hor else tf.constant(False)
+    up_down_cond = tf.less(tf.random_uniform([], 0, 1.0), .5) if flip_ver else tf.constant(False)
     return tf_flip_flow(flow, images, left_right_cond, up_down_cond)
 
 

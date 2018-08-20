@@ -3,6 +3,7 @@ import os
 import os.path
 import tensorflow as tf
 import unittest
+from utils.data import silently_remove_file
 
 
 class TestFlowDataSet:
@@ -35,7 +36,7 @@ class TestFlowDataSet:
             output_paths = self.data_set.get_train_file_names() + self.data_set.get_validation_file_names()
             [self.assertTrue(os.path.isfile(output_path)) for output_path in output_paths]
             # The train set should have been sharded, so there should be 3 files.
-            self.assertEquals(len(output_paths), 3)
+            self.assertEqual(3, len(output_paths))
 
             self.data_set.load(self.sess)
             next_images_a, next_images_b, next_flows = self.data_set.get_next_batch()
@@ -77,5 +78,4 @@ class TestFlowDataSet:
         def tearDown(self):
             output_paths = self.data_set.get_train_file_names() + self.data_set.get_validation_file_names()
             for output_path in output_paths:
-                if os.path.isfile(output_path):
-                    os.remove(output_path)
+                silently_remove_file(output_path)
