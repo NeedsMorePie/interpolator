@@ -13,7 +13,7 @@ class TestPreprocessVarRefs(unittest.TestCase):
             "array": [ 1, 2, 3 ]
         }
         """
-        self.json_equals(json_str, json_str)
+        self.json_after_preprocessing_vars_equals(json_str, json_str)
 
     def test_basic_change(self):
         json_str = """
@@ -33,7 +33,7 @@ class TestPreprocessVarRefs(unittest.TestCase):
             "three": 3
         }
         """
-        self.json_equals(json_str, expected_json_str)
+        self.json_after_preprocessing_vars_equals(json_str, expected_json_str)
 
     def test_recursive_change(self):
         json_str = """
@@ -64,7 +64,7 @@ class TestPreprocessVarRefs(unittest.TestCase):
             "boop": "bar"
         }
         """
-        self.json_equals(json_str, expected_json_str)
+        self.json_after_preprocessing_vars_equals(json_str, expected_json_str)
 
     def test_recursive_override(self):
         json_str = """
@@ -92,7 +92,7 @@ class TestPreprocessVarRefs(unittest.TestCase):
             "boop": "bar"
         }
         """
-        self.json_equals(json_str, expected_json_str)
+        self.json_after_preprocessing_vars_equals(json_str, expected_json_str)
 
     def test_list_changes(self):
         json_str = """
@@ -108,7 +108,8 @@ class TestPreprocessVarRefs(unittest.TestCase):
                 },
                 "moop": [
                     {
-                        "recursive": { "var_ref": "foo" }
+                        "recursive1": { "var_ref": "foo" },
+                        "recursive2": { "var_ref": "other_var" }
                     },
                     { "var_ref": "other_var" }
                 ]
@@ -124,7 +125,8 @@ class TestPreprocessVarRefs(unittest.TestCase):
             "obj": {
                 "moop": [
                     {
-                        "recursive": "not bar"
+                        "recursive1": "not bar",
+                        "recursive2": 3.14
                     },
                     3.14
                 ]
@@ -135,9 +137,9 @@ class TestPreprocessVarRefs(unittest.TestCase):
             ]
         }
         """
-        self.json_equals(json_str, expected_json_str)
+        self.json_after_preprocessing_vars_equals(json_str, expected_json_str)
 
-    def json_equals(self, json_str, expected_json_str):
+    def json_after_preprocessing_vars_equals(self, json_str, expected_json_str):
         content = json.loads(json_str)
         expected_content = json.loads(expected_json_str)
         preprocess_var_refs(content)

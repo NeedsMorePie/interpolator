@@ -24,9 +24,9 @@ class TestLaplacianPyramid(unittest.TestCase):
     def test_pyramid(self):
         num_levels = 5
         pyr_builder = LaplacianPyramid(num_levels, filter_side_len=5)
-        image_height = np.shape(self.test_image)[0]
-        image_width = np.shape(self.test_image)[1]
-        image_channels = np.shape(self.test_image)[2]
+        image_height = self.test_image.shape[0]
+        image_width = self.test_image.shape[1]
+        image_channels = self.test_image.shape[2]
         image_tensor = tf.placeholder(tf.float32, shape=(1, image_height, image_width, image_channels))
         pyr_tensors, _, reconstructed_tensor = pyr_builder.get_forward(image_tensor)
         pyr = self.sess.run(pyr_tensors, feed_dict={image_tensor: [self.test_image]})
@@ -45,7 +45,7 @@ class TestLaplacianPyramid(unittest.TestCase):
 
         # Check reconstruction error.
         diff = np.abs(reconstructed[0] - self.test_image)
-        self.assertLessEqual(np.sum(diff), 1E-2)
+        self.assertLessEqual(np.sum(diff), 2E-2)
 
         if VISUALIZE:
             print('Showing reconstruction...')
@@ -68,3 +68,6 @@ class TestLaplacianPyramid(unittest.TestCase):
         self.assertTupleEqual(np.shape(filter), (4, 4, 3, 3))
         self.assertEqual(filter[..., 0, 0].tolist(), expected.tolist())
 
+
+if __name__ == '__main__':
+    unittest.main()

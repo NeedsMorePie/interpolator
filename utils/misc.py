@@ -49,8 +49,32 @@ def print_progress_bar(iteration, total, prefix= '', suffix='', decimals=1, leng
 def preprocess_var_refs(root, base_vars=None, remove_vars_dict=True):
     """
     Processes the dict by replacing var refs with variables declared in the 'vars' dict.
+    For example, if given a dict (in json format):
+        {
+            "vars": {
+                "foo": "bar",
+                "two": 2
+            },
+            "obj": {
+                "vars": {
+                    "foo": "not bar"
+                },
+                "moop": { "var_ref": "foo" },
+                "boop": { "var_ref": "two" }
+            },
+            "boop": { "var_ref": "foo" }
+        }
+    This function will process it into:
+        {
+            "obj": {
+                "moop": "not bar",
+                "boop": 2
+            },
+            "boop": "bar"
+        }
+    Notice that this works for nested objects. Vars in child objects will override vars in parent objects.
     :param root: Dict.
-    :param vars: Dict. Vars to add to the dict.
+    :param base_vars: Dict. Vars to add to the dict.
     :param remove_vars_dict: Bool. Whether to remove the vars dict after processing.
     :return: Nothing
     """
