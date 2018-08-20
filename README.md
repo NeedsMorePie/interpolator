@@ -1,16 +1,29 @@
 # interpolator
 
-## Install and run
+### Installation
 
-### Prerequisites
+#### Prerequisites
 
 *   Anaconda3
-    *   tensorflow or tensorflow-gpu
+    *   tensorflow-gpu
     *   opencv-python
     *   matplotlib
     *   joblib
     *   pillow
-    
+*   CMake (version >= 3.5)
+
+#### Building ops
+
+```
+mkdir build
+cd build
+cmake ..
+make
+```
+
+Note that the built custom ops (e.g libcorrelation_op.so) must be in the `build` folder.
+
+
 ### Running tests
 
 #### Run all tests

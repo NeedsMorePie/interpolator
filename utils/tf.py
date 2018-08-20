@@ -135,6 +135,7 @@ class Logger(object):
         summary = tf.Summary(value=[tf.Summary.Value(tag=tag,
                                                      simple_value=value)])
         self.writer.add_summary(summary, step)
+        self.writer.flush()
 
     def log_images(self, tag, images, step):
         """Logs a list of images."""
@@ -156,6 +157,7 @@ class Logger(object):
         # Create and write Summary
         summary = tf.Summary(value=im_summaries)
         self.writer.add_summary(summary, step)
+        self.writer.flush()
 
     def add_run_metadata(self, run_metadata, global_step):
         self.writer.add_run_metadata(run_metadata, 'step%d' % global_step, global_step=global_step)

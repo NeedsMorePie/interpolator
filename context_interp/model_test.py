@@ -4,8 +4,6 @@ import unittest
 import time
 from context_interp.model import ContextInterp
 
-PROFILE = False
-
 
 class TestContextInterp(unittest.TestCase):
 
@@ -72,66 +70,3 @@ class TestContextInterp(unittest.TestCase):
             self.assertNotEqual(np.sum(gradient), 0.0)
 
         self.assertNotAlmostEqual(loss, 0.0)
-
-    def test_performance(self):
-        if not PROFILE:
-            return
-
-        height = 256
-        width = 256
-        im_channels = 3
-        batch_size = 8
-        num_runs = 100
-        warmup_runs = 5
-
-        # Create the graph.
-        print('Creating the graph...')
-        model = ContextInterp('context_interp_profile')
-        image_a_placeholder = tf.placeholder(shape=[None, height, width, im_channels], dtype=tf.float32)
-        image_b_placeholder = tf.placeholder(shape=[None, height, width, im_channels], dtype=tf.float32)
-        gt_placeholder = tf.placeholder(shape=[None, height, width, im_channels], dtype=tf.float32)
-        output_tensors = model.get_forward(image_a_placeholder, image_b_placeholder, 0.5)
-        interpolated_tensor, warped_a_b_tensor, warped_b_a_tensor, _, _ = output_tensors
-        grad_tensors = tf.gradients(interpolated_tensor, [image_a_placeholder, image_b_placeholder])
-        self.sess.run(tf.global_variables_initializer())
-
-        # Create dummy images.
-        image_a = np.zeros(shape=[batch_size, height, width, im_channels], dtype=np.float32)
-        image_b = np.zeros(shape=[batch_size, height, width, im_channels], dtype=np.float32)
-        image_a[:, 2:height-2, 2:width-2, :] = 1.0
-        image_b[:, 4:height-4, 5:width-5, :] = 1.0
-
-        # Profile the forward pass.
-        forward_avg = 0
-        for i in range(num_runs + warmup_runs):
-            t1 = time.time()
-            _ = self.sess.run(interpolated_tensor, feed_dict={image_a_placeholder: image_a,
-                                                              image_b_placeholder: image_b,
-                                                              gt_placeholder: np.zeros(shape=image_a.shape)})
-            if i >= warmup_runs:
-                dt = time.time() - t1
-                print('Current forward pass time: %f' % dt)
-                forward_avg += dt
-        print('Averaged forward pass time: %f' % (forward_avg / num_runs))
-        print('--------------------------------')
-
-        if self.do_grads_flow_to_input:
-            # Profile the backward pass.
-            backward_avg = 0
-            for i in range(num_runs + warmup_runs):
-                t1 = time.time()
-                _ = self.sess.run(grad_tensors, feed_dict={image_a_placeholder: image_a,
-                                                           image_b_placeholder: image_b,
-                                                           gt_placeholder: np.zeros(shape=image_a.shape)})
-                if i >= warmup_runs:
-                    dt = time.time() - t1
-                    print('Current backward pass time: %f' % dt)
-                    backward_avg += dt
-            print('Averaged backward pass time: %f' % (backward_avg / num_runs))
-
-            total_avg = (backward_avg + forward_avg) / num_runs
-            print('Averaged total time: %f' % total_avg)
-
-
-
-
