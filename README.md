@@ -26,15 +26,9 @@ cmake ..
 make
 ```
 
-If cmake can't find CUDA, you may need to manually pass it the toolkit's root path:
-
-```
-cmake -D CUDA_TOOLKIT_ROOT_DIR=/path/to/cuda ..
-```
-
 Note that the built custom ops (e.g libcorrelation_op.so) must be in the `build` folder.
 
-##### Windows:
+##### Windows
 
 In powershell with the conda environment activated:
 
@@ -46,6 +40,16 @@ cmake --build . --config Release
 ```
 
 Note that the built custom ops (e.g correlation_op.dll) must be in the `build/Release` folder.
+
+##### Common gotchas
+
+After running cmake, you must look for ```CUDA was found``` in the console output:
+
+If cmake can't find CUDA, you may need to manually pass it the toolkit's root path:
+
+```
+cmake -D CUDA_TOOLKIT_ROOT_DIR=/path/to/cuda ..
+```
 
 ### Running tests
 

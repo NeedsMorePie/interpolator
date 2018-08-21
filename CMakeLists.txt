@@ -48,13 +48,13 @@ include_directories(${TF_INCLUDE_DIRS})
 
 if (CUDA_FOUND)
     cuda_add_library(correlation_op SHARED 
-        "common/ops/cost_volume/correlation_op.cc"
-        "common/ops/cost_volume/correlation_op.cc.cu"
+        "pwcnet/cost_volume/correlation_op.cc"
+        "pwcnet/cost_volume/correlation_op.cc.cu"
     )
 else()
     add_library(correlation_op SHARED 
-        "common/ops/cost_volume/correlation_op.cc"
-        "common/ops/cost_volume/correlation_op.cc.cu"
+        "pwcnet/cost_volume/correlation_op.cc"
+        "pwcnet/cost_volume/correlation_op.cc.cu"
     )
 endif()
 

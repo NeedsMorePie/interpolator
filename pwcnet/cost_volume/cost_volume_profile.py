@@ -2,8 +2,8 @@ import numpy as np
 import tensorflow as tf
 import time
 import os
+from pwcnet.cost_volume.cost_volume import cost_volume
 from tensorflow.python.profiler.model_analyzer import Profiler, option_builder
-from common.ops.cost_volume.cost_volume import cost_volume
 
 
 if __name__ == '__main__':
