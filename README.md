@@ -11,8 +11,11 @@
     *   joblib
     *   pillow
 *   CMake (version >= 3.5)
+*   Windows only: Visual studio 14 (2015)
 
 #### Building ops
+
+##### Linux
 
 ```
 mkdir build
@@ -23,6 +26,18 @@ make
 
 Note that the built custom ops (e.g libcorrelation_op.so) must be in the `build` folder.
 
+##### Windows:
+
+In powershell:
+
+```
+mkdir build
+cd build
+cmake -G "Visual Studio 14 2015 Win64" ..
+cmake --build . --config Release
+```
+
+Note that the built custom ops (e.g correlation_op.dll) must be in the `build/Release` folder.
 
 ### Running tests
 

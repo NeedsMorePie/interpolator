@@ -2,8 +2,15 @@
 # Master branch commit 2225ad2082371126cc9c8e57a8b962a88933a8c0.
 import tensorflow as tf
 import os
+from sys import platform
 from tensorflow.python.framework import ops
-from utils.misc import *
+
+
+# Load op and register gradients.
+if platform == 'win32':
+    mod = tf.load_op_library(os.path.join('build/Release', 'correlation_op.dll'))
+else:
+    mod = tf.load_op_library(os.path.join('build', 'libcorrelation_op.so'))
 
 
 def cost_volume(c1, c2, search_range=4):
@@ -23,10 +30,6 @@ def cost_volume(c1, c2, search_range=4):
         stride_2=1
     )
     return results[0]
-    
-
-# Load op and register gradients.
-mod = tf.load_op_library(os.path.join('build', 'libcorrelation_op.so'))
 
 
 @ops.RegisterGradient("Correlation")
