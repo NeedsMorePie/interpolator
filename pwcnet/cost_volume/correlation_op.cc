@@ -152,14 +152,8 @@ REGISTER_OP("Correlation")
 
     DimensionHandle batch = c->Dim(c->input(0), 0);
 
-    //padded_height = in_height + 2 * pad_size;
-    //padded_width = in_width + 2 * pad_size;
-    //kernel_radius = (kernel_size - 1) / 2;
-    //border_size = max_displacement + kernel_radius;
     int neighborhood_grid_radius = attrs.max_displacement / attrs.stride_2;
     int neighborhood_grid_width = neighborhood_grid_radius * 2 + 1;
-    //out_width = ceil((float)(padded_width - border_size *2) / (float)stride_1);
-    //out_height = ceil((float)(padded_height - border_size *2) / (float)stride_1);
     int out_channels = neighborhood_grid_width * neighborhood_grid_width;
 
     // TODO: support passing on output width and height
