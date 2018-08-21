@@ -5,6 +5,7 @@ from data.flow.flowdata import FlowDataSet
 def main():
     """
     This program requires the following data structure at the root directory:
+
     For Sintel:
         <directory to images>
             <set_0>
@@ -20,12 +21,35 @@ def main():
             <set_1>
             ...
             <set_n>
+
     For FlyingChairs:
         <data directory>
             <ID>_img1.ppm
             <ID>_img2.ppm
             <ID>_flow.flo
             ...
+
+    For FlyingThings:
+        frames
+            TEST
+            TRAIN
+                <set>
+                    <clip>
+                        left
+                            0000.png
+                            ...
+                        right
+        optical_flow
+            TEST
+            TRAIN
+                <set>
+                    <clip>
+                        into_future
+                            left
+                                OpticalFlowIntoFuture_0000_L.pfm
+                                ...
+                            right
+                        into_past
     """
     parser = argparse.ArgumentParser()
     add_args(parser)
@@ -49,7 +73,7 @@ def add_args(parser):
                         help='Directory of the raw dataset.')
     parser.add_argument('-v', '--num_validation', type=int, default=100,
                         help='Number of data examples to use for validation.')
-    parser.add_argument('-s', '--shard_size', type=int, default=25,
+    parser.add_argument('-s', '--shard_size', type=int, default=1,
                         help='Maximum number of data examples in a shard.')
     parser.add_argument('-src', '--data_source', type=str, default='sintel',
                         help='Data source can be sintel, flyingchairs, or flyingthings.')

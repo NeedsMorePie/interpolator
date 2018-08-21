@@ -1,0 +1,18 @@
+{
+  "validate_every": 10000,
+  "batch_size": 8,
+  "learning_rate": 0.00000625,
+  "crop_width": 448,
+  "crop_height": 384,
+  "fine_tune": false,
+
+  "contrast_min": 0.8, "contrast_max": 1.25,
+  "gamma_min": 0.8, "gamma_max": 1.25,
+  "gain_min": 0.8, "gain_max": 1.25,
+  "brightness_stddev": 0.2,
+  "hue_min": -0.3, "hue_max": 0.3,
+  "noise_stddev": 0.04,
+  "scale_min": 0.5, "scale_max": 2.0,
+  "do_scaling": true,
+  "do_flipping": true, "flip_hor": true, "flip_ver": true
+}

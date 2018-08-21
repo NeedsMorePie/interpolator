@@ -1,6 +1,4 @@
 import unittest
-import tensorflow as tf
-import numpy as np
 from utils.tf import *
 
 
@@ -54,3 +52,7 @@ class TestTfUtils(unittest.TestCase):
         sliced = sliding_window_slice(x, slice_locations)
         sliced_list = self.sess.run(sliced).tolist()
         self.assertListEqual(sliced_list, expected)
+
+
+if __name__ == '__main__':
+    unittest.main()
