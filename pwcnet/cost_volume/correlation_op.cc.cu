@@ -123,6 +123,7 @@ __global__ void CorrelateData(const int nthreads, int num, int topwidth, int top
 
     if(ch_off == 0) {
         Dtype total_sum = 0;
+#pragma unroll
         for(int idx = 0; idx < WARPS_PER_BLOCK*THREADS_PER_WARP; idx++) {
           total_sum += sum[idx];
         }
@@ -132,6 +133,84 @@ __global__ void CorrelateData(const int nthreads, int num, int topwidth, int top
         top[index + item*topcount] = total_sum / (float)sumelems;
     }
   }
+}
+
+template <typename Dtype, int kernel_size>
+__global__ void CorrelateDataUnrolled(const int nthreads, int num, int topwidth, int topheight, int topchannels, int topcount,
+	int max_displacement, int neighborhood_grid_radius, int neighborhood_grid_width, int kernel_radius, int stride1, int stride2,
+	int bottomwidth, int bottomheight, int bottomchannels,
+	const Dtype *bottom0, const Dtype *bottom1, Dtype *top)
+{
+	extern __shared__ char patch_data_char[];
+
+	Dtype *patch_data = (Dtype *)patch_data_char;
+
+	// Kernel for c0 is not centered. Its top left is always at the center regardless of kernel size.
+	int x1 = blockIdx.x*stride1 + max_displacement;
+	int y1 = blockIdx.y*stride1 + max_displacement;
+	int item = blockIdx.z;
+	int ch_off = threadIdx.x;
+
+	// Load 3D patch into shared memory.
+	// Threads are spread across the channel dimension (i.e thread0, ... threadN, thread0, ... threadN, ...).
+#pragma unroll
+	for (int j = 0; j < kernel_size; j++) { // HEIGHT
+#pragma unroll
+		for (int i = 0; i < kernel_size; i++) { // WIDTH
+			int ji_off = ((j * kernel_size) + i) * bottomchannels;
+			for (int ch = ch_off; ch < bottomchannels; ch += (WARPS_PER_BLOCK*THREADS_PER_WARP)) { // CHANNELS
+				int idx1 = ((item * bottomheight + y1 + j) * bottomwidth + x1 + i) * bottomchannels + ch;
+				int idxPatchData = ji_off + ch;
+				patch_data[idxPatchData] = bottom0[idx1];
+			}
+		}
+	}
+
+	__syncthreads();
+
+	__shared__ Dtype sum[WARPS_PER_BLOCK*THREADS_PER_WARP];
+
+	// For this input channel, compute correlation over the spatial neighborhood. 
+	// top_channel (output channel) is an index into the spatial neighborhood.
+	for (int top_channel = 0; top_channel < topchannels; top_channel++) {
+		sum[ch_off] = 0;
+
+		// Compute x and y offsets from neighborhood center.
+		int s2o = (top_channel % neighborhood_grid_width - neighborhood_grid_radius) * stride2;
+		int s2p = (top_channel / neighborhood_grid_width - neighborhood_grid_radius) * stride2;
+
+#pragma unroll
+		for (int j = 0; j < kernel_size; j++) { // HEIGHT
+#pragma unroll
+			for (int i = 0; i < kernel_size; i++) { // WIDTH
+				int ji_off = ((j * kernel_size) + i) * bottomchannels;
+				for (int ch = ch_off; ch < bottomchannels; ch += (WARPS_PER_BLOCK*THREADS_PER_WARP)) { // CHANNELS
+					int x2 = x1 + s2o;
+					int y2 = y1 + s2p;
+
+					int idxPatchData = ji_off + ch;
+					int idx2 = ((item * bottomheight + y2 + j) * bottomwidth + x2 + i) * bottomchannels + ch;
+
+					sum[ch_off] += patch_data[idxPatchData] * bottom1[idx2];
+				}
+			}
+		}
+
+		// Reduce sum over the input channel dimension, using the thread at channel idx 0.
+		__syncthreads();
+
+		if (ch_off == 0) {
+			Dtype total_sum = 0;
+#pragma unroll
+			for (int idx = 0; idx < WARPS_PER_BLOCK*THREADS_PER_WARP; idx++) {
+				total_sum += sum[idx];
+			}
+
+			const int sumelems = kernel_size*kernel_size*bottomchannels;
+			const int index = (blockIdx.y * topwidth + blockIdx.x) * topchannels + top_channel;
+			top[index + item*topcount] = total_sum / (float)sumelems;
+		}
+	}
 }
 
 // Notes on gradient computation kernels:
@@ -325,14 +404,46 @@ void Correlation(const GPUDevice& d,
 
   dim3 totalBlocksCorr(top_width_, top_height_, num);
 
-  CorrelateData<float><<<totalBlocksCorr, threadsPerBlock, shared_memory_per_block * sizeof(float)>>>(
-    topThreadCount,
-    num, top_width_, top_height_, top_channels_, topcount,
-    max_displacement_, neighborhood_grid_radius_, neighborhood_grid_width_, kernel_radius_, kernel_size_,
-    stride1_, stride2_,
-    width, height, channels,
-    padded_0.data(), padded_1.data(), output.data()
-  );
+  if (kernel_size_ == 1) {
+	  CorrelateDataUnrolled<float, 1> << <totalBlocksCorr, threadsPerBlock, shared_memory_per_block * sizeof(float) >> >(
+		  topThreadCount,
+		  num, top_width_, top_height_, top_channels_, topcount,
+		  max_displacement_, neighborhood_grid_radius_, neighborhood_grid_width_, kernel_radius_,
+		  stride1_, stride2_,
+		  width, height, channels,
+		  padded_0.data(), padded_1.data(), output.data()
+		  );
+  }
+  else if (kernel_size_ == 2) {
+	  CorrelateDataUnrolled<float, 2> << <totalBlocksCorr, threadsPerBlock, shared_memory_per_block * sizeof(float) >> >(
+		  topThreadCount,
+		  num, top_width_, top_height_, top_channels_, topcount,
+		  max_displacement_, neighborhood_grid_radius_, neighborhood_grid_width_, kernel_radius_,
+		  stride1_, stride2_,
+		  width, height, channels,
+		  padded_0.data(), padded_1.data(), output.data()
+		  );
+  }
+  else if (kernel_size_ == 3) {
+	  CorrelateDataUnrolled<float, 3> << <totalBlocksCorr, threadsPerBlock, shared_memory_per_block * sizeof(float) >> >(
+		  topThreadCount,
+		  num, top_width_, top_height_, top_channels_, topcount,
+		  max_displacement_, neighborhood_grid_radius_, neighborhood_grid_width_, kernel_radius_,
+		  stride1_, stride2_,
+		  width, height, channels,
+		  padded_0.data(), padded_1.data(), output.data()
+		  );
+  }
+  else {
+	  CorrelateData<float> << <totalBlocksCorr, threadsPerBlock, shared_memory_per_block * sizeof(float) >> >(
+		  topThreadCount,
+		  num, top_width_, top_height_, top_channels_, topcount,
+		  max_displacement_, neighborhood_grid_radius_, neighborhood_grid_width_, kernel_radius_, kernel_size_,
+		  stride1_, stride2_,
+		  width, height, channels,
+		  padded_0.data(), padded_1.data(), output.data()
+		  );
+  }
 }
 
 void CorrelationGrad(const GPUDevice& d,
