@@ -36,7 +36,7 @@ In powershell with the conda environment activated:
 mkdir build
 cd build
 cmake -G "Visual Studio 14 2015 Win64" ..
-cmake --build . --config Release
+cmake --build . --config Release --target install
 ```
 
 Note that the built custom ops (e.g correlation_op.dll) must be in the `build/Release` folder.

@@ -7,7 +7,7 @@ from tensorflow.python.framework import ops
 
 # Load op library.
 if platform == 'win32':
-    lib_path = os.path.join('build/Release', 'backward_warp_op.dll')
+    lib_path = os.path.join('build', 'backward_warp_op.dll')
 else:
     lib_path = os.path.join('build', 'libbackward_warp_op.so')
 if os.path.isfile(lib_path):

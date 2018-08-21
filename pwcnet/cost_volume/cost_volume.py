@@ -8,7 +8,7 @@ from tensorflow.python.framework import ops
 
 # Load op library.
 if platform == 'win32':
-    lib_path = os.path.join('build/Release', 'correlation_op.dll')
+    lib_path = os.path.join('build', 'correlation_op.dll')
 else:
     lib_path = os.path.join('build', 'libcorrelation_op.so')
 if os.path.isfile(lib_path):
