@@ -4,7 +4,7 @@
 
 #### Prerequisites
 
-*   Anaconda3
+*   Anaconda3 conda environment with the following packages:
     *   tensorflow-gpu
     *   opencv-python
     *   matplotlib
@@ -17,6 +17,8 @@
 
 ##### Linux
 
+In a terminal with the conda environment activated:
+
 ```
 mkdir build
 cd build
@@ -28,7 +30,7 @@ Note that the built custom ops (e.g libcorrelation_op.so) must be in the `build`
 
 ##### Windows:
 
-In powershell:
+In powershell with the conda environment activated:
 
 ```
 mkdir build

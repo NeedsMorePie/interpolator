@@ -28,16 +28,8 @@ if(CUDA_FOUND)
     if(WIN32)
         # https://github.com/tensorflow/tensorflow/blob/master/tensorflow/contrib/cmake/CMakeLists.txt
         FILE(COPY
-            ${CUDA_TOOLKIT_ROOT_DIR}/include/cuda.h
-            ${CUDA_TOOLKIT_ROOT_DIR}/include/cuComplex.h
-            ${CUDA_TOOLKIT_ROOT_DIR}/include/cublas_v2.h
-            ${CUDA_TOOLKIT_ROOT_DIR}/include/cusolverDn.h
-            ${CUDA_TOOLKIT_ROOT_DIR}/include/device_functions.h
-            ${CUDA_TOOLKIT_ROOT_DIR}/include/cufft.h
-            ${CUDA_TOOLKIT_ROOT_DIR}/include/curand.h
-            ${CUDA_TOOLKIT_ROOT_DIR}/include/cuda_runtime_api.h
-            ${CUDA_TOOLKIT_ROOT_DIR}/include/cuda_fp16.h
-            DESTINATION cuda/include
+            ${CUDA_TOOLKIT_ROOT_DIR}/include
+            DESTINATION cuda
         )
     else()
         # Unix-based operating systems can create symlinks.
