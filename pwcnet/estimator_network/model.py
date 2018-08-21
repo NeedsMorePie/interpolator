@@ -1,7 +1,7 @@
 import tensorflow as tf
 from common.models import ConvNetwork
 from pwcnet.cost_volume.cost_volume import cost_volume
-from pwcnet.warp.warp import warp_via_flow
+from pwcnet.warp.warp import backward_warp
 
 
 class EstimatorNetwork(ConvNetwork):
@@ -55,7 +55,7 @@ class EstimatorNetwork(ConvNetwork):
         """
         with tf.variable_scope(self.name, reuse=reuse_variables):
             # Warp layer.
-            warped = warp_via_flow(features2, optical_flow * pre_warp_scaling)
+            warped = backward_warp(features2, optical_flow * pre_warp_scaling)
 
             # Cost volume layer.
             cv = cost_volume(features1, warped, search_range=self.search_range)

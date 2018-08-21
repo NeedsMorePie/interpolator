@@ -6,7 +6,7 @@ from sys import platform
 from tensorflow.python.framework import ops
 
 
-# Load op and register gradients.
+# Load op library.
 if platform == 'win32':
     lib_path = os.path.join('build/Release', 'correlation_op.dll')
 else:
@@ -37,7 +37,7 @@ def cost_volume(c1, c2, search_range=4):
         )
         return results[0]
     else:
-        return cost_volume_cpu(c1, c2, search_range=search_range)
+        return cost_volume_tensorflow(c1, c2, search_range=search_range)
 
 
 if mod is not None:
@@ -54,7 +54,7 @@ if mod is not None:
         return [grad0, grad1]
 
 
-def cost_volume_cpu(c1, c2, search_range=4):
+def cost_volume_tensorflow(c1, c2, search_range=4):
     with tf.name_scope('cost_volume'):
         square_len = 2 * search_range + 1
         square_area = square_len ** 2

@@ -51,10 +51,18 @@ if (CUDA_FOUND)
         "pwcnet/cost_volume/correlation_op.cc"
         "pwcnet/cost_volume/correlation_op.cc.cu"
     )
+    cuda_add_library(backward_warp_op SHARED
+        "pwcnet/warp/backward_warp_op.cc"
+        "pwcnet/warp/backward_warp_op.cc.cu"
+    )
 else()
     add_library(correlation_op SHARED 
         "pwcnet/cost_volume/correlation_op.cc"
         "pwcnet/cost_volume/correlation_op.cc.cu"
+    )
+    add_library(backward_warp_op SHARED
+        "pwcnet/warp/backward_warp_op.cc"
+        "pwcnet/warp/backward_warp_op.cc.cu"
     )
 endif()
 
@@ -72,11 +80,19 @@ endif()
 if(WIN32)
     FIND_LIBRARY(TF_INTERNAL NAMES pywrap_tensorflow_internal HINTS ${TF_LIB_DIR}/python)
     message(STATUS "TF_INTERNAL is ${TF_INTERNAL}")
+
     target_link_libraries(correlation_op ${CUDA_LIBRARIES} ${TF_INTERNAL})
     set_target_properties(correlation_op PROPERTIES SUFFIX ".dll")
+
+    target_link_libraries(backward_warp_op ${CUDA_LIBRARIES} ${TF_INTERNAL})
+    set_target_properties(backward_warp_op PROPERTIES SUFFIX ".dll")
 else()
     find_library(TF_FRAMEWORK tensorflow_framework HINTS ${TF_LIB_DIR})
     message(STATUS "TF_FRAMEWORK is ${TF_FRAMEWORK}")
+
     target_link_libraries(correlation_op ${CUDA_LIBRARIES} ${TF_FRAMEWORK})
     set_target_properties(correlation_op PROPERTIES SUFFIX ".so")
+
+    target_link_libraries(backward_warp_op ${CUDA_LIBRARIES} ${TF_FRAMEWORK})
+    set_target_properties(backward_warp_op PROPERTIES SUFFIX ".so")
 endif()

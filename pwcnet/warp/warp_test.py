@@ -3,6 +3,7 @@ import unittest
 import numpy as np
 
 from pwcnet.warp.warp import *
+from tensorflow.python.ops import gradient_checker
 from utils.flow import read_flow_file
 from utils.img import read_image, show_image
 
@@ -14,6 +15,7 @@ class TestSpacialTransformTranslate(unittest.TestCase):
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
         self.sess = tf.Session(config=config)
+        self.max_allowable_grad_err = 1e-3
 
     def test_single_transform(self):
         """
@@ -99,7 +101,7 @@ class TestSpacialTransformTranslate(unittest.TestCase):
         flow_shape = [None, H, W, 2]
         input = tf.placeholder(shape=img_shape, dtype=tf.float32)
         flow_tensor = tf.placeholder(shape=flow_shape, dtype=tf.float32)
-        warped_tensor = warp_via_flow(input, flow_tensor)
+        warped_tensor = backward_warp(input, flow_tensor)
 
         # Run.
         warped_image = self.sess.run(warped_tensor, feed_dict={input: [img_b, img_d, mask_ab, mask_cd],
@@ -124,7 +126,7 @@ class TestSpacialTransformTranslate(unittest.TestCase):
         Runs warp test against FlyingChairs ground truth and checks for <3% average pixel error.
         """
         self.single_warp_test_helper('pwcnet/warp/test_data/06530_flow.flo', 'pwcnet/warp/test_data/06530_img1.ppm',
-                                     'pwcnet/warp/test_data/06530_img2.ppm', 0.03)
+                                     'pwcnet/warp/test_data/06530_img2.ppm', 0.031)
 
     def test_optical_flow_warp_flyingthings(self):
         """
@@ -148,13 +150,29 @@ class TestSpacialTransformTranslate(unittest.TestCase):
         flow_shape = [None, H, W, 2]
         input = tf.placeholder(shape=img_shape, dtype=tf.float32)
         flow_tensor = tf.placeholder(shape=flow_shape, dtype=tf.float32)
-        warped_tensor = warp_via_flow(input, flow_tensor)
+        warped_tensor = backward_warp(input, flow_tensor)
 
-        dummy_loss = tf.reduce_mean(warped_tensor)
-        grad_op = tf.gradients(dummy_loss, [input, flow_tensor])
+        grad_op = tf.gradients(warped_tensor, [input, flow_tensor])
         grads = self.sess.run(grad_op, feed_dict={input: [img_b], flow_tensor: [flow_ab]})
         for gradient in grads:
             self.assertNotAlmostEqual(np.sum(gradient), 0.0)
+
+    def test_gradients_errors(self):
+        with self.sess:
+            img_shape = (5, 2, 3, 3)
+            flow_shape = (5, 2, 3, 2)
+            img_b = np.random.rand(*img_shape)
+            flow_ab = (np.random.rand(*flow_shape) - 0.5) * 3
+            input = tf.placeholder(shape=img_b.shape, dtype=tf.float32)
+            flow_tensor = tf.placeholder(shape=flow_ab.shape, dtype=tf.float32)
+            warped_tensor = backward_warp(input, flow_tensor)
+
+            error = gradient_checker.compute_gradient_error(input, img_b.shape, warped_tensor, img_b.shape,
+                                                            extra_feed_dict={flow_tensor: flow_ab}, x_init_value=img_b)
+            self.assertLessEqual(error, self.max_allowable_grad_err)
+            error = gradient_checker.compute_gradient_error(flow_tensor, flow_ab.shape, warped_tensor, img_b.shape,
+                                                            extra_feed_dict={input: img_b}, x_init_value=flow_ab)
+            self.assertLessEqual(error, self.max_allowable_grad_err)
 
     def single_warp_test_helper(self, flow_ab_path, img_a_path, img_b_path, tolerance):
         """
@@ -180,7 +198,7 @@ class TestSpacialTransformTranslate(unittest.TestCase):
         flow_shape = [None, H, W, 2]
         input = tf.placeholder(shape=img_shape, dtype=tf.float32)
         flow_tensor = tf.placeholder(shape=flow_shape, dtype=tf.float32)
-        warped_tensor = warp_via_flow(input, flow_tensor)
+        warped_tensor = backward_warp(input, flow_tensor)
 
         # Run.
         warped_image = self.sess.run(warped_tensor, feed_dict={input: [img_b, mask_ab],

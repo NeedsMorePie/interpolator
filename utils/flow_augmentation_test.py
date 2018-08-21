@@ -103,7 +103,7 @@ class TestFlowAugmentation(unittest.TestCase):
         flow_shape = [None, H, W, 2]
         input = tf.placeholder(shape=img_shape, dtype=tf.float32)
         flow_tensor = tf.placeholder(shape=flow_shape, dtype=tf.float32)
-        warped_tensor = warp_via_flow(input, flow_tensor)
+        warped_tensor = backward_warp(input, flow_tensor)
 
         # Run.
         feed_dict = {
