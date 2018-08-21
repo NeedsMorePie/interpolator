@@ -26,6 +26,12 @@ cmake ..
 make
 ```
 
+If cmake can't find CUDA, you may need to manually pass it the toolkit's root path:
+
+```
+cmake -D CUDA_TOOLKIT_ROOT_DIR=/path/to/cuda ..
+```
+
 Note that the built custom ops (e.g libcorrelation_op.so) must be in the `build` folder.
 
 ##### Windows:
