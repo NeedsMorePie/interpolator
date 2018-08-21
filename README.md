@@ -23,7 +23,7 @@ In a terminal with the conda environment activated:
 mkdir build
 cd build
 cmake ..
-make
+cmake --build . --config Release --target install
 ```
 
 Note that the built custom ops (e.g libcorrelation_op.so) must be in the `build` folder.
