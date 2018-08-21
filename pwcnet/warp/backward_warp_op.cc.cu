@@ -44,7 +44,7 @@ __global__ void BackwardWarpKernel(const int32 nthreads,
 
 		float sum = 0.0;
 
-		#define IMG(iy, ix) images[c + channels * (ix + width * (iy + height * b))]
+#define IMG(iy, ix) images[c + channels * (ix + width * (iy + height * b))]
 		// top-left neighbor
 		if(x0 >= 0 && x0 < width && y0 >= 0 && y0 < height) {
 			sum += w_left * w_top * IMG(y0, x0);
@@ -64,7 +64,8 @@ __global__ void BackwardWarpKernel(const int32 nthreads,
 		if(x1 >= 0 && x1 < width && y1 >= 0 && y1 < height) {
 			sum += w_right * w_bottom * IMG(y1, x1);
 		}
-		#undef IMG
+#undef IMG
+
 		output[pixel_index * channels + c] = sum;
 	}
 }
@@ -105,7 +106,7 @@ __global__ void BackwardWarpFlowGradKernel(const int32 nthreads,
 		float px;
 		float din = input_grad[c + channels * pixel_index];
 
-		#define IMG(iy, ix) input_images[c + channels * (ix + width * (iy + height * b))]
+#define IMG(iy, ix) input_images[c + channels * (ix + width * (iy + height * b))]
 		// top-left neighbor
 		if(x0 >= 0 && x0 < width && y0 >= 0 && y0 < height) {
 			px = IMG(y0, x0) * din;
@@ -133,7 +134,7 @@ __global__ void BackwardWarpFlowGradKernel(const int32 nthreads,
 			du += w_bottom * px;
 			dv += w_right * px;
 		}
-		#undef IMG
+#undef IMG
 
 		CudaAtomicAdd(output_grad + pixel_index * 2, du);
 		CudaAtomicAdd(output_grad + pixel_index * 2 + 1, dv);
