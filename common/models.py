@@ -155,7 +155,7 @@ class ConvNetwork(RestorableNetwork):
         """
         :param features: Tensor. Feature map of shape [batch_size, H, W, num_features].
         :return: final_output: tensor of shape [batch_size, H, W, num_output_features].
-                 layer_outputs: all convolution outputs of the network.
+                 layer_outputs: all convolution outputs of the network. The last item is the final_output.
         """
         layer_outputs = []
 

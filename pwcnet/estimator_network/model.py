@@ -53,7 +53,7 @@ class EstimatorNetwork(ConvNetwork):
         :param pre_warp_scaling: Tensor or scalar. Scaling to be applied right before warping.
         :param reuse_variables: tf reuse option. i.e. tf.AUTO_REUSE.
         :return: final_flow: optical flow of shape [batch_size, H, W, 2].
-                 layer_outputs: all convolution outputs of the network.
+                 layer_outputs: all convolution outputs of the network. The last item is the final_flow.
         """
         with tf.variable_scope(self.name, reuse=reuse_variables):
             # Warp layer.
@@ -72,6 +72,4 @@ class EstimatorNetwork(ConvNetwork):
             if previous_estimator_feature is not None:
                 input_stack = input_stack + [previous_estimator_feature]
             initial_input = tf.concat(input_stack, axis=-1, name='conv_tower_input')
-            final_output, layer_outputs = self._get_conv_tower(initial_input)
-
-            return final_output, layer_outputs
+            return self._get_conv_tower(initial_input)

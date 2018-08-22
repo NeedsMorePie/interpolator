@@ -65,8 +65,8 @@ class PWCNet(RestorableNetwork):
             # It is refined at each feature level.
             previous_flow = None
             previous_flows = []
-            # Features from the second last layer of the previous estimator network.
-            previous_estimator_feature = None
+            # Intermediate features from the previous estimator network.
+            previous_estimator_features = None
 
             # Counts down from [self.num_flow_estimates, self.output_level] inclusive.
             for i in self.iter_range:
@@ -93,20 +93,22 @@ class PWCNet(RestorableNetwork):
                     with tf.name_scope('previous_flow_' + str(i)):
                         previous_flow = tf.image.resize_images(previous_flow, [H, W],
                                                                method=tf.image.ResizeMethod.BILINEAR)
-                    with tf.name_scope('previous_estimator_feature_' + str(i)):
-                        previous_estimator_feature = tf.image.resize_images(previous_estimator_feature, [H, W],
-                                                                            method=tf.image.ResizeMethod.BILINEAR)
+                    with tf.name_scope('previous_estimator_feature_deconv_' + str(i)):
+                        previous_estimator_features = tf.layers.conv2d_transpose(previous_estimator_features, filters=2,
+                                                                                 kernel_size=4, strides=2,
+                                                                                 padding='same')
 
                 # Get the estimator network.
                 estimator_network = self.estimator_networks[self.num_feature_levels - i]
                 if VERBOSE:
                     print('Getting forward ops for', estimator_network.name)
                 previous_flow, estimator_outputs = estimator_network.get_forward(
-                    features_a_n, features_b_n, previous_flow, previous_estimator_feature,
+                    features_a_n, features_b_n, previous_flow, previous_estimator_features,
                     pre_warp_scaling=pre_warp_scaling, reuse_variables=reuse_variables)
                 previous_flows.append(previous_flow)
                 assert estimator_outputs[-1] == previous_flow
-                previous_estimator_feature = estimator_outputs[-2]
+                previous_estimator_features = tf.concat(estimator_outputs[:-1], axis=-1,
+                                                        name='previous_estimator_features_' + str(i))
 
                 # Last level gets the context-network treatment.
                 if i == self.output_level:
@@ -114,7 +116,7 @@ class PWCNet(RestorableNetwork):
                         print('Getting forward ops for context network.')
                     # Features are the second to last output of the estimator network.
                     previous_flow, context_outputs = self.context_network.get_forward(
-                        tf.concat(estimator_outputs, axis=-1), previous_flow, reuse_variables=reuse_variables)
+                        previous_estimator_features, previous_flow, reuse_variables=reuse_variables)
                     previous_flows.append(previous_flow)
 
             final_flow = tf.image.resize_images(previous_flow, [img_height, img_width],
