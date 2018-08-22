@@ -177,7 +177,7 @@ class TestSpacialTransformTranslate(unittest.TestCase):
                                                                  x_init_value=img_b)
                 error2 = gradient_checker.compute_gradient_error(flow_tensor, flow_ab.shape, warped_tensor, img_b.shape,
                                                                  extra_feed_dict={input: img_b}, x_init_value=flow_ab)
-                if error1 <= self.max_allowable_grad_err and error2 < self.max_allowable_grad_err:
+                if error1 <= self.max_allowable_grad_err and error2 <= self.max_allowable_grad_err:
                     return
             self.assertLessEqual(max(error1, error2), self.max_allowable_grad_err,
                                  'Exceeded the error threshold. Note that this test is flaky.')
