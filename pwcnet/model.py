@@ -116,12 +116,12 @@ class PWCNet(RestorableNetwork):
                     if VERBOSE:
                         print('Getting forward ops for context network.')
                     # Features are the second to last output of the estimator network.
-                    previous_flow, context_outputs = self.context_network.get_forward(
+                    previous_flow, _ = self.context_network.get_forward(
                         previous_estimator_features, previous_flow, reuse_variables=reuse_variables)
                     previous_flows.append(previous_flow)
 
             final_flow = tf.image.resize_bilinear(previous_flow, [img_height, img_width])
-            final_flow /= self.flow_scaling
+            final_flow = tf.divide(final_flow, self.flow_scaling, name='final_flow')
             return final_flow, previous_flows
 
     def _get_loss(self, previous_flows, expected_flow, diff_fn):
