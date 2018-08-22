@@ -35,13 +35,13 @@ class EstimatorNetwork(ConvNetwork):
     def get_forward(self, features1, features2, optical_flow, previous_estimator_feature,
                     pre_warp_scaling=1.0, reuse_variables=tf.AUTO_REUSE):
         """
-        features1   features2  optical_flow
-              \         \           /  \
-               \        [WARP_LAYER]    |
-                \             |         |
-                 -------[COST_VOLUME]   |
-                  \           |        /
-                   -------[LAYER 0]---
+        features1   features2  optical_flow  previous_estimator_feature
+              \         \           /  \       /
+               \        [WARP_LAYER]    |     /
+                \             |         |    /
+                 -------[COST_VOLUME]   |   /
+                  \           |        /   /
+                   -------[LAYER 0]--------
                              ...
                          [LAYER N-1]
                               |
