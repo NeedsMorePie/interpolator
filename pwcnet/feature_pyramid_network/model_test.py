@@ -34,15 +34,15 @@ class TestFeaturePyramid(unittest.TestCase):
         query = [final_features] + layer_outputs
         results = self.sess.run(query, feed_dict={input_image: input_features})
 
-        self.assertEqual(len(results), 13)
+        self.assertEqual(len(results), 19)
 
         # Test that the default values are working.
-        self.assertTrue(np.allclose(results[1].shape, np.asarray([batch_size, height/2, width/2, 16])))
-        self.assertTrue(np.allclose(results[3].shape, np.asarray([batch_size, height/4, width/4, 32])))
-        self.assertTrue(np.allclose(results[5].shape, np.asarray([batch_size, height/8, width/8, 64])))
-        self.assertTrue(np.allclose(results[7].shape, np.asarray([batch_size, height/16, width/16, 96])))
-        self.assertTrue(np.allclose(results[9].shape, np.asarray([batch_size, height/32, width/32, 128])))
-        self.assertTrue(np.allclose(results[11].shape, np.asarray([batch_size, height/64, width/64, 192])))
+        self.assertTrue(np.allclose(results[2].shape, np.asarray([batch_size, height/2, width/2, 16])))
+        self.assertTrue(np.allclose(results[5].shape, np.asarray([batch_size, height/4, width/4, 32])))
+        self.assertTrue(np.allclose(results[8].shape, np.asarray([batch_size, height/8, width/8, 64])))
+        self.assertTrue(np.allclose(results[11].shape, np.asarray([batch_size, height/16, width/16, 96])))
+        self.assertTrue(np.allclose(results[14].shape, np.asarray([batch_size, height/32, width/32, 128])))
+        self.assertTrue(np.allclose(results[17].shape, np.asarray([batch_size, height/64, width/64, 192])))
 
         for i in range(1, 13):
             self.assertNotEqual(np.sum(results[i]), 0.0)
@@ -50,7 +50,7 @@ class TestFeaturePyramid(unittest.TestCase):
         # Test regularization losses.
         # 7 conv layers x2 (bias and kernels).
         reg_losses = tf.losses.get_regularization_losses(scope='feature_pyramid_network')
-        self.assertEqual(len(reg_losses), 24)
+        self.assertEqual(len(reg_losses), 36)
         # Make sure the reg losses aren't 0.
         reg_loss_sum_tensor = tf.add_n(reg_losses)
         reg_loss_sum = self.sess.run(reg_loss_sum_tensor)
@@ -58,7 +58,7 @@ class TestFeaturePyramid(unittest.TestCase):
 
         # Test that we have all the trainable variables.
         trainable_vars = tf.trainable_variables(scope='feature_pyramid_network')
-        self.assertEqual(len(trainable_vars), 24)
+        self.assertEqual(len(trainable_vars), 36)
 
         # Check that the gradients are flowing.
         grad_op = tf.gradients(tf.reduce_mean(final_features), trainable_vars + [input_image])

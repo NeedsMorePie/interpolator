@@ -20,16 +20,22 @@ class FeaturePyramidNetwork(ConvNetwork):
             # PWC-Net default.
             self.layer_specs = [[3, 16, 1, 2],
                                 [3, 16, 1, 1],
+                                [3, 16, 1, 1],  # C1
                                 [3, 32, 1, 2],
                                 [3, 32, 1, 1],
+                                [3, 32, 1, 1],  # C2
                                 [3, 64, 1, 2],
                                 [3, 64, 1, 1],
+                                [3, 64, 1, 1],  # C3
                                 [3, 96, 1, 2],
                                 [3, 96, 1, 1],
+                                [3, 96, 1, 1],  # C4
                                 [3, 128, 1, 2],
                                 [3, 128, 1, 1],
+                                [3, 128, 1, 1],  # C5
                                 [3, 192, 1, 2],
-                                [3, 192, 1, 1]]
+                                [3, 192, 1, 1],
+                                [3, 192, 1, 1]]  # C6
         else:
             self.layer_specs = layer_specs
 
@@ -56,4 +62,4 @@ class FeaturePyramidNetwork(ConvNetwork):
         :param n: Int. Typically between 1 to 6.
         :return: Int. Index of the layer_outputs array.
         """
-        return n * 2 - 1
+        return n * 3 - 1
