@@ -39,7 +39,7 @@ cmake -G "Visual Studio 14 2015 Win64" ..
 cmake --build . --config Release --target install
 ```
 
-Note that the built custom ops (e.g correlation_op.dll) must be in the `build/Release` folder.
+Note that the built custom ops (e.g correlation_op.dll) must be in the `build` folder.
 
 ##### Common gotchas
 
