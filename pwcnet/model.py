@@ -74,12 +74,16 @@ class PWCNet(RestorableNetwork):
                     print('Creating estimator at level', i)
                 # Get the features at this level.
                 features_n = features[self.feature_pyramid.get_c_n_idx(i)]
-                features_a_n = features_n[0:batch_size, ...]
-                features_b_n = features_n[batch_size:, ...]
+                with tf.name_scope('features_a_' + str(i)):
+                    features_a_n = features_n[0:batch_size, ...]
+                with tf.name_scope('features_b_' + str(i)):
+                    features_b_n = features_n[batch_size:, ...]
 
                 # Setup the previous flow and feature map for input into the estimator network at this level.
-                H = tf.shape(features_a_n)[1]
-                W = tf.shape(features_a_n)[2]
+                with tf.name_scope('height_' + str(i)):
+                    H = tf.shape(features_a_n)[1]
+                with tf.name_scope('width_' + str(i)):
+                    W = tf.shape(features_a_n)[2]
                 pre_warp_scaling = 1.0
                 if previous_flow is not None:
                     # The original scale flows at all layers is the same as the scale of the ground truth.
@@ -87,9 +91,11 @@ class PWCNet(RestorableNetwork):
                     pre_warp_scaling = dimension_scaling / self.flow_scaling
                     # Upsample to the size of the current layer.
                     previous_flow = tf.image.resize_images(previous_flow, [H, W],
-                                                           method=tf.image.ResizeMethod.BILINEAR)
+                                                           method=tf.image.ResizeMethod.BILINEAR,
+                                                           name='previous_flow_' + str(i))
                     previous_estimator_feature = tf.image.resize_images(previous_estimator_feature, [H, W],
-                                                                        method=tf.image.ResizeMethod.BILINEAR)
+                                                                        method=tf.image.ResizeMethod.BILINEAR,
+                                                                        name='previous_estimator_feature_' + str(i))
 
                 # Get the estimator network.
                 estimator_network = self.estimator_networks[self.num_feature_levels - i]
@@ -108,7 +114,7 @@ class PWCNet(RestorableNetwork):
                         print('Getting forward ops for context network.')
                     # Features are the second to last output of the estimator network.
                     previous_flow, context_outputs = self.context_network.get_forward(
-                        previous_estimator_feature, previous_flow, reuse_variables=reuse_variables)
+                        tf.concat(estimator_outputs, axis=-1), previous_flow, reuse_variables=reuse_variables)
                     previous_flows.append(previous_flow)
 
             final_flow = tf.image.resize_images(previous_flow, [img_height, img_width],
