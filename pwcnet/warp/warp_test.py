@@ -15,7 +15,7 @@ class TestSpacialTransformTranslate(unittest.TestCase):
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
         self.sess = tf.Session(config=config)
-        self.max_allowable_grad_err = 1e-3
+        self.max_allowable_grad_err = 2e-3
 
     def test_single_transform(self):
         """
@@ -164,8 +164,8 @@ class TestSpacialTransformTranslate(unittest.TestCase):
             error1 = 0
             error2 = 0
             for i in range(num_tries):
-                img_shape = (16, 2, 3, 3)
-                flow_shape = (16, 2, 3, 2)
+                img_shape = (16, 3, 4, 4)
+                flow_shape = (16, 3, 4, 2)
                 img_b = np.random.rand(*img_shape)
                 flow_ab = (np.random.rand(*flow_shape) - 0.5) * 3
                 input = tf.placeholder(shape=img_b.shape, dtype=tf.float32)
@@ -174,13 +174,14 @@ class TestSpacialTransformTranslate(unittest.TestCase):
 
                 error1 = gradient_checker.compute_gradient_error(input, img_b.shape, warped_tensor, img_b.shape,
                                                                  extra_feed_dict={flow_tensor: flow_ab},
-                                                                 x_init_value=img_b)
+                                                                 x_init_value=img_b, delta=1e-4)
                 error2 = gradient_checker.compute_gradient_error(flow_tensor, flow_ab.shape, warped_tensor, img_b.shape,
-                                                                 extra_feed_dict={input: img_b}, x_init_value=flow_ab)
+                                                                 extra_feed_dict={input: img_b}, x_init_value=flow_ab,
+                                                                 delta=1e-4)
                 if error1 <= self.max_allowable_grad_err and error2 <= self.max_allowable_grad_err:
                     return
             self.assertLessEqual(max(error1, error2), self.max_allowable_grad_err,
-                                 'Exceeded the error threshold. Note that this test is flaky.')
+                                 'Exceeded the error threshold. Note that this test may be flaky.')
 
     def single_warp_test_helper(self, flow_ab_path, img_a_path, img_b_path, tolerance):
         """
