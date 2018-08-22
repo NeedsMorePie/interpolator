@@ -47,7 +47,7 @@ class EstimatorNetwork(ConvNetwork):
                          final_output
         :param features1: Tensor. Feature map of shape [batch_size, H, W, num_features]. Time = 0.
         :param features2: Tensor. Feature map of shape [batch_size, H, W, num_features]. Time = 1.
-        :param optical_flow: Tensor. Optical flow of shape [batch_size, H, W, 2].
+        :param optical_flow: Tensor or None. Optical flow of shape [batch_size, H, W, 2].
         :param pre_warp_scaling: Tensor or scalar. Scaling to be applied right before warping.
         :param reuse_variables: tf reuse option. i.e. tf.AUTO_REUSE.
         :return: final_flow: optical flow of shape [batch_size, H, W, 2].
@@ -55,14 +55,19 @@ class EstimatorNetwork(ConvNetwork):
         """
         with tf.variable_scope(self.name, reuse=reuse_variables):
             # Warp layer.
-            warped = warp_via_flow(features2, optical_flow * pre_warp_scaling)
+            warped = features2
+            if optical_flow is not None:
+                warped = warp_via_flow(warped, optical_flow * pre_warp_scaling)
 
             # Cost volume layer.
-            cv = cost_volume(features1, warped, search_range=self.search_range)
+            cv = self.activation_fn(cost_volume(features1, warped, search_range=self.search_range))
 
             # CNN layers.
             # Initial input has shape [batch_size, H, W, in_features + cv_size + 2]
-            initial_input = tf.concat([features1, cv, optical_flow], axis=-1)
+            input_stack = [features1, cv]
+            if optical_flow is not None:
+                input_stack = input_stack + [optical_flow]
+            initial_input = tf.concat(input_stack, axis=-1)
             final_output, layer_outputs = self._get_conv_tower(initial_input)
 
             # Prepend the warp and cv outputs.

@@ -61,7 +61,7 @@ class PWCNet(RestorableNetwork):
             images_a_b = tf.concat([image_a, image_b], axis=0)
             _, features = self.feature_pyramid.get_forward(images_a_b, reuse_variables=reuse_variables)
 
-            # The initial flow will be initialized with zeros.
+            # The initial flow is None. The estimator not do warping if flow is None.
             # It is refined at each feature level.
             previous_flow = None
             previous_flows = []
@@ -76,13 +76,10 @@ class PWCNet(RestorableNetwork):
                 features_b_n = features_n[batch_size:, ...]
 
                 # Setup the previous flow for input into the estimator network at this level.
-                B = tf.shape(features_a_n)[0]
                 H = tf.shape(features_a_n)[1]
                 W = tf.shape(features_a_n)[2]
                 pre_warp_scaling = 1.0
-                if previous_flow is None:
-                    previous_flow = tf.zeros(shape=[B, H, W, 2], dtype=tf.float32)
-                else:
+                if previous_flow is not None:
                     # The original scale flows at all layers is the same as the scale of the ground truth.
                     dimension_scaling = tf.cast(H, tf.float32) / tf.cast(img_height, tf.float32)
                     pre_warp_scaling = dimension_scaling / self.flow_scaling
