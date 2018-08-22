@@ -1,8 +1,8 @@
 # interpolator
 
-### Installation
+## Installation
 
-#### Prerequisites
+### Prerequisites
 
 *   Anaconda3 conda environment with the following packages:
     *   tensorflow-gpu
@@ -13,9 +13,9 @@
 *   CMake (version >= 3.5)
 *   Windows only: Visual studio 14 (2015)
 
-#### Building ops
+### Building ops
 
-##### Linux
+#### Linux
 
 In a terminal with the conda environment activated:
 
@@ -28,7 +28,7 @@ cmake --build . --config Release --target install
 
 Note that the built custom ops (e.g libcorrelation_op.so) must be in the `build` folder.
 
-##### Windows
+#### Windows
 
 In powershell with the conda environment activated:
 
@@ -41,7 +41,7 @@ cmake --build . --config Release --target install
 
 Note that the built custom ops (e.g correlation_op.dll) must be in the `build` folder.
 
-##### Common gotchas
+#### Common gotchas
 
 After running cmake, you must look for ```CUDA was found``` in the console output:
 
@@ -51,9 +51,9 @@ If cmake can't find CUDA, you may need to manually pass it the toolkit's root pa
 cmake -D CUDA_TOOLKIT_ROOT_DIR=/path/to/cuda ..
 ```
 
-### Running tests
+## Running tests
 
-#### Run all tests
+### Run all tests
 
 Run this command:
 
@@ -61,7 +61,7 @@ Run this command:
 python run_tests.py
 ```
 
-#### Run a specific test
+### Run a specific test
 
 Run this command:
 
@@ -75,9 +75,9 @@ For example:
 python -m unittest pwcnet.warp.warp_test
 ```
 
-### Running the PWCNet training pipeline
+## Running the PWCNet training pipeline
 
-#### Creating a TFRecord optical flow dataset
+### Creating a TFRecord optical flow dataset
 
 1.  Download a dataset (i.e. Sintel or FlyingChairs).
 
@@ -171,7 +171,7 @@ python -m unittest pwcnet.warp.warp_test
         n_flowdataset_valid.tfrecords
     ```
     
-#### Training a PWCNet
+### Training a PWCNet
 
 1.  Have your tf records prepared.
 
@@ -191,9 +191,9 @@ python -m unittest pwcnet.warp.warp_test
     tensorboard --logdir="<path>/<to>/<checkpoint_output>"
     ```
 
-### Test-running the Context-Aware Interpolation training
+## Test-running the Context-Aware Interpolation training
 
-#### Creating a TFRecord dataset
+### Creating a TFRecord dataset
 
 1.  Download [DAVIS](https://davischallenge.org/davis2017/code.html).
 
@@ -231,7 +231,7 @@ python -m unittest pwcnet.warp.warp_test
         n_interp_dataset_valid.tfrecords
     ```
     
-#### Training
+### Training
 
 1.  Have your tf records and pre-trained PWC-Net weights prepared.
 
