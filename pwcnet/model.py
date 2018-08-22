@@ -90,12 +90,12 @@ class PWCNet(RestorableNetwork):
                     dimension_scaling = tf.cast(H, tf.float32) / tf.cast(img_height, tf.float32)
                     pre_warp_scaling = dimension_scaling / self.flow_scaling
                     # Upsample to the size of the current layer.
-                    previous_flow = tf.image.resize_images(previous_flow, [H, W],
-                                                           method=tf.image.ResizeMethod.BILINEAR,
-                                                           name='previous_flow_' + str(i))
-                    previous_estimator_feature = tf.image.resize_images(previous_estimator_feature, [H, W],
-                                                                        method=tf.image.ResizeMethod.BILINEAR,
-                                                                        name='previous_estimator_feature_' + str(i))
+                    with tf.name_scope('previous_flow_' + str(i)):
+                        previous_flow = tf.image.resize_images(previous_flow, [H, W],
+                                                               method=tf.image.ResizeMethod.BILINEAR)
+                    with tf.name_scope('previous_estimator_feature_' + str(i)):
+                        previous_estimator_feature = tf.image.resize_images(previous_estimator_feature, [H, W],
+                                                                            method=tf.image.ResizeMethod.BILINEAR)
 
                 # Get the estimator network.
                 estimator_network = self.estimator_networks[self.num_feature_levels - i]

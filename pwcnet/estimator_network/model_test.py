@@ -48,22 +48,20 @@ class TestContextNetwork(unittest.TestCase):
                                                   input_flow_tensor: input_flow,
                                                   prev_features_tensor: previous_features})
 
-        self.assertEqual(len(results), 9)
+        self.assertEqual(len(results), 7)
 
         final_flow_result = results[0]
         self.assertTrue(np.allclose(final_flow_result.shape, np.asarray([batch_size, height, width, 2])))
 
         # Test that the default values are working.
-        self.assertTrue(np.allclose(results[1].shape, np.asarray([batch_size, height, width, num_features])))
-        self.assertTrue(np.allclose(results[2].shape, np.asarray([batch_size, height, width, 81])))
-        self.assertTrue(np.allclose(results[3].shape, np.asarray([batch_size, height, width, 128])))
-        self.assertTrue(np.allclose(results[4].shape, np.asarray([batch_size, height, width, 128])))
-        self.assertTrue(np.allclose(results[5].shape, np.asarray([batch_size, height, width, 96])))
-        self.assertTrue(np.allclose(results[6].shape, np.asarray([batch_size, height, width, 64])))
-        self.assertTrue(np.allclose(results[7].shape, np.asarray([batch_size, height, width, 32])))
-        self.assertTrue(np.allclose(results[8].shape, np.asarray([batch_size, height, width, 2])))
+        self.assertTrue(np.allclose(results[1].shape, np.asarray([batch_size, height, width, 128])))
+        self.assertTrue(np.allclose(results[2].shape, np.asarray([batch_size, height, width, 128])))
+        self.assertTrue(np.allclose(results[3].shape, np.asarray([batch_size, height, width, 96])))
+        self.assertTrue(np.allclose(results[4].shape, np.asarray([batch_size, height, width, 64])))
+        self.assertTrue(np.allclose(results[5].shape, np.asarray([batch_size, height, width, 32])))
+        self.assertTrue(np.allclose(results[6].shape, np.asarray([batch_size, height, width, 2])))
 
-        for i in range(1, 9):
+        for i in range(1, 7):
             self.assertNotEqual(np.sum(results[i]), 0.0)
 
         # Test regularization losses.
@@ -120,20 +118,18 @@ class TestContextNetwork(unittest.TestCase):
         results = self.sess.run(query, feed_dict={input_features1_tensor: input_features1,
                                                   input_features2_tensor: input_features2})
 
-        self.assertEqual(len(results), 9)
+        self.assertEqual(len(results), 7)
 
         final_flow_result = results[0]
         self.assertTrue(np.allclose(final_flow_result.shape, np.asarray([batch_size, height, width, 2])))
 
         # Test that the default values are working.
-        self.assertTrue(np.allclose(results[1].shape, np.asarray([batch_size, height, width, num_features])))
-        self.assertTrue(np.allclose(results[2].shape, np.asarray([batch_size, height, width, 81])))
-        self.assertTrue(np.allclose(results[3].shape, np.asarray([batch_size, height, width, 128])))
-        self.assertTrue(np.allclose(results[4].shape, np.asarray([batch_size, height, width, 128])))
-        self.assertTrue(np.allclose(results[5].shape, np.asarray([batch_size, height, width, 96])))
-        self.assertTrue(np.allclose(results[6].shape, np.asarray([batch_size, height, width, 64])))
-        self.assertTrue(np.allclose(results[7].shape, np.asarray([batch_size, height, width, 32])))
-        self.assertTrue(np.allclose(results[8].shape, np.asarray([batch_size, height, width, 2])))
+        self.assertTrue(np.allclose(results[1].shape, np.asarray([batch_size, height, width, 128])))
+        self.assertTrue(np.allclose(results[2].shape, np.asarray([batch_size, height, width, 128])))
+        self.assertTrue(np.allclose(results[3].shape, np.asarray([batch_size, height, width, 96])))
+        self.assertTrue(np.allclose(results[4].shape, np.asarray([batch_size, height, width, 64])))
+        self.assertTrue(np.allclose(results[5].shape, np.asarray([batch_size, height, width, 32])))
+        self.assertTrue(np.allclose(results[6].shape, np.asarray([batch_size, height, width, 2])))
 
 
 if __name__ == '__main__':
