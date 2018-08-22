@@ -32,7 +32,8 @@ class EstimatorNetwork(ConvNetwork):
 
         self.search_range = search_range
 
-    def get_forward(self, features1, features2, optical_flow, pre_warp_scaling=1.0, reuse_variables=tf.AUTO_REUSE):
+    def get_forward(self, features1, features2, optical_flow, previous_estimator_feature,
+                    pre_warp_scaling=1.0, reuse_variables=tf.AUTO_REUSE):
         """
         features1   features2  optical_flow
               \         \           /  \
@@ -48,6 +49,7 @@ class EstimatorNetwork(ConvNetwork):
         :param features1: Tensor. Feature map of shape [batch_size, H, W, num_features]. Time = 0.
         :param features2: Tensor. Feature map of shape [batch_size, H, W, num_features]. Time = 1.
         :param optical_flow: Tensor or None. Optical flow of shape [batch_size, H, W, 2].
+        :param previous_estimator_feature: Tensor or None. Feature map of shape [batch_size, H, W, num_features].
         :param pre_warp_scaling: Tensor or scalar. Scaling to be applied right before warping.
         :param reuse_variables: tf reuse option. i.e. tf.AUTO_REUSE.
         :return: final_flow: optical flow of shape [batch_size, H, W, 2].
@@ -67,6 +69,8 @@ class EstimatorNetwork(ConvNetwork):
             input_stack = [features1, cv]
             if optical_flow is not None:
                 input_stack = input_stack + [optical_flow]
+            if previous_estimator_feature is not None:
+                input_stack = input_stack + [previous_estimator_feature]
             initial_input = tf.concat(input_stack, axis=-1)
             final_output, layer_outputs = self._get_conv_tower(initial_input)
 
