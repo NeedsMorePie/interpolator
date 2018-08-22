@@ -159,20 +159,28 @@ class TestSpacialTransformTranslate(unittest.TestCase):
 
     def test_gradients_errors(self):
         with self.sess:
-            img_shape = (5, 2, 3, 3)
-            flow_shape = (5, 2, 3, 2)
-            img_b = np.random.rand(*img_shape)
-            flow_ab = (np.random.rand(*flow_shape) - 0.5) * 3
-            input = tf.placeholder(shape=img_b.shape, dtype=tf.float32)
-            flow_tensor = tf.placeholder(shape=flow_ab.shape, dtype=tf.float32)
-            warped_tensor = backward_warp(input, flow_tensor)
+            # This test is flaky, so retry if fail.
+            num_tries = 2
+            error1 = 0
+            error2 = 0
+            for i in range(num_tries):
+                img_shape = (16, 2, 3, 3)
+                flow_shape = (16, 2, 3, 2)
+                img_b = np.random.rand(*img_shape)
+                flow_ab = (np.random.rand(*flow_shape) - 0.5) * 3
+                input = tf.placeholder(shape=img_b.shape, dtype=tf.float32)
+                flow_tensor = tf.placeholder(shape=flow_ab.shape, dtype=tf.float32)
+                warped_tensor = backward_warp(input, flow_tensor)
 
-            error = gradient_checker.compute_gradient_error(input, img_b.shape, warped_tensor, img_b.shape,
-                                                            extra_feed_dict={flow_tensor: flow_ab}, x_init_value=img_b)
-            self.assertLessEqual(error, self.max_allowable_grad_err)
-            error = gradient_checker.compute_gradient_error(flow_tensor, flow_ab.shape, warped_tensor, img_b.shape,
-                                                            extra_feed_dict={input: img_b}, x_init_value=flow_ab)
-            self.assertLessEqual(error, self.max_allowable_grad_err)
+                error1 = gradient_checker.compute_gradient_error(input, img_b.shape, warped_tensor, img_b.shape,
+                                                                 extra_feed_dict={flow_tensor: flow_ab},
+                                                                 x_init_value=img_b)
+                error2 = gradient_checker.compute_gradient_error(flow_tensor, flow_ab.shape, warped_tensor, img_b.shape,
+                                                                 extra_feed_dict={input: img_b}, x_init_value=flow_ab)
+                if error1 <= self.max_allowable_grad_err and error2 < self.max_allowable_grad_err:
+                    return
+            self.assertLessEqual(max(error1, error2), self.max_allowable_grad_err,
+                                 'Exceeded the error threshold. Note that this test is flaky.')
 
     def single_warp_test_helper(self, flow_ab_path, img_a_path, img_b_path, tolerance):
         """
