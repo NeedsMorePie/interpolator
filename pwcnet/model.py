@@ -96,7 +96,9 @@ class PWCNet(RestorableNetwork):
                     with tf.name_scope('previous_estimator_feature_deconv_' + str(i)):
                         previous_estimator_features = tf.layers.conv2d_transpose(previous_estimator_features, filters=2,
                                                                                  kernel_size=4, strides=2,
-                                                                                 padding='same')
+                                                                                 padding='same', use_bias=True,
+                                                                                 kernel_regularizer=self.regularizer,
+                                                                                 bias_regularizer=self.regularizer)
 
                 # Get the estimator network.
                 estimator_network = self.estimator_networks[self.num_feature_levels - i]
