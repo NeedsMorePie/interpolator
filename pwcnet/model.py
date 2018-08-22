@@ -80,10 +80,8 @@ class PWCNet(RestorableNetwork):
                     features_b_n = features_n[batch_size:, ...]
 
                 # Setup the previous flow and feature map for input into the estimator network at this level.
-                with tf.name_scope('height_' + str(i)):
-                    H = tf.shape(features_a_n)[1]
-                with tf.name_scope('width_' + str(i)):
-                    W = tf.shape(features_a_n)[2]
+                H = tf.shape(features_a_n)[1]
+                W = tf.shape(features_a_n)[2]
                 pre_warp_scaling = 1.0
                 if previous_flow is not None:
                     # The original scale flows at all layers is the same as the scale of the ground truth.
