@@ -41,6 +41,7 @@ class TestPWCModel(unittest.TestCase):
         self.assertEqual(len(results), 7)
 
         # Test that the default values are working.
+        self.assertTrue(np.allclose(results[0].shape, np.asarray([batch_size, height, width, 2])))
         self.assertTrue(np.allclose(results[1].shape, np.asarray([batch_size, height/64, width/64, 2])))
         self.assertTrue(np.allclose(results[2].shape, np.asarray([batch_size, height/32, width/32, 2])))
         self.assertTrue(np.allclose(results[3].shape, np.asarray([batch_size, height/16, width/16, 2])))
