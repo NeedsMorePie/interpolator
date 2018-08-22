@@ -90,15 +90,14 @@ class PWCNet(RestorableNetwork):
                     dimension_scaling = tf.cast(H, tf.float32) / tf.cast(img_height, tf.float32)
                     pre_warp_scaling = dimension_scaling / self.flow_scaling
                     # Upsample to the size of the current layer.
-                    with tf.name_scope('previous_flow_' + str(i)):
-                        previous_flow = tf.image.resize_images(previous_flow, [H, W],
-                                                               method=tf.image.ResizeMethod.BILINEAR)
-                    with tf.name_scope('previous_estimator_feature_deconv_' + str(i)):
-                        previous_estimator_features = tf.layers.conv2d_transpose(previous_estimator_features, filters=2,
-                                                                                 kernel_size=4, strides=2,
-                                                                                 padding='same', use_bias=True,
-                                                                                 kernel_regularizer=self.regularizer,
-                                                                                 bias_regularizer=self.regularizer)
+                    previous_flow = tf.image.resize_bilinear(previous_flow, [H, W],
+                                                             name='resize_previous_flow' + str(i))
+                    previous_estimator_features = tf.layers.conv2d_transpose(previous_estimator_features, filters=2,
+                                                                             kernel_size=4, strides=2,
+                                                                             padding='same', use_bias=True,
+                                                                             kernel_regularizer=self.regularizer,
+                                                                             bias_regularizer=self.regularizer,
+                                                                             name='deconv_estimator_features_' + str(i))
 
                 # Get the estimator network.
                 estimator_network = self.estimator_networks[self.num_feature_levels - i]
