@@ -15,7 +15,7 @@ class TestSpacialTransformTranslate(unittest.TestCase):
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
         self.sess = tf.Session(config=config)
-        self.max_allowable_grad_err = 2e-3
+        self.max_allowable_grad_err = 1e-3
 
     def test_single_transform(self):
         """
@@ -174,10 +174,10 @@ class TestSpacialTransformTranslate(unittest.TestCase):
 
                 error1 = gradient_checker.compute_gradient_error(input, img_b.shape, warped_tensor, img_b.shape,
                                                                  extra_feed_dict={flow_tensor: flow_ab},
-                                                                 x_init_value=img_b, delta=1e-4)
-                error2 = gradient_checker.compute_gradient_error(flow_tensor, flow_ab.shape, warped_tensor, img_b.shape,
-                                                                 extra_feed_dict={input: img_b}, x_init_value=flow_ab,
-                                                                 delta=1e-4)
+                                                                 x_init_value=img_b, delta=2e-4)
+                error2 = gradient_checker.compute_gradient_error(flow_tensor, flow_ab.shape, warped_tensor,
+                                                                 img_b.shape, extra_feed_dict={input: img_b},
+                                                                 x_init_value=flow_ab, delta=2e-4)
                 if error1 <= self.max_allowable_grad_err and error2 <= self.max_allowable_grad_err:
                     return
             self.assertLessEqual(max(error1, error2), self.max_allowable_grad_err,
