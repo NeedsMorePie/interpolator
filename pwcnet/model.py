@@ -77,7 +77,7 @@ class PWCNet(RestorableNetwork):
                 features_a_n = features_n[0:batch_size, ...]
                 features_b_n = features_n[batch_size:, ...]
 
-                # Setup the previous flow for input into the estimator network at this level.
+                # Setup the previous flow and feature map for input into the estimator network at this level.
                 H = tf.shape(features_a_n)[1]
                 W = tf.shape(features_a_n)[2]
                 pre_warp_scaling = 1.0
