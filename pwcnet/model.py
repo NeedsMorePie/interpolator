@@ -120,7 +120,7 @@ class PWCNet(RestorableNetwork):
                         previous_estimator_features, previous_flow, reuse_variables=reuse_variables)
                     previous_flows.append(previous_flow)
 
-            final_flow = tf.image.resize_bilinear(previous_flow, [img_height, img_width], name='final_flow')
+            final_flow = tf.image.resize_bilinear(previous_flow, [img_height, img_width])
             final_flow /= self.flow_scaling
             return final_flow, previous_flows
 
