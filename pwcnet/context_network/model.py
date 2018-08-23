@@ -47,8 +47,8 @@ class ContextNetwork(ConvNetwork):
         :param features: Tensor. Feature map of shape [batch_size, H, W, num_features].
         :param optical_flow: Tensor. Optical flow of shape [batch_size, H, W, 2].
         :param reuse_variables: tf reuse option. i.e. tf.AUTO_REUSE.
-        :return: final_flow: optical flow of shape [batch_size, H, W, 2].
-                 layer_outputs: output of all conv layers. The last item is the delta flow.
+        :return: final_flow: Tensor. Optical flow of shape [batch_size, H, W, 2].
+                 layer_outputs: List of outputs of all convolution layers. The last item is the delta flow.
         """
         with tf.variable_scope(self.name, reuse=reuse_variables):
             # Initial input has shape [batch_size, H, W, num_features + 2].

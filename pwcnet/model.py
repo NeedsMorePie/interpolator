@@ -26,7 +26,7 @@ class PWCNet(RestorableNetwork):
         self.flow_scaling = flow_scaling
 
         if flow_layer_loss_weights is None:
-            self.flow_layer_loss_weights = [0.32, 0.08, 0.02, 0.01, 0.001, 0.005]
+            self.flow_layer_loss_weights = [0.32, 0.08, 0.02, 0.01, 0.0005, 0.005]
         else:
             self.flow_layer_loss_weights = flow_layer_loss_weights
 
@@ -76,8 +76,7 @@ class PWCNet(RestorableNetwork):
                 features_a_n, features_b_n = self._get_image_features_for_level(features, i, batch_size)
 
                 # Setup the previous flow and feature map for input into the estimator network at this level.
-                H = tf.shape(features_a_n)[1]
-                W = tf.shape(features_a_n)[2]
+                H, W = tf.shape(features_a_n)[1], tf.shape(features_a_n)[2]
                 resized_flow, pre_warp_scaling = self._create_resized_flow_for_next_estimator(
                     previous_flow, H, W, img_height, name='resize_previous_flow' + str(i))
                 upsampled_previous_features = self._create_upsampled_features_for_next_estimator(
@@ -197,7 +196,7 @@ class PWCNet(RestorableNetwork):
         """
         with tf.name_scope('training_loss'):
             def l2_diff(a, b):
-                return tf.square(a-b)
+                return tf.square(a - b)
             return self._get_loss(previous_flows, expected_flow, l2_diff)
 
     def get_fine_tuning_loss(self, previous_flows, expected_flow, q=0.4, epsilon=0.01):
@@ -207,5 +206,5 @@ class PWCNet(RestorableNetwork):
         """
         with tf.name_scope('fine_tuning_loss'):
             def lq_diff(a, b):
-                return tf.pow(tf.abs(a-b) + epsilon, q)
+                return tf.pow(tf.abs(a - b) + epsilon, q)
             return self._get_loss(previous_flows, expected_flow, lq_diff)
