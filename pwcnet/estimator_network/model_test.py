@@ -3,7 +3,6 @@ import tensorflow as tf
 import unittest
 from pwcnet.estimator_network.model import EstimatorNetwork
 from tensorflow.contrib.layers import l2_regularizer
-import time
 
 
 class TestContextNetwork(unittest.TestCase):
@@ -35,7 +34,7 @@ class TestContextNetwork(unittest.TestCase):
 
         self.assertEqual(4, len(conv_input_stack))
         input_features1 = np.zeros(shape=[batch_size, height, width, num_features], dtype=np.float32)
-        input_features1[:, 10:height-10, 10:width-10, :] = 1.0
+        input_features1[:, 10:height - 10, 10:width - 10, :] = 1.0
         input_features2 = np.zeros(shape=[batch_size, height, width, num_features], dtype=np.float32)
         input_features2[:, 5:height - 5, 5:width - 5, :] = 1.0
         input_flow = np.ones(shape=[batch_size, height, width, 2], dtype=np.float32)
@@ -52,15 +51,15 @@ class TestContextNetwork(unittest.TestCase):
         self.assertEqual(len(results), 7)
 
         final_flow_result = results[0]
-        self.assertTrue(np.allclose(final_flow_result.shape, np.asarray([batch_size, height, width, 2])))
+        self.assertTupleEqual(final_flow_result.shape, (batch_size, height, width, 2))
 
         # Test that the default values are working.
-        self.assertTrue(np.allclose(results[1].shape, np.asarray([batch_size, height, width, 128])))
-        self.assertTrue(np.allclose(results[2].shape, np.asarray([batch_size, height, width, 128])))
-        self.assertTrue(np.allclose(results[3].shape, np.asarray([batch_size, height, width, 96])))
-        self.assertTrue(np.allclose(results[4].shape, np.asarray([batch_size, height, width, 64])))
-        self.assertTrue(np.allclose(results[5].shape, np.asarray([batch_size, height, width, 32])))
-        self.assertTrue(np.allclose(results[6].shape, np.asarray([batch_size, height, width, 2])))
+        self.assertTupleEqual(results[1].shape, (batch_size, height, width, 128))
+        self.assertTupleEqual(results[2].shape, (batch_size, height, width, 128))
+        self.assertTupleEqual(results[3].shape, (batch_size, height, width, 96))
+        self.assertTupleEqual(results[4].shape, (batch_size, height, width, 64))
+        self.assertTupleEqual(results[5].shape, (batch_size, height, width, 32))
+        self.assertTupleEqual(results[6].shape, (batch_size, height, width, 2))
 
         for i in range(1, 7):
             self.assertNotEqual(np.sum(results[i]), 0.0)
@@ -110,7 +109,7 @@ class TestContextNetwork(unittest.TestCase):
 
         self.assertEqual(2, len(conv_input_stack))
         input_features1 = np.zeros(shape=[batch_size, height, width, num_features], dtype=np.float32)
-        input_features1[:, 3:height-3, 3:width-3, :] = 1.0
+        input_features1[:, 3:height - 3, 3:width - 3, :] = 1.0
         input_features2 = np.zeros(shape=[batch_size, height, width, num_features], dtype=np.float32)
         input_features2[:, 2:height - 2, 2:width - 2, :] = 1.0
 
@@ -123,15 +122,15 @@ class TestContextNetwork(unittest.TestCase):
         self.assertEqual(len(results), 7)
 
         final_flow_result = results[0]
-        self.assertTrue(np.allclose(final_flow_result.shape, np.asarray([batch_size, height, width, 2])))
+        self.assertTupleEqual(final_flow_result.shape, (batch_size, height, width, 2))
 
         # Test that the default values are working.
-        self.assertTrue(np.allclose(results[1].shape, np.asarray([batch_size, height, width, 128])))
-        self.assertTrue(np.allclose(results[2].shape, np.asarray([batch_size, height, width, 128])))
-        self.assertTrue(np.allclose(results[3].shape, np.asarray([batch_size, height, width, 96])))
-        self.assertTrue(np.allclose(results[4].shape, np.asarray([batch_size, height, width, 64])))
-        self.assertTrue(np.allclose(results[5].shape, np.asarray([batch_size, height, width, 32])))
-        self.assertTrue(np.allclose(results[6].shape, np.asarray([batch_size, height, width, 2])))
+        self.assertTupleEqual(results[1].shape, (batch_size, height, width, 128))
+        self.assertTupleEqual(results[2].shape, (batch_size, height, width, 128))
+        self.assertTupleEqual(results[3].shape, (batch_size, height, width, 96))
+        self.assertTupleEqual(results[4].shape, (batch_size, height, width, 64))
+        self.assertTupleEqual(results[5].shape, (batch_size, height, width, 32))
+        self.assertTupleEqual(results[6].shape, (batch_size, height, width, 2))
 
 
 if __name__ == '__main__':
