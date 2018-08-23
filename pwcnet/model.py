@@ -26,11 +26,7 @@ class PWCNet(RestorableNetwork):
         self.flow_scaling = flow_scaling
 
         if flow_layer_loss_weights is None:
-            # Note that the loss weights have been decreased from the values mentioned in the paper.
-            scale = 0.5
-            self.flow_layer_loss_weights = [
-                0.32 * scale, 0.08 * scale, 0.02 * scale, 0.01 * scale, 0.005 * scale, 0.005 * scale
-            ]
+            self.flow_layer_loss_weights = [0.32, 0.08, 0.02, 0.01, 0.0005, 0.005]
         else:
             self.flow_layer_loss_weights = flow_layer_loss_weights
 
@@ -65,58 +61,101 @@ class PWCNet(RestorableNetwork):
             images_a_b = tf.concat([image_a, image_b], axis=0)
             _, features = self.feature_pyramid.get_forward(images_a_b, reuse_variables=reuse_variables)
 
-            # The initial flow will be initialized with zeros.
+            # The initial flow is None. The estimator not do warping if flow is None.
             # It is refined at each feature level.
             previous_flow = None
             previous_flows = []
+            # Intermediate features from the previous estimator network.
+            previous_estimator_features = None
 
             # Counts down from [self.num_flow_estimates, self.output_level] inclusive.
             for i in self.iter_range:
                 if VERBOSE:
                     print('Creating estimator at level', i)
                 # Get the features at this level.
-                features_n = features[self.feature_pyramid.get_c_n_idx(i)]
-                features_a_n = features_n[0:batch_size, ...]
-                features_b_n = features_n[batch_size:, ...]
+                features_a_n, features_b_n = self._get_image_features_for_level(features, i, batch_size)
 
-                # Setup the previous flow for input into the estimator network at this level.
-                B = tf.shape(features_a_n)[0]
-                H = tf.shape(features_a_n)[1]
-                W = tf.shape(features_a_n)[2]
-                pre_warp_scaling = 1.0
-                if previous_flow is None:
-                    previous_flow = tf.zeros(shape=[B, H, W, 2], dtype=tf.float32)
-                else:
-                    # The original scale flows at all layers is the same as the scale of the ground truth.
-                    dimension_scaling = tf.cast(H, tf.float32) / tf.cast(img_height, tf.float32)
-                    pre_warp_scaling = dimension_scaling / self.flow_scaling
-                    # Upsample to the size of the current layer.
-                    previous_flow = tf.image.resize_images(previous_flow, [H, W],
-                                                           method=tf.image.ResizeMethod.BILINEAR)
+                # Setup the previous flow and feature map for input into the estimator network at this level.
+                H, W = tf.shape(features_a_n)[1], tf.shape(features_a_n)[2]
+                resized_flow, pre_warp_scaling = self._create_resized_flow_for_next_estimator(
+                    previous_flow, H, W, img_height, name='resize_previous_flow' + str(i))
+                upsampled_previous_features = self._create_upsampled_features_for_next_estimator(
+                    previous_estimator_features, name='deconv_estimator_features_' + str(i))
 
                 # Get the estimator network.
                 estimator_network = self.estimator_networks[self.num_feature_levels - i]
                 if VERBOSE:
                     print('Getting forward ops for', estimator_network.name)
-                previous_flow, estimator_outputs = estimator_network.get_forward(
-                    features_a_n, features_b_n, previous_flow,
+                previous_flow, estimator_outputs, conv_input_stack = estimator_network.get_forward(
+                    features_a_n, features_b_n, resized_flow, upsampled_previous_features,
                     pre_warp_scaling=pre_warp_scaling, reuse_variables=reuse_variables)
                 previous_flows.append(previous_flow)
+                assert estimator_outputs[-1] == previous_flow
+                previous_estimator_features = tf.concat(conv_input_stack + estimator_outputs[:-1], axis=-1,
+                                                        name='previous_estimator_features_' + str(i))
 
                 # Last level gets the context-network treatment.
                 if i == self.output_level:
                     if VERBOSE:
                         print('Getting forward ops for context network.')
-                    assert estimator_outputs[-1] == previous_flow
                     # Features are the second to last output of the estimator network.
-                    previous_flow, context_outputs = self.context_network.get_forward(
-                        estimator_outputs[-2], previous_flow, reuse_variables=reuse_variables)
+                    previous_flow, _ = self.context_network.get_forward(
+                        previous_estimator_features, previous_flow, reuse_variables=reuse_variables)
                     previous_flows.append(previous_flow)
 
-            final_flow = tf.image.resize_images(previous_flow, [img_height, img_width],
-                                                method=tf.image.ResizeMethod.BILINEAR)
-            final_flow /= self.flow_scaling
+            final_flow = tf.image.resize_bilinear(previous_flow, [img_height, img_width])
+            final_flow = tf.divide(final_flow, self.flow_scaling, name='final_flow')
             return final_flow, previous_flows
+
+    def _get_image_features_for_level(self, feature_levels, level, batch_size):
+        """
+        Extracts the features for image_a and image_b from the feature pyramid.
+        :param feature_levels: List of features from the feature pyramid.
+        :param level: Int.
+        :param batch_size: Scalar tensor.
+        :return: features_a_n, features_b_n: Tensors of shape [batch_size, height, width, channels].
+        """
+        features_n = feature_levels[self.feature_pyramid.get_c_n_idx(level)]
+        with tf.name_scope('features_a_' + str(level)):
+            features_a_n = features_n[0:batch_size, ...]
+        with tf.name_scope('features_b_' + str(level)):
+            features_b_n = features_n[batch_size:, ...]
+        return features_a_n, features_b_n
+
+    def _create_resized_flow_for_next_estimator(self, previous_flow, desired_height, desired_width, img_height, name):
+        """
+        Scales the flow for the next estimator network. Also computes the pre-warp scaling to denormalize the flow.
+        :param previous_flow: Tensor of shape [batch, height, width, 2] or None.
+        :param desired_height: Int or tensor. Height to scale to.
+        :param desired_width: Int or tensor. Width to scale to.
+        :param img_height: Int or tensor. Height of the network's input image.
+        :param name: Str.
+        :return: resized_flow: Tensor of shape [batch, desired_height, desired_width, 2]. None if previous_flow is None.
+                 pre_warp_scaling: Scalar tensor. 1.0 if previous_flow is None.
+        """
+        pre_warp_scaling = 1.0
+        resized_flow = None
+        if previous_flow is not None:
+            # The original scale flows at all layers is the same as the scale of the ground truth.
+            dimension_scaling = tf.cast(desired_height, tf.float32) / tf.cast(img_height, tf.float32)
+            pre_warp_scaling = dimension_scaling / self.flow_scaling
+            # Upsample to the size of the current layer.
+            resized_flow = tf.image.resize_bilinear(previous_flow, [desired_height, desired_width], name=name)
+        return resized_flow, pre_warp_scaling
+
+    def _create_upsampled_features_for_next_estimator(self, features, name):
+        """
+        Upsamples a feature map and encodes it into 2 channels.
+        :param features: Tensor of shape [batch, height, width, channels] or None.
+        :param name: Str.
+        :return: Tensor of shape [batch, height * 2, width * 2, 2] or None if features is none.
+        """
+        upsampled_features = None
+        if features is not None:
+            upsampled_features = tf.layers.conv2d_transpose(
+                features, filters=2, kernel_size=4, strides=2, padding='same', use_bias=True,
+                kernel_regularizer=self.regularizer, bias_regularizer=self.regularizer, name=name)
+        return upsampled_features
 
     def _get_loss(self, previous_flows, expected_flow, diff_fn):
         """
@@ -134,7 +173,7 @@ class PWCNet(RestorableNetwork):
                 H, W = tf.shape(previous_flow)[1], tf.shape(previous_flow)[2]
 
                 # Ground truth needs to be resized to match the size of the previous flow.
-                resized_scaled_gt = tf.image.resize_images(scaled_gt, [H, W], method=tf.image.ResizeMethod.BILINEAR)
+                resized_scaled_gt = tf.image.resize_bilinear(scaled_gt, [H, W])
 
                 # squared_difference has the shape [batch_size, H, W, 2].
                 squared_difference = diff_fn(resized_scaled_gt, previous_flow)
@@ -157,7 +196,7 @@ class PWCNet(RestorableNetwork):
         """
         with tf.name_scope('training_loss'):
             def l2_diff(a, b):
-                return tf.square(a-b)
+                return tf.square(a - b)
             return self._get_loss(previous_flows, expected_flow, l2_diff)
 
     def get_fine_tuning_loss(self, previous_flows, expected_flow, q=0.4, epsilon=0.01):
@@ -167,5 +206,5 @@ class PWCNet(RestorableNetwork):
         """
         with tf.name_scope('fine_tuning_loss'):
             def lq_diff(a, b):
-                return tf.pow(tf.abs(a-b) + epsilon, q)
+                return tf.pow(tf.abs(a - b) + epsilon, q)
             return self._get_loss(previous_flows, expected_flow, lq_diff)
