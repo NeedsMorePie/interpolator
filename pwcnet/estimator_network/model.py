@@ -32,40 +32,47 @@ class EstimatorNetwork(ConvNetwork):
 
         self.search_range = search_range
 
-    def get_forward(self, features1, features2, optical_flow, pre_warp_scaling=1.0, reuse_variables=tf.AUTO_REUSE):
+    def get_forward(self, features1, features2, optical_flow, previous_estimator_feature,
+                    pre_warp_scaling=1.0, reuse_variables=tf.AUTO_REUSE):
         """
-        features1   features2  optical_flow
-              \         \           /  \
-               \        [WARP_LAYER]    |
-                \             |         |
-                 -------[COST_VOLUME]   |
-                  \           |        /
-                   -------[LAYER 0]---
+        features1   features2  optical_flow  previous_estimator_feature
+              \         \           /  \       /
+               \        [WARP_LAYER]    |     /
+                \             |         |    /
+                 -------[COST_VOLUME]   |   /
+                  \           |        /   /
+                   -------[LAYER 0]--------
                              ...
                          [LAYER N-1]
                               |
                          final_output
         :param features1: Tensor. Feature map of shape [batch_size, H, W, num_features]. Time = 0.
         :param features2: Tensor. Feature map of shape [batch_size, H, W, num_features]. Time = 1.
-        :param optical_flow: Tensor. Optical flow of shape [batch_size, H, W, 2].
+        :param optical_flow: Tensor or None. Optical flow of shape [batch_size, H, W, 2].
+        :param previous_estimator_feature: Tensor or None. Feature map of shape [batch_size, H, W, num_features].
         :param pre_warp_scaling: Tensor or scalar. Scaling to be applied right before warping.
-        :param reuse_variables: tf reuse option. i.e. tf.AUTO_REUSE.
-        :return: final_flow: optical flow of shape [batch_size, H, W, 2].
-                 layer_outputs: array of layer intermediate conv outputs. Length is len(layer_specs) + 1.
+        :param reuse_variables: Tensorflow reuse option. i.e. tf.AUTO_REUSE.
+        :return: final_flow: Tensor. Optical flow of shape [batch_size, H, W, 2].
+                 layer_outputs: List of all convolution outputs of the network. The last item is the final_flow.
+                 input_stack: List of inputs to the convolution tower.
         """
         with tf.variable_scope(self.name, reuse=reuse_variables):
             # Warp layer.
-            warped = backward_warp(features2, optical_flow * pre_warp_scaling)
+            warped = features2
+            if optical_flow is not None:
+                warped = backward_warp(warped, optical_flow * pre_warp_scaling)
 
             # Cost volume layer.
-            cv = cost_volume(features1, warped, search_range=self.search_range)
+            cv = self.activation_fn(cost_volume(features1, warped, search_range=self.search_range))
 
             # CNN layers.
             # Initial input has shape [batch_size, H, W, in_features + cv_size + 2]
-            initial_input = tf.concat([features1, cv, optical_flow], axis=-1)
-            final_output, layer_outputs = self._get_conv_tower(initial_input)
+            input_stack = [features1, cv]
+            if optical_flow is not None:
+                input_stack = input_stack + [optical_flow]
+            if previous_estimator_feature is not None:
+                input_stack = input_stack + [previous_estimator_feature]
+            initial_input = tf.concat(input_stack, axis=-1, name='conv_tower_input')
+            final_flow, layer_outputs = self._get_conv_tower(initial_input)
 
-            # Prepend the warp and cv outputs.
-            layer_outputs = [warped, cv] + layer_outputs
-
-            return final_output, layer_outputs
+            return final_flow, layer_outputs, input_stack

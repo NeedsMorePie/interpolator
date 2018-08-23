@@ -154,8 +154,8 @@ class ConvNetwork(RestorableNetwork):
     def _get_conv_tower(self, features):
         """
         :param features: Tensor. Feature map of shape [batch_size, H, W, num_features].
-        :return: final_output: tensor of shape [batch_size, H, W, num_output_features].
-                 layer_outputs: array of layer intermediate conv outputs. Length is len(layer_specs) + 1.
+        :return: final_output: Tensor of shape [batch_size, H, W, num_output_features].
+                 layer_outputs: List of all convolution outputs of the network. The last item is the final_output.
         """
         layer_outputs = []
 
