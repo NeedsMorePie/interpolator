@@ -10,6 +10,11 @@
     *   matplotlib
     *   joblib
     *   pillow
+    ```
+    conda create --name interpolator python=3.5
+    activate interpolator
+    pip install tensorflow-gpu opencv-python matplotlib joblib pillow
+    ```
 *   CMake (version >= 3.5)
 *   Windows only: Visual studio 14 (2015)
 
