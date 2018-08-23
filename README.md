@@ -12,7 +12,7 @@
     *   pillow
     ```
     conda create --name interpolator python=3.5
-    activate interpolator
+    conda activate interpolator
     pip install tensorflow-gpu opencv-python matplotlib joblib pillow
     ```
 *   CMake (version >= 3.5)
