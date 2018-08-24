@@ -29,10 +29,10 @@ class TestContextNetwork(unittest.TestCase):
         input_features2_tensor = tf.placeholder(shape=[None, height, width, num_features], dtype=tf.float32)
         input_flow_tensor = tf.placeholder(shape=[None, height, width, 2], dtype=tf.float32)
         prev_features_tensor = tf.placeholder(shape=[None, height, width, 3], dtype=tf.float32)
-        final_flow, layer_outputs, conv_input_stack = estimator_network.get_forward(
+        final_flow, layer_outputs, dense_outputs = estimator_network.get_forward(
             input_features1_tensor, input_features2_tensor, input_flow_tensor, prev_features_tensor)
 
-        self.assertEqual(4, len(conv_input_stack))
+        self.assertEqual(6, len(dense_outputs))
         input_features1 = np.zeros(shape=[batch_size, height, width, num_features], dtype=np.float32)
         input_features1[:, 10:height - 10, 10:width - 10, :] = 1.0
         input_features2 = np.zeros(shape=[batch_size, height, width, num_features], dtype=np.float32)
@@ -104,10 +104,10 @@ class TestContextNetwork(unittest.TestCase):
         # Create the graph.
         input_features1_tensor = tf.placeholder(shape=[None, height, width, num_features], dtype=tf.float32)
         input_features2_tensor = tf.placeholder(shape=[None, height, width, num_features], dtype=tf.float32)
-        final_flow, layer_outputs, conv_input_stack = estimator_network.get_forward(
+        final_flow, layer_outputs, dense_outputs = estimator_network.get_forward(
             input_features1_tensor, input_features2_tensor, None, None)
 
-        self.assertEqual(2, len(conv_input_stack))
+        self.assertEqual(6, len(dense_outputs))
         input_features1 = np.zeros(shape=[batch_size, height, width, num_features], dtype=np.float32)
         input_features1[:, 3:height - 3, 3:width - 3, :] = 1.0
         input_features2 = np.zeros(shape=[batch_size, height, width, num_features], dtype=np.float32)
