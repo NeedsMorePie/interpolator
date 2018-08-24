@@ -40,7 +40,7 @@ class LateralConnection(ConvNetwork):
             if self.activation_fn is not None:
                 previous_output = self.activation_fn(features)
 
-            previous_output, layer_outputs = self._get_conv_tower(previous_output)
+            previous_output, layer_outputs, _ = self._get_conv_tower(previous_output)
 
             # Add skip connection only if channels are the same size.
             if features.get_shape().as_list()[-1] == previous_output.get_shape().as_list()[-1]:
@@ -91,7 +91,7 @@ class DownSamplingConnection(ConvNetwork):
             if self.activation_fn is not None:
                 previous_output = self.activation_fn(features)
 
-            final_output, layer_outputs = self._get_conv_tower(previous_output)
+            final_output, layer_outputs, _ = self._get_conv_tower(previous_output)
             return final_output
 
 
@@ -132,6 +132,6 @@ class UpSamplingConnection(ConvNetwork):
             if self.activation_fn is not None:
                 previous_output = self.activation_fn(previous_output)
 
-            final_output, layer_outputs = self._get_conv_tower(previous_output)
+            final_output, layer_outputs, _ = self._get_conv_tower(previous_output)
             return final_output
 

@@ -54,7 +54,7 @@ class ContextNetwork(ConvNetwork):
             # Initial input has shape [batch_size, H, W, num_features + 2].
             initial_input = tf.concat([features, optical_flow], axis=-1)
 
-            delta_flow, layer_outputs = self._get_conv_tower(initial_input)
+            delta_flow, layer_outputs, _ = self._get_conv_tower(initial_input)
 
             # Final output is the delta
             final_flow = delta_flow + optical_flow
