@@ -2,20 +2,26 @@
 
 ## Prerequisites
 
-*   Anaconda3 conda environment with the following packages:
-    *   tensorflow-gpu
-    *   opencv-python
-    *   matplotlib
-    *   joblib********
-    *   pillow
-    ```
-    conda create --name interpolator python=3.5
-    conda activate interpolator
-    pip install tensorflow-gpu opencv-python matplotlib joblib pillow
-    ```
+*   Anaconda3
 *   CMake (version >= 3.5)
-*   Windows only: Visual studio 14 (2015)
-*   CUDA toolkit (version recommended by https://www.tensorflow.org/install/install_windows#requirements_to_run_tensorflow_with_gpu_support)
+*   CUDA toolkit (version recommended by [Tensorflow installation](https://www.tensorflow.org/install/install_windows#requirements_to_run_tensorflow_with_gpu_support))
+*   Windows only
+    *   Visual studio 14 (2015)
+
+## Python environment
+
+Create a conda env with the following packages:
+*   tensorflow-gpu
+*   opencv-python
+*   matplotlib
+*   joblib
+*   pillow
+
+```
+conda create --name interpolator python=3.5
+conda activate interpolator
+pip install tensorflow-gpu opencv-python matplotlib joblib pillow
+```
 
 ## Building ops
 

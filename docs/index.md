@@ -1,5 +1,3 @@
-# Interpolator
-
 [Installation]({{ site.baseurl }}{% link install.md %})
 
 ## Running tests
