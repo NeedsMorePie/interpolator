@@ -1,9 +1,5 @@
 theme: jekyll-theme-cayman
-docs_list_title: Interpolator Documentation
-docs:
-
-- title: Introduction
-  url: index.md
-
-- title: Installation
-  url: install.md
+title: Interpolator Documentation
+description: 2D Frame Inbetweening
+sitename: Interpolator Documentation
+baseurl: ''
