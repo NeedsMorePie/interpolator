@@ -156,7 +156,8 @@ class ConvNetwork(RestorableNetwork):
         :param features: Tensor. Feature map of shape [batch_size, H, W, num_features].
         :return: final_output: Tensor of shape [batch_size, H, W, num_output_features].
                  layer_outputs: List of all convolution outputs of the network. The last item is the final_output.
-                 dense_input: Tensor or None if not a dense-net. This can be used to chain this dense-net to another.
+                 dense_outputs: List of tensors. This can be used to chain this dense-net to another. The last item
+                                includes the network's output. If this is not a dense-net, then the list will be empty.
         """
         layer_outputs = []
 
@@ -164,6 +165,7 @@ class ConvNetwork(RestorableNetwork):
         previous_output = features
         # Stores the dense input to the next layer.
         dense_input = None
+        dense_outputs = []
         for i, layer_spec in enumerate(self.layer_specs):
             # Get specs.
             kernel_size = layer_spec[0]
@@ -192,6 +194,7 @@ class ConvNetwork(RestorableNetwork):
             if self.dense_net:
                 # Dense-net layer input consists of all previous layer outputs.
                 dense_input = tf.concat([inputs, previous_output], axis=-1)
+                dense_outputs.append(dense_input)
 
             if activation_fn is not None:
                 previous_output = activation_fn(previous_output)
@@ -201,14 +204,14 @@ class ConvNetwork(RestorableNetwork):
         assert previous_output == layer_outputs[-1]
         assert features not in layer_outputs
         final_output = previous_output
-        return final_output, layer_outputs, dense_input
+        return final_output, layer_outputs, dense_outputs
 
     def get_forward_conv(self, features, reuse_variables=tf.AUTO_REUSE):
         """
         Public API for getting the forward ops.
         :param features: Feature map or images.
         :param reuse_variables: Whether to reuse the variables under the scope.
-        :return: final_output, layer_outputs, dense_input.
+        :return: final_output, layer_outputs, dense_outputs.
         """
         with tf.variable_scope(self.name, reuse=reuse_variables):
             return self._get_conv_tower(features)

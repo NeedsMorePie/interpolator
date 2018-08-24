@@ -168,14 +168,29 @@ class TestConvNet(unittest.TestCase):
         self.sess = tf.Session(config=config)
 
     def test_default_not_dense(self):
-        layer_specs = [[3, 7, 1, 1],
-                       [3, 6, 1, 1]]
+        input_features = 2
+        layer_1_features = 7
+        layer_2_features = 6
+        image_size = 8
+        batch_size = 2
+
+        layer_specs = [[3, layer_1_features, 1, 1],
+                       [3, layer_2_features, 1, 1]]
         conv_net = ConvNetwork('conv_network_test_not_dense', layer_specs=layer_specs)
 
         # Create and initialize model.
-        input_placeholder = tf.placeholder(shape=[None, 16, 16, 2], dtype=tf.float32)
-        output, _, dense_input = conv_net.get_forward_conv(input_placeholder)
-        self.assertEqual(None, dense_input)
+        input_placeholder = tf.placeholder(shape=[None, image_size, image_size, 2], dtype=tf.float32)
+        output, layer_outputs, dense_outputs = conv_net.get_forward_conv(input_placeholder)
+        self.assertEqual(0, len(dense_outputs))
+        self.assertEqual(2, len(layer_outputs))
+        self.assertEqual(output, layer_outputs[-1])
+
+        self.sess.run(tf.global_variables_initializer())
+        dummy_input = np.ones(shape=[batch_size, image_size, image_size, input_features], dtype=np.float32)
+        dummy_output, dummy_outputs = self.sess.run([output, layer_outputs], feed_dict={input_placeholder: dummy_input})
+
+        self.assertTupleEqual(dummy_outputs[0].shape, (batch_size, image_size, image_size, layer_1_features))
+        self.assertTupleEqual(dummy_output.shape, (batch_size, image_size, image_size, layer_2_features))
 
     def test_dense(self):
         input_features = 2
@@ -183,21 +198,28 @@ class TestConvNet(unittest.TestCase):
         layer_2_features = 6
         image_size = 8
 
-        total_dense_input = input_features + layer_1_features + layer_2_features
         layer_specs = [[3, layer_1_features, 1, 1],
                        [3, layer_2_features, 1, 1]]
         conv_net = ConvNetwork('conv_network_test_dense', layer_specs=layer_specs, dense_net=True)
 
         # Create and initialize model.
         input_placeholder = tf.placeholder(shape=[None, image_size, image_size, input_features], dtype=tf.float32)
-        output, _, dense_input = conv_net.get_forward_conv(input_placeholder)
-        self.assertNotEqual(None, dense_input)
+        output, layer_outputs, dense_outputs = conv_net.get_forward_conv(input_placeholder)
+        self.assertEqual(2, len(dense_outputs))
+        self.assertEqual(output, layer_outputs[-1])
 
         self.sess.run(tf.global_variables_initializer())
         dummy_input = np.ones(shape=[1, image_size, image_size, input_features], dtype=np.float32)
-        dense_input_dummy = self.sess.run(dense_input, feed_dict={input_placeholder: dummy_input})
+        dense_input_dummy, dummy_outputs = self.sess.run([dense_outputs, layer_outputs],
+                                                         feed_dict={input_placeholder: dummy_input})
 
-        self.assertTupleEqual(dense_input_dummy.shape, (1, image_size, image_size, total_dense_input))
+        self.assertTupleEqual(dense_input_dummy[0].shape,
+                              (1, image_size, image_size, input_features + layer_1_features))
+        self.assertTupleEqual(dense_input_dummy[1].shape,
+                              (1, image_size, image_size, input_features + layer_1_features + layer_2_features))
+
+        self.assertTupleEqual(dummy_outputs[0].shape, (1, image_size, image_size, layer_1_features))
+        self.assertTupleEqual(dummy_outputs[1].shape, (1, image_size, image_size, layer_2_features))
 
 
 if __name__ == '__main__':
