@@ -1,5 +1,4 @@
-theme: jekyll-theme-cayman
 title: Interpolator Documentation
 description: 2D Frame Inbetweening
 sitename: Interpolator Documentation
-baseurl: ''
+theme: jekyll-theme-cayman
