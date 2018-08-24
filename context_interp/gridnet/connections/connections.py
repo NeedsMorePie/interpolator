@@ -37,6 +37,7 @@ class LateralConnection(ConvNetwork):
         with tf.variable_scope(self.name, reuse=reuse_variables):
 
             # Pass through resolution preserving convolutions.
+            previous_output = features
             if self.activation_fn is not None:
                 previous_output = self.activation_fn(features)
 
@@ -87,7 +88,7 @@ class DownSamplingConnection(ConvNetwork):
         :return: Tensor. Feature map of shape [batch_size, H, W, num_features].
         """
         with tf.variable_scope(self.name, reuse=reuse_variables):
-
+            previous_output = features
             if self.activation_fn is not None:
                 previous_output = self.activation_fn(features)
 
