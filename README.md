@@ -17,6 +17,7 @@
     ```
 *   CMake (version >= 3.5)
 *   Windows only: Visual studio 14 (2015)
+*   CUDA toolkit (version recommended by https://www.tensorflow.org/install/install_windows#requirements_to_run_tensorflow_with_gpu_support)
 
 ### Building ops
 
