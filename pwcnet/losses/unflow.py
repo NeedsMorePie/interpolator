@@ -33,7 +33,7 @@ def compute_losses(im1, im2, flow_fw, flow_bw,
         mask_fw = border_mask
         mask_bw = border_mask
 
-    fb_occ_fw, fb_occ_bw = occlusion(flow_fw, flow_bw)
+    fb_occ_fw, fb_occ_bw, flow_diff_fw, flow_diff_bw = occlusion(flow_fw, flow_bw)
 
     if mask_occlusion == 'fb':
         mask_fw *= (1 - fb_occ_fw)
@@ -112,7 +112,7 @@ def occlusion(flow_fw, flow_bw):
     occ_thresh = 0.01 * mag_sq + 0.5
     occ_fw = tf.cast(length_sq(flow_diff_fw) > occ_thresh, tf.float32)
     occ_bw = tf.cast(length_sq(flow_diff_bw) > occ_thresh, tf.float32)
-    return occ_fw, occ_bw
+    return occ_fw, occ_bw, flow_diff_fw, flow_diff_bw
 
 
 def divergence(flow):
