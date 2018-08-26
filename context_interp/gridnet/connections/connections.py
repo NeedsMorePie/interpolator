@@ -37,10 +37,11 @@ class LateralConnection(ConvNetwork):
         with tf.variable_scope(self.name, reuse=reuse_variables):
 
             # Pass through resolution preserving convolutions.
+            previous_output = features
             if self.activation_fn is not None:
                 previous_output = self.activation_fn(features)
 
-            previous_output, layer_outputs = self._get_conv_tower(previous_output)
+            previous_output, layer_outputs, _ = self._get_conv_tower(previous_output)
 
             # Add skip connection only if channels are the same size.
             if features.get_shape().as_list()[-1] == previous_output.get_shape().as_list()[-1]:
@@ -87,11 +88,11 @@ class DownSamplingConnection(ConvNetwork):
         :return: Tensor. Feature map of shape [batch_size, H, W, num_features].
         """
         with tf.variable_scope(self.name, reuse=reuse_variables):
-
+            previous_output = features
             if self.activation_fn is not None:
                 previous_output = self.activation_fn(features)
 
-            final_output, layer_outputs = self._get_conv_tower(previous_output)
+            final_output, layer_outputs, _ = self._get_conv_tower(previous_output)
             return final_output
 
 
@@ -132,6 +133,6 @@ class UpSamplingConnection(ConvNetwork):
             if self.activation_fn is not None:
                 previous_output = self.activation_fn(previous_output)
 
-            final_output, layer_outputs = self._get_conv_tower(previous_output)
+            final_output, layer_outputs, _ = self._get_conv_tower(previous_output)
             return final_output
 

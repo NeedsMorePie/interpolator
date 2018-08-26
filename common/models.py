@@ -156,11 +156,16 @@ class ConvNetwork(RestorableNetwork):
         :param features: Tensor. Feature map of shape [batch_size, H, W, num_features].
         :return: final_output: Tensor of shape [batch_size, H, W, num_output_features].
                  layer_outputs: List of all convolution outputs of the network. The last item is the final_output.
+                 dense_outputs: List of tensors. This can be used to chain this dense-net to another. The last item
+                                includes the network's output. If this is not a dense-net, then the list will be empty.
         """
         layer_outputs = []
 
         # Create the network layers.
         previous_output = features
+        # Stores the dense input to the next layer.
+        dense_input = None
+        dense_outputs = []
         for i, layer_spec in enumerate(self.layer_specs):
             # Get specs.
             kernel_size = layer_spec[0]
@@ -170,11 +175,8 @@ class ConvNetwork(RestorableNetwork):
 
             is_last_layer = i == len(self.layer_specs) - 1
             activation_fn = self.last_activation_fn if is_last_layer else self.activation_fn
-            if self.dense_net and i != 0:
-                # Dense-net layer input consists of all previous layer outputs.
-                assert previous_output == layer_outputs[-1]
-                assert features not in layer_outputs
-                inputs = tf.concat(layer_outputs + [features], axis=-1)
+            if dense_input is not None:
+                inputs = dense_input
             else:
                 inputs = previous_output
 
@@ -189,21 +191,27 @@ class ConvNetwork(RestorableNetwork):
                                                kernel_regularizer=self.regularizer,
                                                bias_regularizer=self.regularizer,
                                                name='conv_' + str(i))
+            if self.dense_net:
+                # Dense-net layer input consists of all previous layer outputs.
+                dense_input = tf.concat([inputs, previous_output], axis=-1)
+                dense_outputs.append(dense_input)
 
             if activation_fn is not None:
                 previous_output = activation_fn(previous_output)
 
             layer_outputs.append(previous_output)
 
+        assert previous_output == layer_outputs[-1]
+        assert features not in layer_outputs
         final_output = previous_output
-        return final_output, layer_outputs
+        return final_output, layer_outputs, dense_outputs
 
     def get_forward_conv(self, features, reuse_variables=tf.AUTO_REUSE):
         """
         Public API for getting the forward ops.
         :param features: Feature map or images.
         :param reuse_variables: Whether to reuse the variables under the scope.
-        :return: final_output, layer_outputs.
+        :return: final_output, layer_outputs, dense_outputs.
         """
         with tf.variable_scope(self.name, reuse=reuse_variables):
             return self._get_conv_tower(features)

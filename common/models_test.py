@@ -6,13 +6,14 @@ import unittest
 from common.models import ConvNetwork, RestorableNetwork
 
 
-class TestModels(unittest.TestCase):
+class TestRestorableModel(unittest.TestCase):
     def setUp(self):
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
         self.sess = tf.Session(config=config)
 
         self.output_path = os.path.join('common', 'test_output.npz')
+        self.maxDiff = None
 
     def test_save_restore_np(self):
         """
@@ -20,11 +21,11 @@ class TestModels(unittest.TestCase):
         """
         layer_specs = [[3, 7, 1, 1],
                        [3, 6, 1, 1]]
-        conv_net = ConvNetwork('conv_network_test', layer_specs=layer_specs)
+        conv_net = ConvNetwork('conv_network_test_save_restore', layer_specs=layer_specs)
 
         # Create and initialize model.
         input_placeholder = tf.placeholder(shape=[None, 16, 16, 2], dtype=tf.float32)
-        output, _ = conv_net.get_forward_conv(input_placeholder)
+        output, _, _ = conv_net.get_forward_conv(input_placeholder)
         global_initializer = tf.global_variables_initializer()
         self.sess.run(global_initializer)
 
@@ -35,10 +36,10 @@ class TestModels(unittest.TestCase):
         # Save and test that the expected variables were saved.
         saved_np = conv_net.get_save_np(sess=self.sess)
         sorted_keys = sorted(saved_np.keys())
-        expected_keys = ['conv_network_test/conv_0/bias:0',
-                         'conv_network_test/conv_0/kernel:0',
-                         'conv_network_test/conv_1/bias:0',
-                         'conv_network_test/conv_1/kernel:0']
+        expected_keys = ['conv_network_test_save_restore/conv_0/bias:0',
+                         'conv_network_test_save_restore/conv_0/kernel:0',
+                         'conv_network_test_save_restore/conv_1/bias:0',
+                         'conv_network_test_save_restore/conv_1/kernel:0']
         self.assertListEqual(expected_keys, sorted_keys)
 
         # Run the initializer again and make sure the output is different.
@@ -62,7 +63,7 @@ class TestModels(unittest.TestCase):
 
         # Create and initialize model.
         input_placeholder = tf.placeholder(shape=[None, 4, 4, 2], dtype=tf.float32)
-        output, _ = conv_net.get_forward_conv(input_placeholder)
+        output, _, _ = conv_net.get_forward_conv(input_placeholder)
         global_initializer = tf.global_variables_initializer()
         self.sess.run(global_initializer)
 
@@ -94,9 +95,9 @@ class TestModels(unittest.TestCase):
 
         # Create and initialize models.
         input_small = tf.placeholder(shape=[None, 8, 8, 2], dtype=tf.float32)
-        output_small, _ = conv_net_small.get_forward_conv(input_small)
+        output_small, _, _ = conv_net_small.get_forward_conv(input_small)
         input_large = tf.placeholder(shape=[None, 16, 16, 2], dtype=tf.float32)
-        output_large, _ = conv_net_large.get_forward_conv(input_large)
+        output_large, _, _ = conv_net_large.get_forward_conv(input_large)
         global_initializer = tf.global_variables_initializer()
         self.sess.run(global_initializer)
 
@@ -129,11 +130,11 @@ class TestModels(unittest.TestCase):
         # Create and initialize models.
         conv_net_small = ConvNetwork('conv_network_small_test', layer_specs=layer_specs)
         input_small = tf.placeholder(shape=[None, 8, 8, 2], dtype=tf.float32)
-        output_small, _ = conv_net_small.get_forward_conv(input_small)
+        output_small, _, _ = conv_net_small.get_forward_conv(input_small)
         with tf.variable_scope(scope_name):
             conv_net_large = ConvNetwork('conv_network_large_test', layer_specs=layer_specs)
             input_large = tf.placeholder(shape=[None, 16, 16, 2], dtype=tf.float32)
-            output_large, _ = conv_net_large.get_forward_conv(input_large)
+            output_large, _, _ = conv_net_large.get_forward_conv(input_large)
         global_initializer = tf.global_variables_initializer()
         self.sess.run(global_initializer)
 
@@ -158,6 +159,67 @@ class TestModels(unittest.TestCase):
     def tearDown(self):
         if os.path.isfile(self.output_path):
             os.remove(self.output_path)
+
+
+class TestConvNet(unittest.TestCase):
+    def setUp(self):
+        config = tf.ConfigProto()
+        config.gpu_options.allow_growth = True
+        self.sess = tf.Session(config=config)
+
+    def test_default_not_dense(self):
+        input_features = 2
+        layer_1_features = 7
+        layer_2_features = 6
+        image_size = 8
+        batch_size = 2
+
+        layer_specs = [[3, layer_1_features, 1, 1],
+                       [3, layer_2_features, 1, 1]]
+        conv_net = ConvNetwork('conv_network_test_not_dense', layer_specs=layer_specs)
+
+        # Create and initialize model.
+        input_placeholder = tf.placeholder(shape=[None, image_size, image_size, 2], dtype=tf.float32)
+        output, layer_outputs, dense_outputs = conv_net.get_forward_conv(input_placeholder)
+        self.assertEqual(0, len(dense_outputs))
+        self.assertEqual(2, len(layer_outputs))
+        self.assertEqual(output, layer_outputs[-1])
+
+        self.sess.run(tf.global_variables_initializer())
+        dummy_input = np.ones(shape=[batch_size, image_size, image_size, input_features], dtype=np.float32)
+        dummy_output, dummy_outputs = self.sess.run([output, layer_outputs], feed_dict={input_placeholder: dummy_input})
+
+        self.assertTupleEqual(dummy_outputs[0].shape, (batch_size, image_size, image_size, layer_1_features))
+        self.assertTupleEqual(dummy_output.shape, (batch_size, image_size, image_size, layer_2_features))
+
+    def test_dense(self):
+        input_features = 2
+        layer_1_features = 7
+        layer_2_features = 6
+        image_size = 8
+
+        layer_specs = [[3, layer_1_features, 1, 1],
+                       [3, layer_2_features, 1, 1]]
+        conv_net = ConvNetwork('conv_network_test_dense', layer_specs=layer_specs, dense_net=True)
+
+        # Create and initialize model.
+        input_placeholder = tf.placeholder(shape=[None, image_size, image_size, input_features], dtype=tf.float32)
+        output, layer_outputs, dense_outputs = conv_net.get_forward_conv(input_placeholder)
+        self.assertEqual(2, len(dense_outputs))
+        self.assertEqual(output, layer_outputs[-1])
+
+        self.sess.run(tf.global_variables_initializer())
+        dummy_input = np.ones(shape=[1, image_size, image_size, input_features], dtype=np.float32)
+        dense_input_dummy, dummy_outputs = self.sess.run([dense_outputs, layer_outputs],
+                                                         feed_dict={input_placeholder: dummy_input})
+
+        self.assertTupleEqual(dense_input_dummy[0].shape,
+                              (1, image_size, image_size, input_features + layer_1_features))
+        self.assertTupleEqual(dense_input_dummy[1].shape,
+                              (1, image_size, image_size, input_features + layer_1_features + layer_2_features))
+
+        self.assertTupleEqual(dummy_outputs[0].shape, (1, image_size, image_size, layer_1_features))
+        self.assertTupleEqual(dummy_outputs[1].shape, (1, image_size, image_size, layer_2_features))
 
 
 if __name__ == '__main__':

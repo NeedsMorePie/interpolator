@@ -54,7 +54,8 @@ class FeaturePyramidNetwork(ConvNetwork):
                  layer_outputs: array of layer intermediate conv outputs. Length is len(layer_specs) + 1.
         """
         with tf.variable_scope(self.name, reuse=reuse_variables):
-            return self._get_conv_tower(image)
+            final_features, layer_outputs, _ = self._get_conv_tower(image)
+            return final_features, layer_outputs
 
     def get_c_n_idx(self, n):
         """

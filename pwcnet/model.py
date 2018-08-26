@@ -26,7 +26,7 @@ class PWCNet(RestorableNetwork):
         self.flow_scaling = flow_scaling
 
         if flow_layer_loss_weights is None:
-            self.flow_layer_loss_weights = [0.32, 0.08, 0.02, 0.01, 0.0005, 0.005]
+            self.flow_layer_loss_weights = [0.32, 0.08, 0.02, 0.01, 0.00125, 0.005]
         else:
             self.flow_layer_loss_weights = flow_layer_loss_weights
 
@@ -86,13 +86,18 @@ class PWCNet(RestorableNetwork):
                 estimator_network = self.estimator_networks[self.num_feature_levels - i]
                 if VERBOSE:
                     print('Getting forward ops for', estimator_network.name)
-                previous_flow, estimator_outputs, conv_input_stack = estimator_network.get_forward(
+                previous_flow, estimator_outputs, dense_outputs = estimator_network.get_forward(
                     features_a_n, features_b_n, resized_flow, upsampled_previous_features,
                     pre_warp_scaling=pre_warp_scaling, reuse_variables=reuse_variables)
                 previous_flows.append(previous_flow)
                 assert estimator_outputs[-1] == previous_flow
-                previous_estimator_features = tf.concat(conv_input_stack + estimator_outputs[:-1], axis=-1,
-                                                        name='previous_estimator_features_' + str(i))
+                # Get the previous_estimator_features differently depending on whether the estimator is dense.
+                if estimator_network.dense_net:
+                    assert len(dense_outputs) > 1
+                    previous_estimator_features = dense_outputs[-2]
+                else:
+                    assert len(estimator_outputs) > 1
+                    previous_estimator_features = estimator_outputs[-2]
 
                 # Last level gets the context-network treatment.
                 if i == self.output_level:
@@ -169,6 +174,8 @@ class PWCNet(RestorableNetwork):
 
         layer_losses = []
         for i, previous_flow in enumerate(previous_flows):
+            if self.flow_layer_loss_weights[i] == 0:
+                continue
             with tf.name_scope('layer_' + str(i) + '_loss'):
                 H, W = tf.shape(previous_flow)[1], tf.shape(previous_flow)[2]
 

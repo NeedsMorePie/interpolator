@@ -1,7 +1,7 @@
 import tensorflow as tf
 from common.models import ConvNetwork
 from pwcnet.cost_volume.cost_volume import cost_volume
-from pwcnet.warp.warp import warp_via_flow
+from pwcnet.warp.warp import backward_warp
 
 
 class EstimatorNetwork(ConvNetwork):
@@ -54,13 +54,13 @@ class EstimatorNetwork(ConvNetwork):
         :param reuse_variables: Tensorflow reuse option. i.e. tf.AUTO_REUSE.
         :return: final_flow: Tensor. Optical flow of shape [batch_size, H, W, 2].
                  layer_outputs: List of all convolution outputs of the network. The last item is the final_flow.
-                 input_stack: List of inputs to the convolution tower.
+                 dense_outputs: List of dense outputs from the convolution tower. List is empty if network is not dense.
         """
         with tf.variable_scope(self.name, reuse=reuse_variables):
             # Warp layer.
             warped = features2
             if optical_flow is not None:
-                warped = warp_via_flow(warped, optical_flow * pre_warp_scaling)
+                warped = backward_warp(warped, optical_flow * pre_warp_scaling)
 
             # Cost volume layer.
             cv = self.activation_fn(cost_volume(features1, warped, search_range=self.search_range))
@@ -73,6 +73,6 @@ class EstimatorNetwork(ConvNetwork):
             if previous_estimator_feature is not None:
                 input_stack = input_stack + [previous_estimator_feature]
             initial_input = tf.concat(input_stack, axis=-1, name='conv_tower_input')
-            final_flow, layer_outputs = self._get_conv_tower(initial_input)
+            final_flow, layer_outputs, dense_outputs = self._get_conv_tower(initial_input)
 
-            return final_flow, layer_outputs, input_stack
+            return final_flow, layer_outputs, dense_outputs
