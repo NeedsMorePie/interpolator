@@ -1,6 +1,9 @@
 import tensorflow as tf
 
 
+DISOCC_THRESH = 0.8
+
+
 def forward_warp(features, flow):
     """
     For an algorithm that gives the same end result, see section 3 in https://arxiv.org/pdf/1711.05890.pdf.
@@ -15,7 +18,7 @@ def forward_warp(features, flow):
         flow = tf.reverse(flow, axis=[-1])
 
         # Get target indices along with corresponding values to add.
-        indices, splat_values = get_translated_pixels(features, flow)
+        indices, splat_values = _get_translated_pixels(features, flow)
 
         # Mask out out-of-bounds splat values
         height, width, channels = tf.shape(features)[1], tf.shape(features)[2], tf.shape(features)[3]
@@ -42,7 +45,7 @@ def forward_warp(features, flow):
         return warped
 
 
-def get_translated_pixels(features, translations):
+def _get_translated_pixels(features, translations):
     """
     :param features: A Tensor. Of shape [batch_size, H, W, C].
     :param translations: A Tensor. Translations in image pixel units, of shape [batch_size, H, W, 2].
@@ -83,3 +86,20 @@ def get_translated_pixels(features, translations):
         all_indices = tf.reshape(all_indices, (batch_size, -1, 2))
         all_vals = tf.reshape(all_vals, (batch_size, -1, channels))
         return all_indices, all_vals
+
+
+def create_disocclusion_map(flow):
+    """
+    Creates a disocclusion mask representing areas that were previously occluded and will become visible.
+    This is done by forward warping some ones and thresholding them for visibility.
+
+    Disocclusion maps are used by the UnFlow loss:
+    https://github.com/simonmeister/UnFlow/blob/8bff4939963c7d0adb9435880dc506fb3f988080/src/e2eflow/core/losses.py#L28
+    This isn't mentioned in the paper anywhere, but clearly enough, it is in the code.
+    :param flow: Tensor of shape [B, H, W, 2].
+    :return: Tensor of shape [B, H, W, 1].
+    """
+    batch, height, width, _ = tf.unstack(tf.shape(flow))
+    prewarp_mask = tf.ones([batch, height, width, 1], dtype=tf.float32)
+    forward_warped_mask = forward_warp(prewarp_mask, flow)
+    return tf.cast(forward_warped_mask < DISOCC_THRESH, dtype=tf.float32)
