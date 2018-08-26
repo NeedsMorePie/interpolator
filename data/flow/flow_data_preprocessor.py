@@ -3,7 +3,7 @@ import multiprocessing
 import numpy as np
 import os.path
 import random
-from data.flow.flowdata import FlowDataSet
+from data.flow.flow_data import FlowDataSet
 from joblib import Parallel, delayed
 from utils.data import *
 from utils.flow import read_flow_file

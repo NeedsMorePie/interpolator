@@ -2,7 +2,7 @@ import argparse
 import json
 import os
 import tensorflow as tf
-from data.flow.flowdata import FlowDataSet
+from data.flow.flow_data import FlowDataSet
 from pwcnet.model import PWCNet
 from train.pwcnet.trainer import PWCNetTrainer
 

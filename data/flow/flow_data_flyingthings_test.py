@@ -2,9 +2,9 @@ import os
 import os.path
 import tensorflow as tf
 import unittest
-from data.flow.flowdata import FlowDataSet
-from data.flow.flowdata_preprocessor import FlyingThingsFlowDataPreprocessor
-from data.flow.flowdata_test_base import TestFlowDataSet
+from data.flow.flow_data import FlowDataSet
+from data.flow.flow_data_preprocessor import FlyingThingsFlowDataPreprocessor
+from data.flow.flow_data_test_base import TestFlowDataSet
 from utils.data import silently_remove_file
 
 

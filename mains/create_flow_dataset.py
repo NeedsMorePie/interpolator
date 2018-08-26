@@ -1,5 +1,5 @@
 import argparse
-from data.flow.flowdata_preprocessor import SintelFlowDataPreprocessor, FlyingChairsFlowDataPreprocessor, FlyingThingsFlowDataPreprocessor
+from data.flow.flow_data_preprocessor import SintelFlowDataPreprocessor, FlyingChairsFlowDataPreprocessor, FlyingThingsFlowDataPreprocessor
 
 
 def main():

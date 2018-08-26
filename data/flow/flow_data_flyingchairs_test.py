@@ -1,9 +1,9 @@
 import os
 import os.path
 import unittest
-from data.flow.flowdata import FlowDataSet
-from data.flow.flowdata_preprocessor import FlyingChairsFlowDataPreprocessor
-from data.flow.flowdata_test_base import TestFlowDataSet
+from data.flow.flow_data import FlowDataSet
+from data.flow.flow_data_preprocessor import FlyingChairsFlowDataPreprocessor
+from data.flow.flow_data_test_base import TestFlowDataSet
 
 
 class FlyingChairsTestPaths:
