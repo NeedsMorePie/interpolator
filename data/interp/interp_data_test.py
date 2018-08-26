@@ -5,7 +5,9 @@ import tensorflow as tf
 import unittest
 import shutil
 from utils.img import show_image
-from data.interp.davis.davis_data import DavisDataSet
+from data.interp.interp_data import InterpDataSet
+from data.interp.interp_data_preprocessor import InterpDataPreprocessor
+from data.interp.davis.davis_interp_data_preprocessor import DavisDataSetPreprocessor
 
 VISUALIZE = False
 
@@ -41,7 +43,7 @@ class TestInterpDataSet(unittest.TestCase):
         self.sess = tf.Session(config=config)
 
     def test_maximum_shot_len(self):
-        data_set = DavisDataSet(self.tf_record_directory, [[1]])
+        preprocessor = InterpDataPreprocessor(self.tf_record_directory, [[1]])
         image_paths = [
             ['a0', 'a1', 'a2'],
             ['b0', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6'],
@@ -55,13 +57,13 @@ class TestInterpDataSet(unittest.TestCase):
             ['c1', 'c2', 'c3'],
             ['c4']
         ]
-        split_paths = data_set._enforce_maximum_shot_len(image_paths, 3)
+        split_paths = preprocessor._enforce_maximum_shot_len(image_paths, 3)
         self.assertListEqual(split_paths, expected_split)
 
     def test_val_split(self):
 
         # Sequences of lengths 3, 4, 5.
-        data_set = DavisDataSet(self.tf_record_directory, [[1], [1, 0], [1, 0, 0]])
+        preprocessor = InterpDataPreprocessor(self.tf_record_directory, [[1], [1, 0], [1, 0, 0]])
         image_paths = [
             ['a0', 'a1', 'a2'],
             ['b0', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6'],
@@ -75,14 +77,14 @@ class TestInterpDataSet(unittest.TestCase):
             ['b4', 'b5', 'b6'],
             ['c1', 'c2', 'c3', 'c4']
         ]
-        val, train = data_set._split_for_validation(image_paths, 4)
+        val, train = preprocessor._split_for_validation(image_paths, 4)
         self.assertListEqual(val, expected_val)
         self.assertListEqual(train, expected_train)
 
     def test_val_split_all(self):
 
         # Sequences of lengths 3, 4, 5.
-        data_set = DavisDataSet(self.tf_record_directory, [[1], [1, 0], [1, 0, 0]])
+        preprocessor = InterpDataPreprocessor(self.tf_record_directory, [[1], [1, 0], [1, 0, 0]])
         image_paths = [
             ['a0', 'a1', 'a2'],
             ['b0', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6'],
@@ -94,13 +96,14 @@ class TestInterpDataSet(unittest.TestCase):
             ['c1', 'c2', 'c3', 'c4']
         ]
         expected_train = []
-        val, train = data_set._split_for_validation(image_paths, 200)
+        val, train = preprocessor._split_for_validation(image_paths, 200)
         self.assertListEqual(val, expected_val)
         self.assertListEqual(train, expected_train)
 
     def test_data_read_write(self):
-        data_set = DavisDataSet(self.tf_record_directory, [[1]], batch_size=2)
-        data_set.preprocess_raw(self.data_directory, shard_size=1)
+        data_set = InterpDataSet(self.tf_record_directory, [[1]], batch_size=2)
+        preprocessor = DavisDataSetPreprocessor(self.tf_record_directory, [[1]], shard_size=1)
+        preprocessor.preprocess_raw(self.data_directory)
 
         output_paths = data_set.get_tf_record_names()
         [self.assertTrue(os.path.isfile(output_path)) for output_path in output_paths]
@@ -123,8 +126,10 @@ class TestInterpDataSet(unittest.TestCase):
             self.assertTupleEqual(np.shape(next_sequence), (2, 3, 256, 256, 3))
 
     def test_val_data_read_write(self):
-        data_set = DavisDataSet(self.tf_record_directory, [[1]], batch_size=2)
-        data_set.preprocess_raw(self.data_directory, shard_size=5, validation_size=2)
+        data_set = InterpDataSet(self.tf_record_directory, [[1]], batch_size=2)
+        preprocessor = DavisDataSetPreprocessor(self.tf_record_directory, [[1], [1, 0], [1, 0, 0]], shard_size=5,
+                                                validation_size=2)
+        preprocessor.preprocess_raw(self.data_directory)
 
         output_paths = data_set.get_tf_record_names()
         [self.assertTrue(os.path.isfile(output_path)) for output_path in output_paths]
@@ -162,8 +167,9 @@ class TestInterpDataSet(unittest.TestCase):
         """
         Tests for the case where multiple inbetween_location configs are provided.
         """
-        data_set = DavisDataSet(self.tf_record_directory, [[1], [1, 0, 0]], batch_size=1)
-        data_set.preprocess_raw(self.data_directory, shard_size=1)
+        data_set = InterpDataSet(self.tf_record_directory, [[1], [1, 0, 0]], batch_size=1)
+        preprocessor = DavisDataSetPreprocessor(self.tf_record_directory, [[1], [1, 0], [1, 0, 0]], shard_size=1)
+        preprocessor.preprocess_raw(self.data_directory)
 
         output_paths = data_set.get_tf_record_names()
         [self.assertTrue(os.path.isfile(output_path)) for output_path in output_paths]
@@ -185,6 +191,7 @@ class TestInterpDataSet(unittest.TestCase):
             next_sequence, next_sequence_timing = self.sess.run(query,
                                                                 feed_dict=data_set.get_train_feed_dict())
 
+            is_sparse = False
             if next_sequence_timing[0].tolist() == [0.0, 0.5, 1.0]:
                 num_dense_sequences += 1
                 is_sparse = False
@@ -205,7 +212,7 @@ class TestInterpDataSet(unittest.TestCase):
         self.assertEqual(num_sparse_sequences, 4)
 
     def tearDown(self):
-        data_set = DavisDataSet(self.tf_record_directory, [[1]], batch_size=2)
+        data_set = InterpDataSet(self.tf_record_directory, [[1]], batch_size=2)
         output_paths = data_set.get_tf_record_names()
         for output_path in output_paths:
             if os.path.isfile(output_path):

@@ -1,6 +1,6 @@
 import argparse
 import os
-from data.interp.davis.davis_data import DavisDataSet
+from data.interp.davis.davis_interp_data_preprocessor import DavisDataSetPreprocessor
 
 
 def main():
@@ -26,9 +26,9 @@ def main():
     if not os.path.exists(tf_records_directory):
         os.mkdir(tf_records_directory)
 
-    dataset = DavisDataSet(tf_records_directory, [[1]])
-    dataset.set_verbose(True)
-    dataset.preprocess_raw(input_directory, args.shard_size, validation_size=args.num_validation)
+    dataset = DavisDataSetPreprocessor(tf_records_directory, [[1]], shard_size=args.shard_size,
+                                       validation_size=args.num_validation, verbose=True)
+    dataset.preprocess_raw(input_directory)
 
 
 def add_args(parser):

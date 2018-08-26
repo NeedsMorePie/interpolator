@@ -1,18 +1,21 @@
+import glob
 import multiprocessing
 import os.path
 import numpy as np
 from data.dataset import DataSet
-from data.interp.interp_data_reader import InterpDataSetReader
-from joblib import Parallel, delayed
 from utils.data import *
-
-SHOT_LEN = 'shot_len'
-WIDTH = 'width'
-HEIGHT = 'height'
-SHOT = 'shot'
+from utils.tf import sliding_window_slice, tf_coin_flip
 
 
 class InterpDataSet(DataSet):
+    SHOT_LEN = 'shot_len'
+    WIDTH = 'width'
+    HEIGHT = 'height'
+    SHOT = 'shot'
+
+    TRAIN_TF_RECORD_NAME = 'interp_dataset_train.tfrecords'
+    VALIDATION_TF_RECORD_NAME = 'interp_dataset_validation.tfrecords'
+
     def __init__(self, tf_record_directory, inbetween_locations, batch_size=1, training_augmentations=True):
         """
         :param inbetween_locations: A list of lists. Each element specifies where inbetweens will be placed,
@@ -61,19 +64,6 @@ class InterpDataSet(DataSet):
         """
         return self.validation_data.get_tf_record_names()
 
-    def preprocess_raw(self, raw_directory, shard_size, validation_size=0, max_shot_len=10):
-        """
-        Processes the data in raw_directory to the tf_record_directory.
-        :param raw_directory: The directory to the images to process.
-        :param validation_size: The TfRecords will be partitioned such that, if possible,
-                                this number of validation sequences can be used for validation.
-        :param max_shot_len: Video shots larger than this value will be broken up.
-        """
-        if self.verbose:
-            print('Checking directory for data.')
-        image_paths = self._get_data_paths(raw_directory)
-        self._convert_to_tf_record(image_paths, shard_size, validation_size, max_shot_len)
-
     def load(self, session):
         """
         Overriden.
@@ -107,150 +97,167 @@ class InterpDataSet(DataSet):
         """
         self.validation_data.init_data(session)
 
-    def _get_data_paths(self, raw_directory):
-        """
-        :param raw_directory: The directory to the images to process.
-        :return: List of list of image names, where image_paths[0][0] is the first image in the first video shot.
-        """
-        raise NotImplementedError
 
-    def _process_image(self, filename):
+class InterpDataSetReader:
+    def __init__(self, directory, inbetween_locations, tf_record_name, batch_size=1, do_augment=False,
+                 crop_size=(256, 256)):
         """
-        Reads from and processes the file.
-        :param filename: String. Full path to the image file.
-        :return: bytes: The bytes that will be saved to the TFRecords.
-                        Must be readable with tf.image.decode_image.
-                 height: Height of the processed image.
-                 width: Width of the processed image.
-        """
-        raise NotImplementedError
+        :param inbetween_locations: A list of lists. Each element specifies where inbetweens will be placed,
+                                    and each configuration will appear with uniform probability.
 
-    def _convert_to_tf_record(self, image_paths, shard_size, validation_size, max_shot_len):
-        """
-        :param image_paths: List of list of image names,
-                            where image_paths[0][0] is the first image in the first video shot.
-        :return: Nothing.
+                                    For example, Let frame0 be the start of a sequence. Then:
+                                        [1] equates to [frame0, frame1, frame2]
+                                        [0, 1, 0] equates to [frame0, frame2, frame4]
+                                        [1, 0, 0] equates to [frame0, frame1, frame4]
+        :param crop_size: Tuple of (int (H), int (W)). Size to crop the training examples to before feeding to network.
+                           If None, then no cropping will be performed.
+        :param do_augment: Whether to augment the data when it's read in.
+                           If False, the image crop will always be taken in the center.
         """
 
-        if not os.path.exists(self.tf_record_directory):
-            os.mkdir(self.tf_record_directory)
+        # Initialized during load().
+        self.dataset = None  # Tensorflow DataSet object.
+        self.handle = None  # Handle to feed for the dataset.
+        self.iterator = None  # Iterator for getting the next batch.
 
-        def _write(filename, iter_range, image_paths):
-            if self.verbose:
-                print('Writing', len(iter_range), 'data examples to the', filename, 'dataset.')
+        self.batch_size = batch_size
+        self.crop_size = crop_size
+        self.do_augment = do_augment
+        self.directory = directory
+        self.tf_record_name = tf_record_name
+        self.inbetween_locations = inbetween_locations
 
-            sharded_iter_ranges = create_shard_ranges(iter_range, shard_size)
-            Parallel(n_jobs=multiprocessing.cpu_count(), backend="threading")(
-                delayed(_write_shard)(shard_id, shard_range, image_paths, filename,
-                                      self.tf_record_directory, self._process_image, self.verbose)
-                for shard_id, shard_range in enumerate(sharded_iter_ranges)
-            )
+        # Check for number of ones, as the number of elements per-sequence must be the same.
+        num_ones = (np.asarray(self.inbetween_locations[0]) == 1).sum()
+        for i in range(1, len(self.inbetween_locations)):
+            if (np.asarray(self.inbetween_locations[i]) == 1).sum() != num_ones:
+                raise ValueError('The number of ones for each element in inbetween_locations must be the same.')
 
-        image_paths = self._enforce_maximum_shot_len(image_paths, max_shot_len)
-        val_paths, train_paths = self._split_for_validation(image_paths, validation_size)
-        image_paths = val_paths + train_paths
-        train_start_idx = len(val_paths)
-        _write(self.validation_tf_record_name, range(0, train_start_idx), image_paths)
-        _write(self.train_tf_record_name, range(train_start_idx, len(image_paths)), image_paths)
+    def get_tf_record_names(self):
+        return sorted(glob.glob(self._get_tf_record_pattern()))
 
-    def _enforce_maximum_shot_len(self, image_paths, max_shot_len):
+    def init_data(self, session):
+        session.run(self.iterator.initializer)
+
+    def load(self, session, repeat=False, shuffle=False, initializable=False, max_num_elements=None):
         """
-        :param image_paths: List of list of image names,
-                            where image_paths[0][0] is the first image in the first video shot.
-        :return: List in the same format as image_paths,
-                 where len(return_value)[i] for all i <= max_shot_len.
+        :param session: tf Session.
+        :param repeat: Whether to call repeat on the tf DataSet.
+        :param shuffle: Whether to shuffle on the tf DataSet.
+        :param initializable: Whether to use an initializable or a one_shot iterator.
+                              If True, init_data must be called to use the DataSet.
         """
-        cur_len = len(image_paths)
-        i = 0
-        while i < cur_len:
-            if len(image_paths[i]) > max_shot_len:
-                part_1 = image_paths[i][:max_shot_len]
-                part_2 = image_paths[i][max_shot_len:]
-                image_paths = image_paths[:i] + [part_1] + [part_2] + image_paths[i+1:]
-                cur_len += 1
-            i += 1
-        return image_paths
+        with tf.name_scope(self.tf_record_name + '_dataset_ops'):
+            for i in range(len(self.inbetween_locations)):
+                inbetween_locations = self.inbetween_locations[i]
+                dataset = self._load_for_inbetween_locations(inbetween_locations, shuffle)
+                self.dataset = dataset if i == 0 else self.dataset.concatenate(dataset)
 
-    def _split_for_validation(self, image_paths, validation_size):
+            if max_num_elements is not None:
+                assert max_num_elements >= 0
+                self.dataset = self.dataset.take(max_num_elements)
+
+            buffer_size = 100
+            if shuffle:
+                self.dataset = self.dataset.shuffle(buffer_size=buffer_size)
+
+            self.dataset = self.dataset.batch(self.batch_size)
+            self.dataset = self.dataset.prefetch(buffer_size=1)
+
+            if repeat:
+                self.dataset = self.dataset.repeat()
+
+            if initializable:
+                self.iterator = self.dataset.make_initializable_iterator()
+            else:
+                self.iterator = self.dataset.make_one_shot_iterator()
+
+        self.handle = session.run(self.iterator.string_handle())
+
+    def get_output_shapes(self):
+        return self.dataset.output_shapes
+
+    def get_output_types(self):
+        return self.dataset.output_types
+
+    def get_feed_dict_value(self):
+        return self.handle
+
+    def _get_tf_record_pattern(self):
+        return os.path.join(self.directory, '*' + self.tf_record_name)
+
+    def _load_for_inbetween_locations(self, inbetween_locations, shuffle):
         """
-        :param image_paths: List of list of image names,
-                            where image_paths[0][0] is the first image in the first video shot.
-        :param validation_size: The split will guarantee that at there will be at least this many validation elements.
-        :return: (validation_image_paths, train_image_paths), where both have the same structure as image_paths.
+        :param inbetween_locations: An element of self.inbetween_locations.
+        :param shuffle: Whether to shuffle the shards.
+        :return: Tensorflow dataset object.
         """
-        if validation_size == 0:
-            return [], image_paths
+        def _parse_function(example_proto):
+            features = {
+                InterpDataSet.SHOT_LEN: tf.FixedLenFeature((), tf.int64, default_value=0),
+                InterpDataSet.SHOT: tf.VarLenFeature(tf.string),
+                InterpDataSet.HEIGHT: tf.FixedLenFeature((), tf.int64, default_value=0),
+                InterpDataSet.WIDTH: tf.FixedLenFeature((), tf.int64, default_value=0)
+            }
+            parsed_features = tf.parse_single_example(example_proto, features)
+            shot_len = tf.reshape(tf.cast(parsed_features[InterpDataSet.SHOT_LEN], tf.int32), ())
+            H = tf.reshape(tf.cast(parsed_features[InterpDataSet.HEIGHT], tf.int32), ())
+            W = tf.reshape(tf.cast(parsed_features[InterpDataSet.WIDTH], tf.int32), ())
 
-        # Count the number of sequences that exist for a certain shot length.
-        max_len = 0
-        for spec in self.inbetween_locations:
-            max_len = max(2 + len(spec), max_len)
+            shot_bytes = tf.sparse_tensor_to_dense(parsed_features[InterpDataSet.SHOT], default_value=tf.as_string(0))
+            shot = tf.map_fn(lambda bytes: tf.image.decode_image(bytes), shot_bytes, dtype=(tf.uint8))
+            shot = tf.image.convert_image_dtype(shot, tf.float32)
+            shot = tf.reshape(shot, (shot_len, H, W, 3))
 
-        a = np.zeros(max_len + 1)
-        for spec in self.inbetween_locations:
-            a[2 + len(spec)] += 1
+            # TODO: We should randomly augment triplets with timestamps like [0.0, 1.0, 1.0], or [0.0, 0.0, 1.0].
+            # Decompose each shot into sequences of consecutive images.
+            slice_locations = [1] + inbetween_locations + [1]
+            return sliding_window_slice(shot, slice_locations)
 
-        for i in range(1, len(a)):
-            a[i] += a[i-1]
+        # Shuffle filenames.
+        # Ideas taken from: https://github.com/tensorflow/tensorflow/issues/14857
+        dataset = tf.data.Dataset.list_files(self._get_tf_record_pattern(), shuffle=shuffle)
+        dataset = tf.data.TFRecordDataset(dataset)
 
-        # Find the split indices.
-        cur_samples = 0
-        split_indices = (len(image_paths)-1, len(image_paths[-1])-1)
-        for i in range(len(image_paths)):
-            for j in range(len(image_paths[i])):
-                cur_samples += a[min(j + 1, len(a) - 1)]
-                if cur_samples >= validation_size:
-                    split_indices = (i, j)
-                    break
-            if cur_samples >= validation_size:
-                break
+        # Parse sequences.
+        dataset = dataset.map(_parse_function, num_parallel_calls=multiprocessing.cpu_count())
 
-        i, j = split_indices
-        val_split = []
-        val_split += image_paths[:i]
-        if len(image_paths[i][:j+1]) > 0:
-            val_split.append(image_paths[i][:j+1])
+        # Each element in the dataset is currently a group of sequences (grouped by video shot),
+        # so we need to 'unbatch' them first.
+        dataset = dataset.apply(tf.contrib.data.unbatch())
 
-        train_split = []
-        if len(image_paths[i][j+1:]) > 0:
-            train_split.append(image_paths[i][j+1:])
-        train_split += image_paths[i+1:]
+        # Add timing information.
+        slice_indices = [1] + inbetween_locations + [1]
+        slice_times = []
+        for i in range(len(slice_indices)):
+            if slice_indices[i] == 1:
+                slice_times.append(i * 1.0 / (len(slice_indices) - 1))
 
-        return val_split, train_split
+        def _add_timing(sequence):
+            return sequence, tf.constant(slice_times)
 
+        def _crop(sequence):
+            s = tf.shape(sequence)
+            sequence_len, H, W = s[0], s[1], s[2]
+            crop_h, crop_w = self.crop_size
+            if self.do_augment:
+                sequence = tf.random_crop(sequence, [sequence_len, crop_h, crop_w, 3])
+            else:
+                crop_top = tf.cast(H / 2 - crop_h / 2, tf.int32)
+                crop_left = tf.cast(W / 2 - crop_w / 2, tf.int32)
+                sequence = tf.image.crop_to_bounding_box(sequence, crop_top, crop_left, crop_h, crop_w)
+            return sequence
 
-def _write_shard(shard_id, shard_range, image_paths, filename, directory, processor_fn, verbose):
-    """
-    :param shard_id: Index of the shard.
-    :param shard_range: Iteration range of the shard.
-    :param image_paths: List of list of image names.
-    :param filename: Base name of the output shard.
-    :param directory: Output directory.
-    :param processor_fn: Function to read and process from filename with before saving to TFRecords.
-    :return: Nothing.
-    """
-    if verbose and len(shard_range) > 0:
-        print('Writing to shard', shard_id, 'data points', shard_range[0], 'to', shard_range[-1])
+        def _flip(sequence):
+            # Randomly flip in temporal, y, and x axes.
+            sequence = tf.cond(tf_coin_flip(0.5)[0], lambda: tf.reverse(sequence, [0]), lambda: sequence)
+            sequence = tf.cond(tf_coin_flip(0.5)[0], lambda: tf.reverse(sequence, [1]), lambda: sequence)
+            sequence = tf.cond(tf_coin_flip(0.5)[0], lambda: tf.reverse(sequence, [2]), lambda: sequence)
+            return sequence
 
-    path = os.path.join(directory, str(shard_id) + '_' + filename)
-    writer = tf.python_io.TFRecordWriter(path)
-    for i in shard_range:
-        if len(image_paths[i]) <= 0:
-            continue
+        dataset = dataset.map(_crop, num_parallel_calls=multiprocessing.cpu_count())
+        if self.do_augment:
+            dataset = dataset.map(_flip, num_parallel_calls=multiprocessing.cpu_count())
+        dataset = dataset.map(_add_timing, num_parallel_calls=multiprocessing.cpu_count())
+        return dataset
 
-        shot_raw = []
-        for image_path in image_paths[i]:
-            bytes, h, w = processor_fn(image_path)
-            shot_raw.append(bytes)
-
-        # Write to tf record.
-        example = tf.train.Example(
-            features=tf.train.Features(
-                feature={
-                    SHOT_LEN: tf_int64_feature(len(shot_raw)),
-                    SHOT: tf_bytes_list_feature(shot_raw),
-                    HEIGHT: tf_int64_feature(h),
-                    WIDTH: tf_int64_feature(w)
-                }))
-        writer.write(example.SerializeToString())
-    writer.close()

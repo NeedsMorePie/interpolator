@@ -1,7 +1,7 @@
 import argparse
 import os
 import tensorflow as tf
-from data.interp.davis.davis_data import DavisDataSet
+from data.interp.interp_data import InterpDataSet
 from context_interp.model import ContextInterp
 from train.context_interp.trainer import ContextInterpTrainer
 
@@ -22,8 +22,8 @@ def main():
     model = ContextInterp()
 
     print('Creating dataset...')
-    dataset = DavisDataSet(args.directory, [[1]],
-                           batch_size=args.batch_size)
+    dataset = InterpDataSet(args.directory, [[1]],
+                            batch_size=args.batch_size)
 
     # TODO: Some of this stuff might want to go into a config json.
     config = {
