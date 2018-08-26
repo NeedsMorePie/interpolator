@@ -2,7 +2,7 @@ import os
 import os.path
 import tensorflow as tf
 import unittest
-from data.interp.davis.davis_interp_data_preprocessor import DavisDataSetPreprocessor
+from data.interp.davis.davis_preprocessor import DavisDataSetPreprocessor
 
 
 class TestDavisDataSet(unittest.TestCase):

@@ -2,7 +2,7 @@ import os
 import os.path
 import unittest
 from data.flow.flow_data import FlowDataSet
-from data.flow.flow_data_preprocessor import SintelFlowDataPreprocessor
+from data.flow.sintel.sintel_preprocessor import SintelFlowDataPreprocessor
 from data.flow.flow_data_test_base import TestFlowDataSet
 
 
@@ -10,7 +10,7 @@ class TestSintelFlowDataSet(TestFlowDataSet.TestCases):
     def setUp(self):
         super().setUp()
 
-        data_directory = os.path.join('data', 'flow', 'test_data', 'sintel')
+        data_directory = os.path.join('data', 'flow', 'sintel', 'test_data')
         flow_directory = os.path.join(data_directory, 'test_flows')
         image_directory = os.path.join(data_directory, 'test_images')
         self.resolution = [436, 1024]

@@ -1,6 +1,6 @@
 import argparse
 import os
-from data.interp.davis.davis_interp_data_preprocessor import DavisDataSetPreprocessor
+from data.interp.davis.davis_preprocessor import DavisDataSetPreprocessor
 
 
 def main():

@@ -7,7 +7,7 @@ import shutil
 from utils.img import show_image
 from data.interp.interp_data import InterpDataSet
 from data.interp.interp_data_preprocessor import InterpDataPreprocessor
-from data.interp.davis.davis_interp_data_preprocessor import DavisDataSetPreprocessor
+from data.interp.davis.davis_preprocessor import DavisDataSetPreprocessor
 
 VISUALIZE = False
 
