@@ -3,6 +3,7 @@ from common.models import RestorableNetwork
 from pwcnet.estimator_network.model import EstimatorNetwork
 from pwcnet.context_network.model import ContextNetwork
 from pwcnet.feature_pyramid_network.model import FeaturePyramidNetwork
+from pwcnet.losses.loss import create_multi_level_loss, l2_diff, lq_diff
 from tensorflow.contrib.layers import l2_regularizer
 
 
@@ -26,7 +27,7 @@ class PWCNet(RestorableNetwork):
         self.flow_scaling = flow_scaling
 
         if flow_layer_loss_weights is None:
-            self.flow_layer_loss_weights = [0.32, 0.08, 0.02, 0.01, 0.00125, 0.005]
+            self.flow_layer_loss_weights = [0.32, 0.08, 0.02, 0.01, 0.0025, 0.005]
         else:
             self.flow_layer_loss_weights = flow_layer_loss_weights
 
@@ -169,31 +170,14 @@ class PWCNet(RestorableNetwork):
         :param diff_fn: Function to diff 2 tensors.
         :return: Tf scalar loss term, and an array of all the inidividual loss terms.
         """
-        total_loss = tf.constant(0.0, dtype=tf.float32)
-        scaled_gt = expected_flow * self.flow_scaling
 
-        layer_losses = []
-        for i, previous_flow in enumerate(previous_flows):
-            if self.flow_layer_loss_weights[i] == 0:
-                continue
-            with tf.name_scope('layer_' + str(i) + '_loss'):
-                H, W = tf.shape(previous_flow)[1], tf.shape(previous_flow)[2]
-
-                # Ground truth needs to be resized to match the size of the previous flow.
-                resized_scaled_gt = tf.image.resize_bilinear(scaled_gt, [H, W])
-
-                # squared_difference has the shape [batch_size, H, W, 2].
-                squared_difference = diff_fn(resized_scaled_gt, previous_flow)
-                # Reduce sum in the last 3 dimensions, average over the batch, and apply the weight.
-                weight = self.flow_layer_loss_weights[i]
-                layer_loss = weight * tf.reduce_mean(tf.reduce_sum(squared_difference, axis=[1, 2, 3]))
-
-                # Accumulate the total loss.
-                layer_losses.append(layer_loss)
-            total_loss += layer_loss
+        total_loss, layer_losses = create_multi_level_loss(
+            expected_flow=expected_flow, flows=previous_flows, flow_scaling=self.flow_scaling,
+            flow_layer_loss_weights=self.flow_layer_loss_weights, diff_fn=diff_fn)
 
         # Add the regularization loss.
         total_loss += tf.add_n(tf.losses.get_regularization_losses(scope=self.name))
+
         return total_loss, layer_losses
 
     def get_training_loss(self, previous_flows, expected_flow):
@@ -202,8 +186,6 @@ class PWCNet(RestorableNetwork):
         :return: Tf scalar loss term, and an array of all the inidividual loss terms.
         """
         with tf.name_scope('training_loss'):
-            def l2_diff(a, b):
-                return tf.square(a - b)
             return self._get_loss(previous_flows, expected_flow, l2_diff)
 
     def get_fine_tuning_loss(self, previous_flows, expected_flow, q=0.4, epsilon=0.01):
@@ -212,6 +194,6 @@ class PWCNet(RestorableNetwork):
         :return: Tf scalar loss term, and an array of all the inidividual loss terms.
         """
         with tf.name_scope('fine_tuning_loss'):
-            def lq_diff(a, b):
-                return tf.pow(tf.abs(a - b) + epsilon, q)
-            return self._get_loss(previous_flows, expected_flow, lq_diff)
+            def lq_diff_with_args(a, b):
+                return lq_diff(a, b, q=q, epsilon=epsilon)
+            return self._get_loss(previous_flows, expected_flow, lq_diff_with_args)

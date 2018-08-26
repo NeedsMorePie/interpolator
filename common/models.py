@@ -104,8 +104,8 @@ class RestorableNetwork():
         if var_name not in self._assign_ops:
             ph = tf.placeholder(dtype=tf.float32)
             op = tf.assign(var, ph, validate_shape=True)
-            self._assign_ops['var_name'] = op, ph
-        return self._assign_ops['var_name']
+            self._assign_ops[var_name] = op, ph
+        return self._assign_ops[var_name]
 
     @staticmethod
     def rename_np_dict(var_dict, old_network_name, new_network_name):
@@ -163,8 +163,7 @@ class ConvNetwork(RestorableNetwork):
 
         # Create the network layers.
         previous_output = features
-        # Stores the dense input to the next layer.
-        dense_input = None
+        # Stores the dense output of each layer.
         dense_outputs = []
         for i, layer_spec in enumerate(self.layer_specs):
             # Get specs.
@@ -175,8 +174,8 @@ class ConvNetwork(RestorableNetwork):
 
             is_last_layer = i == len(self.layer_specs) - 1
             activation_fn = self.last_activation_fn if is_last_layer else self.activation_fn
-            if dense_input is not None:
-                inputs = dense_input
+            if len(dense_outputs) > 0:
+                inputs = dense_outputs[-1]
             else:
                 inputs = previous_output
 
@@ -192,9 +191,8 @@ class ConvNetwork(RestorableNetwork):
                                                bias_regularizer=self.regularizer,
                                                name='conv_' + str(i))
             if self.dense_net:
-                # Dense-net layer input consists of all previous layer outputs.
-                dense_input = tf.concat([inputs, previous_output], axis=-1)
-                dense_outputs.append(dense_input)
+                # Dense layer output consists of all previous layer outputs and the input.
+                dense_outputs.append(tf.concat([inputs, previous_output], axis=-1))
 
             if activation_fn is not None:
                 previous_output = activation_fn(previous_output)
