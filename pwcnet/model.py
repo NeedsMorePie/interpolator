@@ -26,7 +26,7 @@ class PWCNet(RestorableNetwork):
         self.flow_scaling = flow_scaling
 
         if flow_layer_loss_weights is None:
-            self.flow_layer_loss_weights = [0.32, 0.08, 0.02, 0.01, 0.00125, 0.005]
+            self.flow_layer_loss_weights = [0.32, 0.08, 0.02, 0.01, 0.0025, 0.005]
         else:
             self.flow_layer_loss_weights = flow_layer_loss_weights
 
