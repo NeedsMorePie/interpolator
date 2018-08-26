@@ -3,6 +3,7 @@ import os.path
 import tensorflow as tf
 import unittest
 from data.flow.flowdata import FlowDataSet
+from data.flow.flowdata_preprocessor import FlyingThingsFlowDataPreprocessor
 from data.flow.flowdata_test_base import TestFlowDataSet
 from utils.data import silently_remove_file
 
@@ -37,8 +38,8 @@ class TestFlyingThingsFlowDataSet(TestFlowDataSet.TestCases):
         data_directory = os.path.join('data', 'flow', 'test_data', 'flying_things')
         self.resolution = [540, 960]
         # No data augmentation so that the tests are deterministic.
-        self.data_set = FlowDataSet(data_directory, batch_size=2, validation_size=1, training_augmentations=False,
-                                    data_source=FlowDataSet.FLYING_THINGS)
+        self.data_set = FlowDataSet(data_directory, batch_size=2, training_augmentations=False)
+        self.data_set_preprocessor = FlyingThingsFlowDataPreprocessor(data_directory, validation_size=1, shard_size=2)
 
         # Test paths.
         self.expected_image_a_paths = FlyingThingsTestPaths.expected_image_a_paths
@@ -53,8 +54,8 @@ class TestFlyingThingsFlowDataSetWithCrop(TestFlowDataSet.TestCases):
         data_directory = os.path.join('data', 'flow', 'test_data', 'flying_things')
         self.resolution = [384, 448]
         # No data augmentation so that the tests are deterministic.
-        self.data_set = FlowDataSet(data_directory, batch_size=2, validation_size=1, training_augmentations=False,
-                                    data_source=FlowDataSet.FLYING_THINGS, crop_size=(384, 448))
+        self.data_set = FlowDataSet(data_directory, batch_size=2, training_augmentations=False, crop_size=(384, 448))
+        self.data_set_preprocessor = FlyingThingsFlowDataPreprocessor(data_directory, validation_size=1, shard_size=2)
 
         # Test paths.
         self.expected_image_a_paths = FlyingThingsTestPaths.expected_image_a_paths
@@ -66,15 +67,16 @@ class TestFlyingThingsDataSetMaxFlow(unittest.TestCase):
     def setUp(self):
         # FlowData data set.
         data_directory = os.path.join('data', 'flow', 'test_data', 'flying_things')
-        self.data_set = FlowDataSet(data_directory, batch_size=2, validation_size=1, training_augmentations=False,
-                                    data_source=FlowDataSet.FLYING_THINGS, max_flow=1)
+        self.data_set = FlowDataSet(data_directory, batch_size=2, training_augmentations=False)
+        self.data_set_preprocessor = FlyingThingsFlowDataPreprocessor(data_directory, validation_size=1, max_flow=1,
+                                                                      shard_size=2)
 
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
         self.sess = tf.Session(config=config)
 
     def test_no_outputs(self):
-        self.data_set.preprocess_raw(shard_size=2)
+        self.data_set_preprocessor.preprocess_raw()
         output_paths = self.data_set.get_train_file_names() + self.data_set.get_validation_file_names()
         self.assertEqual(0, len(output_paths))
 

@@ -1,12 +1,8 @@
 import glob
 import multiprocessing
 import os.path
-import random
 import numpy as np
-from data.dataset import DataSet
-from joblib import Parallel, delayed
 from utils.data import *
-from utils.img import read_image
 from utils.tf import sliding_window_slice, tf_coin_flip
 
 SHOT_LEN = 'shot_len'

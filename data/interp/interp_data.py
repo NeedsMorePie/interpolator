@@ -1,13 +1,10 @@
-import glob
 import multiprocessing
 import os.path
-import random
 import numpy as np
 from data.dataset import DataSet
 from data.interp.interp_data_reader import InterpDataSetReader
 from joblib import Parallel, delayed
 from utils.data import *
-from utils.img import read_image
 
 SHOT_LEN = 'shot_len'
 WIDTH = 'width'
@@ -26,8 +23,7 @@ class InterpDataSet(DataSet):
                                     The number of 1s must be the same for each list in this argument.
         :param training_augmentations: Whether to do live augmentations while training.
         """
-        super().__init__(tf_record_directory, batch_size, validation_size=0,
-                                                          training_augmentations=training_augmentations)
+        super().__init__(tf_record_directory, batch_size, training_augmentations=training_augmentations)
 
         # Initialized during load().
         self.handle_placeholder = None  # Handle placeholder for switching between datasets.

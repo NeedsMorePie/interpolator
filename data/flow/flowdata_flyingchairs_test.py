@@ -2,6 +2,7 @@ import os
 import os.path
 import unittest
 from data.flow.flowdata import FlowDataSet
+from data.flow.flowdata_preprocessor import FlyingChairsFlowDataPreprocessor
 from data.flow.flowdata_test_base import TestFlowDataSet
 
 
@@ -31,8 +32,8 @@ class TestFlyingChairsFlowDataSet(TestFlowDataSet.TestCases):
         data_directory = os.path.join('data', 'flow', 'test_data', 'flying_chairs')
         self.resolution = [384, 512]
         # No data augmentation so that the tests are deterministic.
-        self.data_set = FlowDataSet(data_directory, batch_size=2, validation_size=1, training_augmentations=False,
-                                    data_source=FlowDataSet.FLYING_CHAIRS)
+        self.data_set = FlowDataSet(data_directory, batch_size=2, training_augmentations=False)
+        self.data_set_preprocessor = FlyingChairsFlowDataPreprocessor(data_directory, validation_size=1, shard_size=2)
 
         # Test paths.
         self.expected_image_a_paths = FlyingChairsTestPaths.expected_image_a_paths
@@ -47,8 +48,8 @@ class TestFlyingChairsFlowDataSetWithCrop(TestFlowDataSet.TestCases):
         data_directory = os.path.join('data', 'flow', 'test_data', 'flying_chairs')
         self.resolution = [384, 448]
         # No data augmentation so that the tests are deterministic.
-        self.data_set = FlowDataSet(data_directory, batch_size=2, validation_size=1, training_augmentations=False,
-                                    data_source=FlowDataSet.FLYING_CHAIRS, crop_size=(384, 448))
+        self.data_set = FlowDataSet(data_directory, batch_size=2,training_augmentations=False, crop_size=(384, 448))
+        self.data_set_preprocessor = FlyingChairsFlowDataPreprocessor(data_directory, validation_size=1, shard_size=2)
 
         # Test paths.
         self.expected_image_a_paths = FlyingChairsTestPaths.expected_image_a_paths

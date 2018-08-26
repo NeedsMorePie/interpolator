@@ -2,6 +2,7 @@ import os
 import os.path
 import unittest
 from data.flow.flowdata import FlowDataSet
+from data.flow.flowdata_preprocessor import SintelFlowDataPreprocessor
 from data.flow.flowdata_test_base import TestFlowDataSet
 
 
@@ -14,8 +15,8 @@ class TestSintelFlowDataSet(TestFlowDataSet.TestCases):
         image_directory = os.path.join(data_directory, 'test_images')
         self.resolution = [436, 1024]
         # No data augmentation so that the tests are deterministic.
-        self.data_set = FlowDataSet(data_directory, batch_size=2, validation_size=1, training_augmentations=False,
-                                    data_source=FlowDataSet.SINTEL)
+        self.data_set = FlowDataSet(data_directory, batch_size=2, training_augmentations=False)
+        self.data_set_preprocessor = SintelFlowDataPreprocessor(data_directory, validation_size=1, shard_size=2)
 
         # Test paths.
         self.expected_image_a_paths = [os.path.join(image_directory, 'set_a', 'image_0000.png'),
