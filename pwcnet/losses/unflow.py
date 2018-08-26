@@ -20,6 +20,7 @@ def compute_losses(im1, im2, flow_fw, flow_bw,
                    mask_occlusion='',
                    data_max_distance=1):
     """
+    Creates unsupervised UnFlow losses as seen in the UnFlow paper: https://arxiv.org/pdf/1711.07837.pdf.
     :param im1: Tensor of shape [B, H, W, 3].
     :param im2: Tensor of shape [B, H, W, 3].
     :param flow_fw: Tensor of shape [B, H, W, 2].
