@@ -104,8 +104,8 @@ class RestorableNetwork():
         if var_name not in self._assign_ops:
             ph = tf.placeholder(dtype=tf.float32)
             op = tf.assign(var, ph, validate_shape=True)
-            self._assign_ops['var_name'] = op, ph
-        return self._assign_ops['var_name']
+            self._assign_ops[var_name] = op, ph
+        return self._assign_ops[var_name]
 
     @staticmethod
     def rename_np_dict(var_dict, old_network_name, new_network_name):
