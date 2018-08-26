@@ -33,14 +33,7 @@ def compute_losses(im1, im2, flow_fw, flow_bw,
         mask_fw = border_mask
         mask_bw = border_mask
 
-    mag_sq = length_sq(flow_fw) + length_sq(flow_bw)
-    flow_bw_warped = backward_warp(flow_bw, flow_fw)
-    flow_fw_warped = backward_warp(flow_fw, flow_bw)
-    flow_diff_fw = flow_fw + flow_bw_warped
-    flow_diff_bw = flow_bw + flow_fw_warped
-    occ_thresh = 0.01 * mag_sq + 0.5
-    fb_occ_fw = tf.cast(length_sq(flow_diff_fw) > occ_thresh, tf.float32)
-    fb_occ_bw = tf.cast(length_sq(flow_diff_bw) > occ_thresh, tf.float32)
+    fb_occ_fw, fb_occ_bw = occlusion(flow_fw, flow_bw)
 
     if mask_occlusion == 'fb':
         mask_fw *= (1 - fb_occ_fw)
@@ -116,7 +109,7 @@ def occlusion(flow_fw, flow_bw):
     flow_fw_warped = backward_warp(flow_fw, flow_bw)
     flow_diff_fw = flow_fw + flow_bw_warped
     flow_diff_bw = flow_bw + flow_fw_warped
-    occ_thresh =  0.01 * mag_sq + 0.5
+    occ_thresh = 0.01 * mag_sq + 0.5
     occ_fw = tf.cast(length_sq(flow_diff_fw) > occ_thresh, tf.float32)
     occ_bw = tf.cast(length_sq(flow_diff_bw) > occ_thresh, tf.float32)
     return occ_fw, occ_bw
