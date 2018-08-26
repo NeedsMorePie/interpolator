@@ -1,12 +1,14 @@
-import unittest
+import numpy as np
 import os
+import tensorflow as tf
+import unittest
 from utils.flow import read_flow_file
 from utils.img import read_image, show_image
-from common.forward_warp.forward_warp import forward_warp
-import numpy as np
-import tensorflow as tf
+from common.forward_warp.forward_warp import forward_warp, create_disocclusion_map
+
 
 VISUALIZE = False
+WRITE_TO_VIDEO = False
 
 
 class TestForwardWarp(unittest.TestCase):
@@ -209,20 +211,98 @@ class TestForwardWarp(unittest.TestCase):
         show_image(warp)
 
         # For writing to video.
-        # height = img_a[0].shape[0]
-        # width = img_a[0].shape[1]
-        # writer = cv2.VideoWriter(cur_dir + '/outputs/warped.avi', cv2.VideoWriter_fourcc(*"MJPG"), 20, (width, height))
-        #
-        # steps = 60
-        # for i in range(steps):
-        #     print('Writing video at step %d' % i)
-        #     t = i * (1.0 / float(steps))
-        #     warped = self.sess.run(warp_tensor,
-        #                            feed_dict={flow_ab_tensor: flow_ab, img_a_tensor: img_a, t_tensor: t})
-        #     warped = warped[0]
-        #     warped = np.clip(warped, 0.0, 1.0)
-        #     output_path = cur_dir + "/outputs/out-%.2f.png" % t
-        #     mpimg.imsave(output_path, warped)
-        #     writer.write(cv2.imread(output_path))
-        #
-        # writer.release()
+        if WRITE_TO_VIDEO:
+            import cv2
+            import mpimg
+            height = img_a[0].shape[0]
+            width = img_a[0].shape[1]
+            writer = cv2.VideoWriter(cur_dir + '/outputs/warped.avi',
+                                     cv2.VideoWriter_fourcc(*'MJPG'), 20, (width, height))
+            steps = 60
+            for i in range(steps):
+                print('Writing video at step %d' % i)
+                t = i * (1.0 / float(steps))
+                warped = self.sess.run(warp_tensor,
+                                       feed_dict={flow_ab_tensor: flow_ab, img_a_tensor: img_a, t_tensor: t})
+                warped = warped[0]
+                warped = np.clip(warped, 0.0, 1.0)
+                output_path = cur_dir + '/outputs/out-%.2f.png' % t
+                mpimg.imsave(output_path, warped)
+                writer.write(cv2.imread(output_path))
+            writer.release()
+
+    def test_create_disocclusion_map(self):
+        height = 3
+        width = 3
+
+        flow_tensor = tf.placeholder(shape=(None, height, width, 2), dtype=tf.float32)
+        mask_tensor = create_disocclusion_map(flow_tensor)
+
+        flow = np.asarray([
+            [
+                [[1., 1.], [1., 1.], [0., 0.]],
+                [[1., 1.], [0., 0.], [0., 0.]],
+                [[0., 0.], [0., 0.], [-1., -1.]]
+            ]
+        ], dtype=np.float32)
+
+        mask = self.sess.run(mask_tensor, feed_dict={flow_tensor: flow})
+
+        expected_mask = np.asarray([
+            [
+                [[1.], [1.], [0.]],
+                [[1.], [0.], [0.]],
+                [[0.], [0.], [1.]]
+            ]
+        ], dtype=np.float32)
+        self.assertTrue(np.allclose(expected_mask, mask))
+
+    def test_create_disocclusion_map_batched(self):
+        height = 3
+        width = 3
+
+        flow_tensor = tf.placeholder(shape=(None, height, width, 2), dtype=tf.float32)
+        mask_tensor = create_disocclusion_map(flow_tensor)
+
+        flow = np.asarray([
+            [
+                [[2., 2.], [0., 0.], [0., 0.]],
+                [[0., 0.], [0., 0.], [0., 0.]],
+                [[0., 0.], [0., 0.], [0., 0.]]
+            ],
+            [
+                [[0., 0.], [0., 0.], [0., 0.]],
+                [[0., 0.], [0., 0.], [0., 0.]],
+                [[0., 0.], [0., 0.], [-2., -2.]]
+            ]
+        ], dtype=np.float32)
+
+        mask = self.sess.run(mask_tensor, feed_dict={flow_tensor: flow})
+
+        expected_mask = np.asarray([
+            [
+                [[1.], [0.], [0.]],
+                [[0.], [0.], [0.]],
+                [[0.], [0.], [0.]]
+            ],
+            [
+                [[0.], [0.], [0.]],
+                [[0.], [0.], [0.]],
+                [[0.], [0.], [1.]]
+            ]
+        ], dtype=np.float32)
+        self.assertTrue(np.allclose(expected_mask, mask))
+
+    def test_create_disocclusion_map_no_gradient(self):
+        height = 3
+        width = 3
+        batch_size = 2
+
+        flow_tensor = tf.placeholder(shape=(batch_size, height, width, 2), dtype=tf.float32)
+        mask_tensor = create_disocclusion_map(flow_tensor)
+        grad = tf.gradients(mask_tensor, flow_tensor)[0]
+        self.assertEqual(None, grad)
+
+
+if __name__ == '__main__':
+    unittest.main()
