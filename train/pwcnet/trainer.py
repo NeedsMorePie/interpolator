@@ -5,6 +5,7 @@ from pwcnet.model import PWCNet
 from tensorflow.python.client import timeline
 from train.trainer import Trainer
 from utils.flow import get_tf_flow_visualization
+from utils.misc import accumulate_list_into
 from utils.tf import average_gradients, get_available_gpus
 
 
@@ -75,7 +76,11 @@ class PWCNetTrainer(Trainer):
             num_gpus = len(available_gpus)
             examples_per_gpu = tf.cast(batch_size / num_gpus, dtype=tf.int32)
 
+        # Accumulation variables.
+        final_flow_list, previous_flows_list = [], []
+        loss_list, layer_losses_list = [], []
         tower_grads_and_vars = []
+
         optimizer = tf.train.AdamOptimizer(self.config['learning_rate'])
         for i, gpu in enumerate(available_gpus):
             if self.verbose:
@@ -90,14 +95,30 @@ class PWCNetTrainer(Trainer):
 
             # Create the loss under this tower.
             with tf.device(gpu):
-                self.final_flow, self.previous_flows = self.model.get_forward(image_a_batch, image_b_batch,
-                                                                              reuse_variables=tf.AUTO_REUSE)
+                # Forward ops.
+                final_flow, previous_flows = self.model.get_forward(image_a_batch, image_b_batch,
+                                                                    reuse_variables=tf.AUTO_REUSE)
+                final_flow_list.append(final_flow)
+                accumulate_list_into(previous_flows, previous_flows_list)
+
+                # Loss ops.
                 if self.config['fine_tune']:
-                    self.loss, self.layer_losses = self.model.get_fine_tuning_loss(self.previous_flows, ground_truth)
+                    loss, layer_losses = self.model.get_fine_tuning_loss(previous_flows, ground_truth)
                 else:
-                    self.loss, self.layer_losses = self.model.get_training_loss(self.previous_flows, ground_truth)
-                grads_and_vars = optimizer.compute_gradients(self.loss)
+                    loss, layer_losses = self.model.get_training_loss(previous_flows, ground_truth)
+                loss_list.append(loss)
+                accumulate_list_into(layer_losses, layer_losses_list)
+
+                # Gradient ops.
+                grads_and_vars = optimizer.compute_gradients(loss)
                 tower_grads_and_vars.append(grads_and_vars)
+
+        # Sets the outputs to be the equivalent of a single-gpu output.
+        with tf.name_scope('accumulate_outputs'):
+            self.final_flow = tf.concat(final_flow_list, axis=0)
+            self.previous_flows = [tf.concat(previous_flows, axis=0) for previous_flows in previous_flows_list]
+            self.loss = tf.reduce_mean(tf.concat(loss_list, axis=0))
+            self.layer_losses = [tf.reduce_mean(tf.concat(layer_losses, axis=0)) for layer_losses in layer_losses_list]
 
         with tf.variable_scope('train'):
             self.global_step = tf.Variable(initial_value=0, trainable=False, dtype=tf.int32, name='global_step')

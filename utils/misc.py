@@ -130,3 +130,19 @@ def compile_args(args_dict):
         arg = '--' + key + '=' + str_value
         args.append(arg)
     return args
+
+
+def accumulate_list_into(items, items_list):
+    """
+    This is best explained by an example:
+    items_list = []
+    items = [1, 2]
+    accumulate_list_into(items, items_list)  # items_list is now [[1], [2]].
+    items = [3, 4]
+    accumulate_list_into(items, items_list)  # items_list is now [[1, 3], [2, 4]].
+    :param items: List of items.
+    :param items_list: Empty list.
+    :return: Nothing.
+    """
+    for j, item in enumerate(items):
+        items_list.append([item]) if len(items_list) < len(items) else items_list[j].append(item)
