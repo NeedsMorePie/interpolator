@@ -1,5 +1,7 @@
 import argparse
-from data.flow.flowdata import FlowDataSet
+from data.flow.sintel.sintel_preprocessor import SintelFlowDataPreprocessor
+from data.flow.flyingchairs.flyingchairs_preprocessor import FlyingChairsFlowDataPreprocessor
+from data.flow.flyingthings.flyingthings_preprocessor import FlyingThingsFlowDataPreprocessor
 
 
 def main():
@@ -55,17 +57,17 @@ def main():
     add_args(parser)
     args = parser.parse_args()
 
-    data_source = FlowDataSet.SINTEL  # Sintel by default.
+    preprocessor_constructor = SintelFlowDataPreprocessor  # Sintel by default.
     if args.data_source == 'sintel':
-        data_source = FlowDataSet.SINTEL
+        preprocessor_constructor = SintelFlowDataPreprocessor
     elif args.data_source == 'flyingchairs':
-        data_source = FlowDataSet.FLYING_CHAIRS
+        preprocessor_constructor = FlyingChairsFlowDataPreprocessor
     elif args.data_source == 'flyingthings':
-        data_source = FlowDataSet.FLYING_THINGS
+        preprocessor_constructor = FlyingThingsFlowDataPreprocessor
 
-    dataset = FlowDataSet(args.directory, validation_size=args.num_validation, data_source=data_source)
-    dataset.set_verbose(True)
-    dataset.preprocess_raw(args.shard_size)
+    preprocessor = preprocessor_constructor(args.directory, validation_size=args.num_validation,
+                                            shard_size=args.shard_size, verbose=True)
+    preprocessor.preprocess_raw()
 
 
 def add_args(parser):
