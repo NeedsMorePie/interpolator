@@ -92,10 +92,12 @@ class PWCNetTrainer(Trainer):
                 else:
                     self.loss, self.layer_losses = self.model.get_training_loss(self.previous_flows, self.flows)
 
-                with tf.variable_scope('train', reuse=tf.AUTO_REUSE):
-                    tower_grads_and_vars.append(optimizer.compute_gradients(self.loss))
+                with tf.variable_scope('train', reuse=True):
+                    grads_and_vars = optimizer.compute_gradients(self.loss)
+                    vars_with_grad = [v for g, v in grads_and_vars if g is not None]
+                    tower_grads_and_vars.append(vars_with_grad)
 
-        with tf.variable_scope('train', reuse=tf.AUTO_REUSE):
+        with tf.variable_scope('train', reuse=True):
             summed_grads_and_vars = accumulate_gradients(tower_grads_and_vars)
             self.train_op = optimizer.apply_gradients(summed_grads_and_vars)
 
