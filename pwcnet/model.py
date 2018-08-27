@@ -113,7 +113,7 @@ class PWCNet(RestorableNetwork):
             final_flow = tf.divide(final_flow, self.flow_scaling, name='final_flow')
             return final_flow, previous_flows
 
-    def get_forward_bidirectional(self, image_a, image_b, reuse_variables=tf.AUTO_REUSE):
+    def get_bidirectional(self, image_a, image_b, reuse_variables=tf.AUTO_REUSE):
         """
         Gets the bidirectional flow using a siamese PWC Net.
         :param image_a: Tensor of shape [batch_size, H, W, 3].

@@ -135,7 +135,7 @@ class TestPWCModel(unittest.TestCase):
         # Create the graph.
         input_image_a = tf.placeholder(shape=[None, height, width, num_features], dtype=tf.float32)
         input_image_b = tf.placeholder(shape=[None, height, width, num_features], dtype=tf.float32)
-        forward_flow, backward_flow, forward_flows, backward_flows = self.pwc_net.get_forward_bidirectional(
+        forward_flow, backward_flow, forward_flows, backward_flows = self.pwc_net.get_bidirectional(
             input_image_a, input_image_b)
         self.assertEqual(6, len(forward_flows))
         self.assertEqual(6, len(backward_flows))
