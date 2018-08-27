@@ -77,9 +77,13 @@ class TestPWCNetLosses(unittest.TestCase):
         flow_layer_loss_weights = [1.0, 0.5]
         layer_patch_distances = [2, 1]
 
-        total_loss, layer_losses, _, _ = create_multi_level_unflow_loss(
+        total_loss, layer_losses, _, _, layer_losses_detailed = create_multi_level_unflow_loss(
             image_a_tensor, image_b_tensor, forward_flow_tensors, backward_flow_tensors, scaling,
             flow_layer_loss_weights, layer_patch_distances)
+
+        self.assertEqual(2, len(layer_losses_detailed))
+        self.assertEqual(4, len(layer_losses_detailed[0].keys()))
+        self.assertEqual(4, len(layer_losses_detailed[1].keys()))
 
         image_a = np.ones(shape=[batch_size, height, width, 3], dtype=np.float32)
         image_b = np.ones(shape=[batch_size, height, width, 3], dtype=np.float32)

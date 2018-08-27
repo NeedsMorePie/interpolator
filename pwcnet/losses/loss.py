@@ -71,6 +71,7 @@ def create_multi_level_unflow_loss(image_a, image_b, forward_flows, backward_flo
              layer_losses: List of scalar tensors. Weighted loss at each level.
              forward_occlusion_masks: List of tensors of shape [B, H, W, 1].
              backward_occlusion_masks: List of tensors of shape [B, H, W, 1].
+             layer_losses_detailed: List of dicts. Each dict contains the individual fully weighted losses.
     """
     # Set defaults.
     if flow_layer_loss_weights is None:
@@ -93,6 +94,7 @@ def create_multi_level_unflow_loss(image_a, image_b, forward_flows, backward_flo
     layer_losses = []
     forward_occlusion_masks = []
     backward_occlusion_masks = []
+    layer_losses_detailed = []
 
     _, image_height, _, _ = tf.unstack(tf.shape(image_a))
     for i, (forward_flow, backward_flow) in enumerate(zip(forward_flows, backward_flows)):
@@ -119,12 +121,16 @@ def create_multi_level_unflow_loss(image_a, image_b, forward_flows, backward_flo
 
         # Get losses for this layer.
         this_layer_losses = []
+        this_layer_losses_dict = {}
         for key in loss_weights.keys():
             assert key in losses
-            this_layer_losses.append(loss_weights[key] * losses[key])
+            loss = loss_weights[key] * losses[key]
+            this_layer_losses.append(loss)
+            this_layer_losses_dict[key] = flow_layer_loss_weights[i] * loss
         if len(this_layer_losses) > 0:
             # Sum all losses for this layer and apply the loss weight.
             layer_losses.append(flow_layer_loss_weights[i] * tf.add_n(this_layer_losses))
+            layer_losses_detailed.append(this_layer_losses_dict)
 
     # Sum up the total loss.
     if len(layer_losses) > 0:
@@ -132,4 +138,4 @@ def create_multi_level_unflow_loss(image_a, image_b, forward_flows, backward_flo
     else:
         total_loss = tf.constant(0.0, dtype=tf.float32)
 
-    return total_loss, layer_losses, forward_occlusion_masks, backward_occlusion_masks
+    return total_loss, layer_losses, forward_occlusion_masks, backward_occlusion_masks, layer_losses_detailed
