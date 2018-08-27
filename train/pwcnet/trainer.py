@@ -5,7 +5,7 @@ from pwcnet.model import PWCNet
 from tensorflow.python.client import timeline
 from train.trainer import Trainer
 from utils.flow import get_tf_flow_visualization
-from utils.tf import accumulate_gradients, get_available_gpus
+from utils.tf import average_gradients, get_available_gpus
 
 
 class PWCNetTrainer(Trainer):
@@ -101,8 +101,8 @@ class PWCNetTrainer(Trainer):
 
         with tf.variable_scope('train'):
             self.global_step = tf.Variable(initial_value=0, trainable=False, dtype=tf.int32, name='global_step')
-            accumulated_grads_and_vars = accumulate_gradients(tower_grads_and_vars)
-            self.train_op = optimizer.apply_gradients(accumulated_grads_and_vars, global_step=self.global_step)
+            averaged_grads_and_vars = average_gradients(tower_grads_and_vars)
+            self.train_op = optimizer.apply_gradients(averaged_grads_and_vars, global_step=self.global_step)
 
     def restore(self):
         """

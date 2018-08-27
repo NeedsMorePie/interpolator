@@ -228,7 +228,7 @@ def get_available_gpus():
 
 # Copied from https://github.com/simonmeister/UnFlow/blob/master/src/e2eflow/core/train.py.
 # Commit bac9bbaf49be44b9e1c1f004fce4fb04b247763d.
-def accumulate_gradients(tower_grads_and_vars):
+def average_gradients(tower_grads_and_vars):
     """
     Calculate the average gradient for each shared variable across all towers.
     Note that this function provides a synchronization point across all towers.
