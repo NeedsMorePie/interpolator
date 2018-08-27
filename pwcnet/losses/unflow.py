@@ -33,7 +33,9 @@ def compute_losses(im1, im2, flow_fw, flow_bw, prewarp_scaling=1.0,
     :param border_mask: Tensor of shape [B, H, W, 1].
     :param mask_occlusion: Str. Either 'fb', 'disocc', or ''.
     :param data_max_distance: Int.
-    :return: Dict. Contains loss terms.
+    :return: losses: Dict. Contains loss terms.
+             occ_fw: Tensor of shape [B, H, W, 1]. Forward warp occlusion mask.
+             occ_bw: Tensor of shape [B, H, W, 1]. Backward warp occlusion mask.
     """
     losses = {}
 
@@ -94,7 +96,7 @@ def compute_losses(im1, im2, flow_fw, flow_bw, prewarp_scaling=1.0,
                          ternary_loss(im2, im1_warped, mask_bw,
                                       max_distance=data_max_distance))
 
-    return losses
+    return losses, occ_fw, occ_bw
 
 
 def ternary_loss(im1, im2_warped, mask, max_distance=1):

@@ -69,6 +69,8 @@ def create_multi_level_unflow_loss(image_a, image_b, forward_flows, backward_flo
     :param loss_weights: Dict. Key is the loss name and the value is the weight.
     :return: total_loss: Scalar tensor. Sum off all weighted level losses.
              layer_losses: List of scalar tensors. Weighted loss at each level.
+             forward_occlusion_masks: List of tensors of shape [B, H, W, 1].
+             backward_occlusion_masks: List of tensors of shape [B, H, W, 1].
     """
     # Set defaults.
     if flow_layer_loss_weights is None:
@@ -78,7 +80,7 @@ def create_multi_level_unflow_loss(image_a, image_b, forward_flows, backward_flo
     if loss_weights is None:
         loss_weights = {
             'ternary': 1.0,  # E_D data loss term in the paper.
-            'occ': 12.4,  # Part of the E_D term to penalize the trivial occlusion mask.
+            'occ': 12.4,  # Lambda_p. This is part of the E_D term to penalize the trivial occlusion mask.
             'smooth_2nd': 3.0,  # E_S second order smoothness constraint in the paper.
             'fb': 0.2  # E_C forward-backward consistency term in the paper.
         }
@@ -89,6 +91,8 @@ def create_multi_level_unflow_loss(image_a, image_b, forward_flows, backward_flo
     assert len(forward_flows) == len(backward_flows)
 
     layer_losses = []
+    forward_occlusion_masks = []
+    backward_occlusion_masks = []
 
     _, image_height, _, _ = tf.unstack(tf.shape(image_a))
     for i, (forward_flow, backward_flow) in enumerate(zip(forward_flows, backward_flows)):
@@ -107,8 +111,11 @@ def create_multi_level_unflow_loss(image_a, image_b, forward_flows, backward_flo
         # The reason we don't just apply the flow scaling here is because part of the UnFlow loss diffs the flow
         # magnitudes, and it's best to keep the loss magnitudes the same at all levels.
         res_scaling = tf.cast(flow_height, dtype=tf.float32) / tf.cast(image_height, dtype=tf.float32)
-        losses = compute_losses(resize_image_a, resize_image_b, unscaled_forward_flow, unscaled_backward_flow,
-                                prewarp_scaling=res_scaling, data_max_distance=layer_patch_distances[i])
+        losses, occ_fw, occ_bw = compute_losses(resize_image_a, resize_image_b, unscaled_forward_flow,
+                                                unscaled_backward_flow, prewarp_scaling=res_scaling,
+                                                data_max_distance=layer_patch_distances[i])
+        forward_occlusion_masks.append(occ_fw)
+        backward_occlusion_masks.append(occ_bw)
 
         # Get losses for this layer.
         this_layer_losses = []
@@ -125,4 +132,4 @@ def create_multi_level_unflow_loss(image_a, image_b, forward_flows, backward_flo
     else:
         total_loss = tf.constant(0.0, dtype=tf.float32)
 
-    return total_loss, layer_losses
+    return total_loss, layer_losses, forward_occlusion_masks, backward_occlusion_masks
