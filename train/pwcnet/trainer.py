@@ -1,6 +1,6 @@
 import os.path
 import tensorflow as tf
-from data.flow.flowdata import FlowDataSet
+from data.flow.flow_data import FlowDataSet
 from pwcnet.model import PWCNet
 from train.trainer import Trainer
 from utils.flow import get_tf_flow_visualization

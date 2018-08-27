@@ -1,23 +1,20 @@
 import glob
 import os.path
-from data.interp.interp_data import InterpDataSet
+from data.interp.interp_data_preprocessor import InterpDataPreprocessor
 from PIL import Image
 from io import BytesIO
 
 
-class DavisDataSet(InterpDataSet):
+class DavisDataSetPreprocessor(InterpDataPreprocessor):
+    def __init__(self, tf_record_directory, inbetween_locations, shard_size=1, validation_size=0, max_shot_len=10,
+                 verbose=False):
+        super().__init__(tf_record_directory, inbetween_locations, shard_size, validation_size=validation_size,
+                         max_shot_len=max_shot_len, verbose=verbose)
 
-    def __init__(self, directory, inbetween_locations, batch_size=1):
-        """
-        See InterpDataSet.
-        """
-        super().__init__(directory, inbetween_locations, batch_size=batch_size)
-
-    def _process_image(self, filename):
+    def process_image(self, filename):
         """
         Overriden.
         """
-
         # https://stackoverflow.com/questions/31826335/how-to-convert-pil-image-image-object-to-base64-string
         buffered = BytesIO()
         im = Image.open(filename)
@@ -27,7 +24,7 @@ class DavisDataSet(InterpDataSet):
         buffered.close()
         return bytes, height, width
 
-    def _get_data_paths(self, raw_directory):
+    def get_data_paths(self, raw_directory):
         """
         Overriden.
         Gets the paths of images from a directory that is organized with each video shot in its own folder.

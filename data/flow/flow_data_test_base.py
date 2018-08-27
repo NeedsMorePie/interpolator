@@ -11,6 +11,8 @@ class TestFlowDataSet:
         def setUp(self):
             # FlowData data set.
             self.data_set = None
+            # FlowDataPreprocessor.
+            self.data_set_preprocessor = None
             # Array (i.e. [346, 1024]).
             self.resolution = None
 
@@ -27,12 +29,12 @@ class TestFlowDataSet:
             """
             Test that the data paths make sense.
             """
-            image_a_paths, image_b_paths, flow_paths = self.data_set._get_data_paths()
+            image_a_paths, image_b_paths, flow_paths = self.data_set_preprocessor.get_data_paths()
             self.assertListEqual(image_a_paths, self.expected_image_a_paths)
             self.assertListEqual(image_b_paths, self.expected_image_b_paths)
 
         def test_data_read_write(self):
-            self.data_set.preprocess_raw(shard_size=2)
+            self.data_set_preprocessor.preprocess_raw()
             output_paths = self.data_set.get_train_file_names() + self.data_set.get_validation_file_names()
             [self.assertTrue(os.path.isfile(output_path)) for output_path in output_paths]
             # The train set should have been sharded, so there should be 3 files.
@@ -40,8 +42,10 @@ class TestFlowDataSet:
 
             self.data_set.load(self.sess)
             next_images_a, next_images_b, next_flows = self.data_set.get_next_batch()
-            images_1_a, images_1_b, flows = self.sess.run([next_images_a, next_images_b, next_flows],
-                                                          feed_dict=self.data_set.get_train_feed_dict())
+            # Access the images a few times.
+            slice_1, slice_2 = next_images_a[:, 0, 0, :], next_images_a[:, 0, 1, :]
+            query = [next_images_a, next_images_b, next_flows, slice_1, slice_2]
+            images_1_a, images_1_b, flows, _, _ = self.sess.run(query, feed_dict=self.data_set.get_train_feed_dict())
             self.assertTupleEqual(images_1_a.shape, (2, self.resolution[0], self.resolution[1], 3))
             self.assertTupleEqual(images_1_b.shape, (2, self.resolution[0], self.resolution[1], 3))
             self.assertTupleEqual(flows.shape, (2, self.resolution[0], self.resolution[1], 2))
