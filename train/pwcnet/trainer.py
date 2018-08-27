@@ -15,19 +15,14 @@ class PWCNetTrainer(Trainer):
         self.dataset.load(self.session)
         self.images_a, self.images_b, self.flows = self.dataset.get_next_batch()
 
-        # Get the train network.
-        self.final_flow, self.previous_flows = self.model.get_forward(self.images_a, self.images_b,
-                                                                      reuse_variables=tf.AUTO_REUSE)
-        if self.config['fine_tune']:
-            self.loss, self.layer_losses = self.model.get_fine_tuning_loss(self.previous_flows, self.flows)
-        else:
-            self.loss, self.layer_losses = self.model.get_training_loss(self.previous_flows, self.flows)
-
-        # Get the optimizer.
-        with tf.variable_scope('train'):
-            self.global_step = tf.Variable(initial_value=0, trainable=False, dtype=tf.int32, name='global_step')
-            self.train_op = tf.train.AdamOptimizer(config['learning_rate']).minimize(
-                self.loss, global_step=self.global_step)
+        # Create the network's forward and train ops.
+        self.final_flow = None
+        self.previous_flows = None
+        self.loss = None
+        self.layer_losses = None
+        self.global_step = None
+        self.train_op = None
+        self._create_ops()
 
         # Summary variables.
         self.merged_summ = None
@@ -40,6 +35,21 @@ class PWCNetTrainer(Trainer):
         # Checkpoint saving.
         self.saver = tf.train.Saver()
         self.npz_save_file = os.path.join(self.config['checkpoint_directory'], 'pwcnet_weights.npz')
+
+    def _create_ops(self):
+        # Get the train network.
+        self.final_flow, self.previous_flows = self.model.get_forward(self.images_a, self.images_b,
+                                                                      reuse_variables=tf.AUTO_REUSE)
+        if self.config['fine_tune']:
+            self.loss, self.layer_losses = self.model.get_fine_tuning_loss(self.previous_flows, self.flows)
+        else:
+            self.loss, self.layer_losses = self.model.get_training_loss(self.previous_flows, self.flows)
+
+        # Get the optimizer.
+        with tf.variable_scope('train'):
+            self.global_step = tf.Variable(initial_value=0, trainable=False, dtype=tf.int32, name='global_step')
+            self.train_op = tf.train.AdamOptimizer(self.config['learning_rate']).minimize(
+                self.loss, global_step=self.global_step)
 
     def restore(self):
         """
