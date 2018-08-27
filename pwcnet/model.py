@@ -3,7 +3,7 @@ from common.models import RestorableNetwork
 from pwcnet.estimator_network.model import EstimatorNetwork
 from pwcnet.context_network.model import ContextNetwork
 from pwcnet.feature_pyramid_network.model import FeaturePyramidNetwork
-from pwcnet.losses.loss import create_multi_level_loss, l2_diff, lq_diff
+from pwcnet.losses.loss import create_multi_level_loss, l2_diff, lq_diff, create_multi_level_unflow_loss
 from tensorflow.contrib.layers import l2_regularizer
 
 
@@ -113,6 +113,30 @@ class PWCNet(RestorableNetwork):
             final_flow = tf.divide(final_flow, self.flow_scaling, name='final_flow')
             return final_flow, previous_flows
 
+    def get_forward_bidirectional(self, image_a, image_b, reuse_variables=tf.AUTO_REUSE):
+        """
+        Gets the bidirectional flow using a siamese PWC Net.
+        :param image_a: Tensor of shape [batch_size, H, W, 3].
+        :param image_b: Tensor of shape [batch_size, H, W, 3].
+        :return: final_forward_flow: up-sampled final forward flow.
+                 final_backward_flow: up-sampled final backward flow.
+                 previous_forward_flows: all previous flow outputs of the estimator networks and the context network.
+                 previous_backward_flows: all previous flow outputs of the estimator networks and the context network.
+        """
+        batch_size = tf.shape(image_a)[0]
+        input_stack_a = tf.concat([image_a, image_b], axis=0)
+        input_stack_b = tf.concat([image_b, image_a], axis=0)
+        final_flow, previous_flows = self.get_forward(input_stack_a, input_stack_b, reuse_variables=reuse_variables)
+        final_forward_flow = final_flow[0:batch_size, ...]
+        final_backward_flow = final_flow[batch_size:, ...]
+        previous_forward_flows = []
+        previous_backward_flows = []
+        for previous_flow in previous_flows:
+            previous_forward_flows.append(previous_flow[0:batch_size, ...])
+            previous_backward_flows.append(previous_flow[batch_size:, ...])
+
+        return final_forward_flow, final_backward_flow, previous_forward_flows, previous_backward_flows
+
     def _get_image_features_for_level(self, feature_levels, level, batch_size):
         """
         Extracts the features for image_a and image_b from the feature pyramid.
@@ -197,3 +221,18 @@ class PWCNet(RestorableNetwork):
             def lq_diff_with_args(a, b):
                 return lq_diff(a, b, q=q, epsilon=epsilon)
             return self._get_loss(previous_flows, expected_flow, lq_diff_with_args)
+
+    def get_unflow_training_loss(self, image_a, image_b, previous_forward_flows, previous_backward_flows):
+        """
+        :param image_a: Tensor of shape [B, H, W, 3].
+        :param image_b: Tensor of shape [B, H, W, 3].
+        :param previous_forward_flows: List of flow tensors at different resolution levels.
+        :param previous_backward_flows: List of flow tensors at different resolution levels.
+        :return: total_loss: Scalar tensor. Sum off all weighted level losses.
+                 layer_losses: List of scalar tensors. Weighted loss at each level.
+                 forward_occlusion_masks: List of tensors of shape [B, H, W, 1].
+                 backward_occlusion_masks: List of tensors of shape [B, H, W, 1].
+                 layer_losses_detailed: List of dicts. Each dict contains the individual fully weighted losses.
+        """
+        return create_multi_level_unflow_loss(image_a, image_b, previous_forward_flows, previous_backward_flows,
+                                              self.flow_scaling)

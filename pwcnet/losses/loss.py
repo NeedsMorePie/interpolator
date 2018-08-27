@@ -75,9 +75,9 @@ def create_multi_level_unflow_loss(image_a, image_b, forward_flows, backward_flo
     """
     # Set defaults.
     if flow_layer_loss_weights is None:
-        flow_layer_loss_weights = [1.1, 3.4, 3.9, 4.35, 12.7]
+        flow_layer_loss_weights = [1.1, 3.4, 3.9, 4.35, 4.35, 12.7]
     if layer_patch_distances is None:
-        layer_patch_distances = [1, 1, 2, 2, 3]
+        layer_patch_distances = [1, 1, 2, 2, 3, 3]
     if loss_weights is None:
         loss_weights = {
             'ternary': 1.0,  # E_D data loss term in the paper.
@@ -98,6 +98,8 @@ def create_multi_level_unflow_loss(image_a, image_b, forward_flows, backward_flo
 
     _, image_height, _, _ = tf.unstack(tf.shape(image_a))
     for i, (forward_flow, backward_flow) in enumerate(zip(forward_flows, backward_flows)):
+        if flow_layer_loss_weights[i] == 0.0:
+            continue
         _, flow_height, flow_width, _ = tf.unstack(tf.shape(forward_flow))
 
         # Resize the input images to match the corresponding flow size.
