@@ -7,6 +7,10 @@ from pwcnet.warp.warp import backward_warp
 from tensorflow.contrib.distributions import Normal
 
 
+# List of all possible loss terms.
+LOSSES = ['occ', 'sym', 'fb', 'grad', 'ternary', 'photo', 'smooth_1st', 'smooth_2nd']
+
+
 def length_sq(x):
     """
     :param x: Tensor.
@@ -15,9 +19,9 @@ def length_sq(x):
     return tf.reduce_sum(tf.square(x), 3, keepdims=True)
 
 
-def compute_losses(im1, im2, flow_fw, flow_bw,
+def compute_losses(im1, im2, flow_fw, flow_bw, prewarp_scaling=1.0,
                    border_mask=None,
-                   mask_occlusion='',
+                   mask_occlusion='fb',
                    data_max_distance=1):
     """
     Creates unsupervised UnFlow losses as seen in the UnFlow paper: https://arxiv.org/pdf/1711.07837.pdf.
@@ -25,6 +29,7 @@ def compute_losses(im1, im2, flow_fw, flow_bw,
     :param im2: Tensor of shape [B, H, W, 3].
     :param flow_fw: Tensor of shape [B, H, W, 2].
     :param flow_bw: Tensor of shape [B, H, W, 2].
+    :param prewarp_scaling: Float. Scales the flow right before using it to warp an image.
     :param border_mask: Tensor of shape [B, H, W, 1].
     :param mask_occlusion: Str. Either 'fb', 'disocc', or ''.
     :param data_max_distance: Int.
@@ -32,23 +37,26 @@ def compute_losses(im1, im2, flow_fw, flow_bw,
     """
     losses = {}
 
-    im2_warped = backward_warp(im2, flow_fw)
-    im1_warped = backward_warp(im1, flow_bw)
+    flow_fw_corrected_magnitude = flow_fw * prewarp_scaling
+    flow_bw_corrected_magnitude = flow_bw * prewarp_scaling
+
+    im2_warped = backward_warp(im2, flow_fw_corrected_magnitude)
+    im1_warped = backward_warp(im1, flow_bw_corrected_magnitude)
 
     im_diff_fw = im1 - im2_warped
     im_diff_bw = im2 - im1_warped
 
-    disocc_fw = create_disocclusion_map(flow_fw)
-    disocc_bw = create_disocclusion_map(flow_bw)
+    disocc_fw = create_disocclusion_map(flow_fw_corrected_magnitude)
+    disocc_bw = create_disocclusion_map(flow_bw_corrected_magnitude)
 
     if border_mask is None:
-        mask_fw = create_outgoing_mask(flow_fw)
-        mask_bw = create_outgoing_mask(flow_bw)
+        mask_fw = create_outgoing_mask(flow_fw_corrected_magnitude)
+        mask_bw = create_outgoing_mask(flow_bw_corrected_magnitude)
     else:
         mask_fw = border_mask
         mask_bw = border_mask
 
-    fb_occ_fw, fb_occ_bw, flow_diff_fw, flow_diff_bw = occlusion(flow_fw, flow_bw)
+    fb_occ_fw, fb_occ_bw, flow_diff_fw, flow_diff_bw = occlusion(flow_fw, flow_bw, prewarp_scaling)
 
     if mask_occlusion == 'fb':
         mask_fw *= (1 - fb_occ_fw)
@@ -91,6 +99,7 @@ def compute_losses(im1, im2, flow_fw, flow_bw,
 
 def ternary_loss(im1, im2_warped, mask, max_distance=1):
     """
+    As mentioned in the paper, performs a ternary census transform on the images then diffs them using hamming distance.
     :param im1: Tensor of shape [B, H, W, 3].
     :param im2_warped: Tensor of shape [B, H, W, 3].
     :param mask: Tensor of shape [B, H, W, 1].
@@ -125,18 +134,19 @@ def ternary_loss(im1, im2_warped, mask, max_distance=1):
         return charbonnier_loss(dist, mask * transform_mask)
 
 
-def occlusion(flow_fw, flow_bw):
+def occlusion(flow_fw, flow_bw, prewarp_scaling):
     """
     :param flow_fw: Tensor of shape [B, H, W, 2].
     :param flow_bw: Tensor of shape [B, H, W, 2].
+    :param prewarp_scaling: Float. Scales the flow right before using it in a backward warp.
     :return: occ_fw: Tensor of shape [B, H, W, 1].
              occ_bw: Tensor of shape [B, H, W, 1].
              flow_diff_fw: Tensor of shape [B, H, W, 2]. Difference between backward and forward flows.
              flow_diff_bw. Tensor of shape [B, H, W, 2]. Difference between backward and forward flows.
     """
     mag_sq = length_sq(flow_fw) + length_sq(flow_bw)
-    flow_bw_warped = backward_warp(flow_bw, flow_fw)
-    flow_fw_warped = backward_warp(flow_fw, flow_bw)
+    flow_bw_warped = backward_warp(flow_bw, flow_fw * prewarp_scaling)
+    flow_fw_warped = backward_warp(flow_fw, flow_bw * prewarp_scaling)
     flow_diff_fw = flow_fw + flow_bw_warped
     flow_diff_bw = flow_bw + flow_fw_warped
     occ_thresh = 0.01 * mag_sq + 0.5
