@@ -2,6 +2,7 @@ import os.path
 import tensorflow as tf
 from data.flow.flowdata import FlowDataSet
 from pwcnet.model import PWCNet
+from tensorflow.python.client import timeline
 from train.trainer import Trainer
 from utils.flow import get_tf_flow_visualization
 from utils.tf import accumulate_gradients, get_available_gpus
@@ -131,6 +132,11 @@ class PWCNetTrainer(Trainer):
                 self.train_writer.add_run_metadata(run_metadata, 'step%d' % global_step, global_step=global_step)
                 self.train_writer.add_summary(summ, global_step=global_step)
                 self.model.save_to(self.npz_save_file, self.session)
+                # Save timeline.
+                fetched_timeline = timeline.Timeline(run_metadata.step_stats, graph=self.session.graph)
+                chrome_trace = fetched_timeline.generate_chrome_trace_format()
+                with open(os.path.join(self.train_log_dir, 'timeline.json'), 'w') as file:
+                    file.write(chrome_trace)
             else:
                 loss, _ = self.session.run([self.loss, self.train_op], feed_dict=self.dataset.get_train_feed_dict())
 
