@@ -68,11 +68,7 @@ class PWCNetTrainer(Trainer):
         """
         if self.verbose:
             print('Detected', available_gpus, 'GPUs. Initializing multi-gpu training...')
-        # Get the optimizer.
-        with tf.variable_scope('train'):
-            self.global_step = tf.Variable(initial_value=0, trainable=False, dtype=tf.int32, name='global_step')
-            optimizer = tf.train.AdamOptimizer(self.config['learning_rate'])
-
+        optimizer = tf.train.AdamOptimizer(self.config['learning_rate'])
         batch_size = tf.shape(self.images_a)[0]
         num_gpus = len(available_gpus)
         examples_per_gpu = tf.cast(batch_size / num_gpus, dtype=tf.int32)
@@ -92,11 +88,12 @@ class PWCNetTrainer(Trainer):
                 else:
                     self.loss, self.layer_losses = self.model.get_training_loss(self.previous_flows, self.flows)
 
-                with tf.variable_scope('train', reuse=True):
+                with tf.variable_scope('train', reuse=tf.AUTO_REUSE):
                     grads_and_vars = optimizer.compute_gradients(self.loss)
                     tower_grads_and_vars.append(grads_and_vars)
 
-        with tf.variable_scope('train', reuse=True):
+        with tf.variable_scope('train', reuse=tf.AUTO_REUSE):
+            self.global_step = tf.Variable(initial_value=0, trainable=False, dtype=tf.int32, name='global_step')
             summed_grads_and_vars = accumulate_gradients(tower_grads_and_vars)
             self.train_op = optimizer.apply_gradients(summed_grads_and_vars, global_step=self.global_step)
 
