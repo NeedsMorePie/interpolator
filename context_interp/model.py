@@ -44,6 +44,7 @@ class ContextInterp:
             # TODO: Add instance normalization. Described in 3.3 of https://arxiv.org/pdf/1803.10967.pdf.
 
             # Get a->b and b->a flows from PWCNet.
+            # TODO: Migrate to pwcnet.get_forward_bidirectional.
             all_flows, _ = self.pwcnet.get_forward(from_frames, to_frames)
             flow_a_b = all_flows[:batch_size]
             flow_b_a = all_flows[batch_size:]
