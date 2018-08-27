@@ -152,6 +152,7 @@ class PWCNetTrainer(Trainer):
                 global_step = self._eval_global_step()
                 self.train_writer.add_run_metadata(run_metadata, 'step%d' % global_step, global_step=global_step)
                 self.train_writer.add_summary(summ, global_step=global_step)
+                self.train_writer.flush()
                 self.model.save_to(self.npz_save_file, self.session)
                 # Save timeline.
                 fetched_timeline = timeline.Timeline(run_metadata.step_stats, graph=self.session.graph)
@@ -178,6 +179,7 @@ class PWCNetTrainer(Trainer):
             except tf.errors.OutOfRangeError:
                 # End of validation epoch.
                 break
+        self.valid_writer.flush()
 
     def _eval_global_step(self):
         return self.session.run(self.global_step)
