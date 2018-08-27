@@ -4,6 +4,7 @@ from data.flow.flowdata import FlowDataSet
 from pwcnet.model import PWCNet
 from train.trainer import Trainer
 from utils.flow import get_tf_flow_visualization
+from utils.tf import accumulate_gradients, get_available_gpus
 
 
 class PWCNetTrainer(Trainer):
@@ -37,6 +38,13 @@ class PWCNetTrainer(Trainer):
         self.npz_save_file = os.path.join(self.config['checkpoint_directory'], 'pwcnet_weights.npz')
 
     def _create_ops(self):
+        available_gpus = get_available_gpus()
+        if len(available_gpus) == 1:
+            self._create_single_gpu_ops()
+        else:
+            self._create_multi_gpu_ops(available_gpus)
+
+    def _create_single_gpu_ops(self):
         # Get the train network.
         self.final_flow, self.previous_flows = self.model.get_forward(self.images_a, self.images_b,
                                                                       reuse_variables=tf.AUTO_REUSE)
@@ -50,6 +58,40 @@ class PWCNetTrainer(Trainer):
             self.global_step = tf.Variable(initial_value=0, trainable=False, dtype=tf.int32, name='global_step')
             self.train_op = tf.train.AdamOptimizer(self.config['learning_rate']).minimize(
                 self.loss, global_step=self.global_step)
+
+    def _create_multi_gpu_ops(self, available_gpus):
+        """
+        :param available_gpus: List of strings. I.e. ['/device:GPU:0', '/device:GPU:1'].
+        :return: Nothing.
+        """
+        # Get the optimizer.
+        with tf.variable_scope('train'):
+            self.global_step = tf.Variable(initial_value=0, trainable=False, dtype=tf.int32, name='global_step')
+            optimizer = tf.train.AdamOptimizer(self.config['learning_rate'])
+
+        batch_size = tf.shape(self.images_a)[0]
+        num_gpus = len(available_gpus)
+        examples_per_gpu = tf.cast(batch_size / num_gpus, dtype=tf.int32)
+        tower_grads_and_vars = []
+        for i, gpu in enumerate(available_gpus):
+            start = tf.cast(examples_per_gpu * i, dtype=tf.int32)
+            end = tf.cast(examples_per_gpu * (i + 1), dtype=tf.int32)
+            # Create the loss under this tower.
+            with tf.device(gpu):
+                self.final_flow, self.previous_flows = self.model.get_forward(self.images_a[start:end, ...],
+                                                                              self.images_b[start:end, ...],
+                                                                              reuse_variables=tf.AUTO_REUSE)
+                if self.config['fine_tune']:
+                    self.loss, self.layer_losses = self.model.get_fine_tuning_loss(self.previous_flows, self.flows)
+                else:
+                    self.loss, self.layer_losses = self.model.get_training_loss(self.previous_flows, self.flows)
+
+                with tf.variable_scope('train', reuse=tf.AUTO_REUSE):
+                    tower_grads_and_vars.append(optimizer.compute_gradients(self.loss))
+
+        with tf.variable_scope('train', reuse=tf.AUTO_REUSE):
+            summed_grads_and_vars = accumulate_gradients(tower_grads_and_vars)
+            self.train_op = optimizer.apply_gradients(summed_grads_and_vars)
 
     def restore(self):
         """
