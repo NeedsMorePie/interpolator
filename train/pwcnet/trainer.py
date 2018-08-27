@@ -45,6 +45,8 @@ class PWCNetTrainer(Trainer):
             self._create_multi_gpu_ops(available_gpus)
 
     def _create_single_gpu_ops(self):
+        if self.verbose:
+            print('Initializing single-gpu training...')
         # Get the train network.
         self.final_flow, self.previous_flows = self.model.get_forward(self.images_a, self.images_b,
                                                                       reuse_variables=tf.AUTO_REUSE)
@@ -64,6 +66,8 @@ class PWCNetTrainer(Trainer):
         :param available_gpus: List of strings. I.e. ['/device:GPU:0', '/device:GPU:1'].
         :return: Nothing.
         """
+        if self.verbose:
+            print('Detected', available_gpus, 'GPUs. Initializing multi-gpu training...')
         # Get the optimizer.
         with tf.variable_scope('train'):
             self.global_step = tf.Variable(initial_value=0, trainable=False, dtype=tf.int32, name='global_step')
@@ -74,6 +78,8 @@ class PWCNetTrainer(Trainer):
         examples_per_gpu = tf.cast(batch_size / num_gpus, dtype=tf.int32)
         tower_grads_and_vars = []
         for i, gpu in enumerate(available_gpus):
+            if self.verbose:
+                print('Creating tower for', gpu)
             start = tf.cast(examples_per_gpu * i, dtype=tf.int32)
             end = tf.cast(examples_per_gpu * (i + 1), dtype=tf.int32)
             # Create the loss under this tower.
