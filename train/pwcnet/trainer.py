@@ -83,10 +83,11 @@ class PWCNetTrainer(Trainer):
                 self.final_flow, self.previous_flows = self.model.get_forward(self.images_a[start:end, ...],
                                                                               self.images_b[start:end, ...],
                                                                               reuse_variables=tf.AUTO_REUSE)
+                ground_truth = self.flows[start:end, ...]
                 if self.config['fine_tune']:
-                    self.loss, self.layer_losses = self.model.get_fine_tuning_loss(self.previous_flows, self.flows)
+                    self.loss, self.layer_losses = self.model.get_fine_tuning_loss(self.previous_flows, ground_truth)
                 else:
-                    self.loss, self.layer_losses = self.model.get_training_loss(self.previous_flows, self.flows)
+                    self.loss, self.layer_losses = self.model.get_training_loss(self.previous_flows, ground_truth)
 
                 grads_and_vars = optimizer.compute_gradients(self.loss)
                 tower_grads_and_vars.append(grads_and_vars)
