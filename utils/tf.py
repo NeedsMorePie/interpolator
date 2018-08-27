@@ -230,13 +230,13 @@ def get_available_gpus():
 # Commit bac9bbaf49be44b9e1c1f004fce4fb04b247763d.
 def accumulate_gradients(tower_grads_and_vars):
     """
-    Calculate the summed gradient for each shared variable across all towers.
+    Calculate the average gradient for each shared variable across all towers.
     Note that this function provides a synchronization point across all towers.
     :param tower_grads_and_vars: List of lists of (gradient, variable) tuples. The outer list is over individual
                                  gradients. The inner list is over the gradient calculation for each tower.
-    :return: List of pairs of (gradient, variable) where the gradient has been summed across all towers.
+    :return: List of pairs of (gradient, variable) where the gradient has been averaged across all towers.
     """
-    summed_grads = []
+    averaged_grads = []
     for grad_and_vars in zip(*tower_grads_and_vars):
         # Note that each grad_and_vars looks like the following:
         #   ((grad0_gpu0, var0_gpu0), ... , (grad0_gpuN, var0_gpuN))
@@ -246,17 +246,17 @@ def accumulate_gradients(tower_grads_and_vars):
                 # Add 0 dimension to the gradients to represent the tower.
                 expanded_g = tf.expand_dims(g, 0)
 
-                # Append on a 'tower' dimension which we will sum over below.
+                # Append on a 'tower' dimension which we will average over below.
                 grads.append(expanded_g)
         if len(grads) != 0:
-            # Sum over the 'tower' dimension.
+            # Average over the 'tower' dimension.
             grad = tf.concat(grads, axis=0)
-            grad = tf.reduce_sum(grad, axis=0)
+            grad = tf.reduce_mean(grad, axis=0)
 
             # Keep in mind that the Variables are redundant because they are shared
             # across towers. So .. we will just return the first tower's pointer to
             # the Variable.
             v = grad_and_vars[0][1]
             grad_and_var = (grad, v)
-            summed_grads.append(grad_and_var)
-    return summed_grads
+            averaged_grads.append(grad_and_var)
+    return averaged_grads

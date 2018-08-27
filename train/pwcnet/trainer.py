@@ -101,8 +101,8 @@ class PWCNetTrainer(Trainer):
 
         with tf.variable_scope('train'):
             self.global_step = tf.Variable(initial_value=0, trainable=False, dtype=tf.int32, name='global_step')
-            summed_grads_and_vars = accumulate_gradients(tower_grads_and_vars)
-            self.train_op = optimizer.apply_gradients(summed_grads_and_vars, global_step=self.global_step)
+            accumulated_grads_and_vars = accumulate_gradients(tower_grads_and_vars)
+            self.train_op = optimizer.apply_gradients(accumulated_grads_and_vars, global_step=self.global_step)
 
     def restore(self):
         """
