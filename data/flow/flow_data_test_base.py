@@ -42,8 +42,10 @@ class TestFlowDataSet:
 
             self.data_set.load(self.sess)
             next_images_a, next_images_b, next_flows = self.data_set.get_next_batch()
-            images_1_a, images_1_b, flows = self.sess.run([next_images_a, next_images_b, next_flows],
-                                                          feed_dict=self.data_set.get_train_feed_dict())
+            # Access the images a few times.
+            slice_1, slice_2 = next_images_a[:, 0, 0, :], next_images_a[:, 0, 1, :]
+            query = [next_images_a, next_images_b, next_flows, slice_1, slice_2]
+            images_1_a, images_1_b, flows, _, _ = self.sess.run(query, feed_dict=self.data_set.get_train_feed_dict())
             self.assertTupleEqual(images_1_a.shape, (2, self.resolution[0], self.resolution[1], 3))
             self.assertTupleEqual(images_1_b.shape, (2, self.resolution[0], self.resolution[1], 3))
             self.assertTupleEqual(flows.shape, (2, self.resolution[0], self.resolution[1], 2))
