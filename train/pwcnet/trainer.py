@@ -68,33 +68,40 @@ class PWCNetTrainer(Trainer):
         """
         if self.verbose:
             print('Detected', available_gpus, 'GPUs. Initializing multi-gpu training...')
-        optimizer = tf.train.AdamOptimizer(self.config['learning_rate'])
-        batch_size = tf.shape(self.images_a)[0]
-        num_gpus = len(available_gpus)
-        examples_per_gpu = tf.cast(batch_size / num_gpus, dtype=tf.int32)
+
+        with tf.name_scope('examples_per_gpu'):
+            batch_size = tf.shape(self.images_a)[0]
+            num_gpus = len(available_gpus)
+            examples_per_gpu = tf.cast(batch_size / num_gpus, dtype=tf.int32)
+
         tower_grads_and_vars = []
+        optimizer = tf.train.AdamOptimizer(self.config['learning_rate'])
         for i, gpu in enumerate(available_gpus):
             if self.verbose:
                 print('Creating tower for', gpu)
-            start = tf.cast(examples_per_gpu * i, dtype=tf.int32)
-            end = tf.cast(examples_per_gpu * (i + 1), dtype=tf.int32)
+
+            with tf.name_scope('batch_distribution'):
+                start = tf.cast(examples_per_gpu * i, dtype=tf.int32)
+                end = tf.cast(examples_per_gpu * (i + 1), dtype=tf.int32)
+                image_a_batch = self.images_a[start:end, ...]
+                image_b_batch = self.images_b[start:end, ...]
+                ground_truth = self.flows[start:end, ...]
+
             # Create the loss under this tower.
             with tf.device(gpu):
-                self.final_flow, self.previous_flows = self.model.get_forward(self.images_a[start:end, ...],
-                                                                              self.images_b[start:end, ...],
+                self.final_flow, self.previous_flows = self.model.get_forward(image_a_batch, image_b_batch,
                                                                               reuse_variables=tf.AUTO_REUSE)
-                ground_truth = self.flows[start:end, ...]
                 if self.config['fine_tune']:
                     self.loss, self.layer_losses = self.model.get_fine_tuning_loss(self.previous_flows, ground_truth)
                 else:
                     self.loss, self.layer_losses = self.model.get_training_loss(self.previous_flows, ground_truth)
-
                 grads_and_vars = optimizer.compute_gradients(self.loss)
                 tower_grads_and_vars.append(grads_and_vars)
 
-        self.global_step = tf.Variable(initial_value=0, trainable=False, dtype=tf.int32, name='global_step')
-        summed_grads_and_vars = accumulate_gradients(tower_grads_and_vars)
-        self.train_op = optimizer.apply_gradients(summed_grads_and_vars, global_step=self.global_step)
+        with tf.variable_scope('train'):
+            self.global_step = tf.Variable(initial_value=0, trainable=False, dtype=tf.int32, name='global_step')
+            summed_grads_and_vars = accumulate_gradients(tower_grads_and_vars)
+            self.train_op = optimizer.apply_gradients(summed_grads_and_vars, global_step=self.global_step)
 
     def restore(self):
         """
