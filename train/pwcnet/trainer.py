@@ -94,12 +94,11 @@ class PWCNetTrainer(Trainer):
 
                 with tf.variable_scope('train', reuse=True):
                     grads_and_vars = optimizer.compute_gradients(self.loss)
-                    vars_with_grad = [v for g, v in grads_and_vars if g is not None]
-                    tower_grads_and_vars.append(vars_with_grad)
+                    tower_grads_and_vars.append(grads_and_vars)
 
         with tf.variable_scope('train', reuse=True):
             summed_grads_and_vars = accumulate_gradients(tower_grads_and_vars)
-            self.train_op = optimizer.apply_gradients(summed_grads_and_vars)
+            self.train_op = optimizer.apply_gradients(summed_grads_and_vars, global_step=self.global_step)
 
     def restore(self):
         """
