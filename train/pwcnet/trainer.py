@@ -117,8 +117,8 @@ class PWCNetTrainer(Trainer):
         with tf.name_scope('accumulate_outputs'):
             self.final_flow = tf.concat(final_flow_list, axis=0)
             self.previous_flows = [tf.concat(previous_flows, axis=0) for previous_flows in previous_flows_list]
-            self.loss = tf.reduce_mean(tf.concat(loss_list, axis=0))
-            self.layer_losses = [tf.reduce_mean(tf.concat(layer_losses, axis=0)) for layer_losses in layer_losses_list]
+            self.loss = tf.reduce_mean(tf.stack(loss_list))
+            self.layer_losses = [tf.reduce_mean(tf.stack(layer_losses)) for layer_losses in layer_losses_list]
 
         with tf.variable_scope('train'):
             self.global_step = tf.Variable(initial_value=0, trainable=False, dtype=tf.int32, name='global_step')
