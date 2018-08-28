@@ -1,7 +1,6 @@
 import os
 import tensorflow as tf
 import time
-from tensorflow.python.client import timeline
 from tensorflow.python.profiler.model_analyzer import Profiler, option_builder
 
 
@@ -78,6 +77,20 @@ def run_tensorboard_profiler(query, feed_dict, num_runs=10, warmup_runs=5, name=
     sess.run(query, options=tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE),
              run_metadata=run_metadata, feed_dict=feed_dict)
 
+    # Write timelines.
+    profile_cmds = ['code', 'scope', 'graph']
+    for profile_cmd in profile_cmds:
+        out_path = os.path.join(folder, 'timeline_' + profile_cmd + '.json')
+        inference_profile_opts = (tf.profiler.ProfileOptionBuilder(
+            tf.profiler.ProfileOptionBuilder.time_and_memory())
+                                  .with_timeline_output(out_path).build())
+        tf.profiler.profile(
+            tf.get_default_graph(),
+            run_meta=run_metadata,
+            cmd=profile_cmd,
+            options=inference_profile_opts
+        )
+
     # Do a simple timing.
     total_time = 0.0
     for i in range(num_runs):
@@ -87,12 +100,6 @@ def run_tensorboard_profiler(query, feed_dict, num_runs=10, warmup_runs=5, name=
         total_time += end - start
     total_time /= num_runs
     print('Average total runtime is:', total_time * 1000.0, 'ms.')
-
-    # Write timeline file.
-    timeline_factory = timeline.Timeline(run_metadata.step_stats, graph=sess.graph)
-    chrome_trace = timeline_factory.generate_chrome_trace_format()
-    with open(os.path.join(folder, 'timeline.json'), 'w') as file:
-        file.write(chrome_trace)
 
     # Write Tensorboard graph.
     train_writer.add_run_metadata(run_metadata, 'profile', global_step=0)
