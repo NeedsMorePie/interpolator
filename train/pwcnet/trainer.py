@@ -154,7 +154,7 @@ class PWCNetTrainer(Trainer):
                 self.train_writer.add_summary(summ, global_step=global_step)
                 self.train_writer.flush()
                 self.model.save_to(self.npz_save_file, self.session)
-                save_timeline(run_metadata, self.train_log_dir)
+                save_timeline(run_metadata, self.train_log_dir, detailed=False)
             else:
                 loss, _ = self.session.run([self.loss, self.train_op], feed_dict=self.dataset.get_train_feed_dict())
 
