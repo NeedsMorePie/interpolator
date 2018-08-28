@@ -4,6 +4,9 @@ import time
 from tensorflow.python.profiler.model_analyzer import Profiler, option_builder
 
 
+PROFILE_CMDS = ['code', 'scope', 'graph']
+
+
 def run_profiler(query, feed_dict, num_runs=10, warmup_runs=5, name='profile'):
     """
     Runs the Tensorflow profiler on a given query and feed_dict.
@@ -76,20 +79,7 @@ def run_tensorboard_profiler(query, feed_dict, num_runs=10, warmup_runs=5, name=
                  run_metadata=run_metadata, feed_dict=feed_dict)
     sess.run(query, options=tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE),
              run_metadata=run_metadata, feed_dict=feed_dict)
-
-    # Write timelines.
-    profile_cmds = ['code', 'scope', 'graph']
-    for profile_cmd in profile_cmds:
-        out_path = os.path.join(folder, 'timeline_' + profile_cmd + '.json')
-        inference_profile_opts = (tf.profiler.ProfileOptionBuilder(
-            tf.profiler.ProfileOptionBuilder.time_and_memory())
-                                  .with_timeline_output(out_path).build())
-        tf.profiler.profile(
-            tf.get_default_graph(),
-            run_meta=run_metadata,
-            cmd=profile_cmd,
-            options=inference_profile_opts
-        )
+    save_timeline(run_metadata, folder)
 
     # Do a simple timing.
     total_time = 0.0
@@ -105,3 +95,27 @@ def run_tensorboard_profiler(query, feed_dict, num_runs=10, warmup_runs=5, name=
     train_writer.add_run_metadata(run_metadata, 'profile', global_step=0)
     train_writer.close()
     sess.close()
+
+
+def save_timeline(run_metadata, directory, name=''):
+    """
+    :param run_metadata: Tensorflow run metadata.
+    :param directory: Str. Directory to save into.
+    :param name: Str. Name of the run.
+    :return: Nothing.
+    """
+    for profile_cmd in PROFILE_CMDS:
+        if name != '':
+            file_name = name + '_timeline_' + profile_cmd + '.json'
+        else:
+            file_name = 'timeline_' + profile_cmd + '.json'
+        out_path = os.path.join(directory, file_name)
+        inference_profile_opts = (tf.profiler.ProfileOptionBuilder(
+            tf.profiler.ProfileOptionBuilder.time_and_memory())
+                                  .with_timeline_output(out_path).build())
+        tf.profiler.profile(
+            tf.get_default_graph(),
+            run_meta=run_metadata,
+            cmd=profile_cmd,
+            options=inference_profile_opts
+        )
