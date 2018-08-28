@@ -1,6 +1,6 @@
 import tensorflow as tf
 from common.models import ConvNetwork
-from utils.tf import tf_coin_flip, print_tensor_shape
+from common.utils.tf import tf_coin_flip
 
 
 class LateralConnection(ConvNetwork):

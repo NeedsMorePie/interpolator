@@ -1,11 +1,9 @@
 import tensorflow as tf
-import numpy as np
+from common.forward_warp.forward_warp import forward_warp
 from context_interp.vgg19_features.vgg19_features import Vgg19Features
 from context_interp.gridnet.model import GridNet
 from context_interp.laplacian_pyramid.laplacian_pyramid import LaplacianPyramid
 from pwcnet.model import PWCNet
-from common.models import RestorableNetwork
-from common.forward_warp.forward_warp import forward_warp
 
 
 class ContextInterp:

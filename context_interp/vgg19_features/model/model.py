@@ -9,6 +9,7 @@ import numpy as np
 import types
 from functools import reduce
 
+
 VERBOSE = False
 VGG_MEAN = [103.939, 116.779, 123.68]
 

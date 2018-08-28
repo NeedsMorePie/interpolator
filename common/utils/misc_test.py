@@ -1,6 +1,6 @@
 import json
 import unittest
-from utils.misc import *
+from common.utils.misc import *
 
 
 class TestPreprocessVarRefs(unittest.TestCase):

@@ -1,5 +1,5 @@
 import unittest
-from utils.tf import *
+from common.utils.tf import *
 
 
 class TestTfUtils(unittest.TestCase):

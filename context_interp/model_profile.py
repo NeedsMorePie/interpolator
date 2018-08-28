@@ -1,10 +1,9 @@
+import os
+import time
 import numpy as np
 import tensorflow as tf
-import time
-import os
+from common.utils.tf import AdamaxOptimizer
 from context_interp.model import ContextInterp
-from utils.tf import AdamaxOptimizer
-
 
 if __name__ == '__main__':
     config = tf.ConfigProto()

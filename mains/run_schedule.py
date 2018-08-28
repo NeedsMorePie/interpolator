@@ -2,7 +2,7 @@ import argparse
 import json
 import os
 import subprocess
-from utils.misc import compile_args, preprocess_var_refs
+from common.utils.misc import compile_args, preprocess_var_refs
 
 
 def main():

@@ -1,7 +1,6 @@
 import numpy as np
 import tensorflow as tf
 import unittest
-import time
 from context_interp.model import ContextInterp
 
 

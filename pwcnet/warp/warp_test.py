@@ -1,11 +1,9 @@
 import unittest
-
 import numpy as np
-
-from pwcnet.warp.warp import *
 from tensorflow.python.ops import gradient_checker
-from utils.flow import read_flow_file
-from utils.img import read_image, show_image
+from common.utils.img import read_image, show_image
+from common.utils.flow import read_flow_file
+from pwcnet.warp.warp import *
 
 SHOW_WARPED_IMAGES = False
 

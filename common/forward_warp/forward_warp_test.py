@@ -1,11 +1,10 @@
-import numpy as np
 import os
-import tensorflow as tf
 import unittest
-from utils.flow import read_flow_file
-from utils.img import read_image, show_image
+import numpy as np
+import tensorflow as tf
+from common.utils.img import read_image, show_image
 from common.forward_warp.forward_warp import forward_warp, create_disocclusion_map
-
+from common.utils.flow import read_flow_file
 
 VISUALIZE = False
 WRITE_TO_VIDEO = False

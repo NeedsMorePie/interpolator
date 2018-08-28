@@ -1,8 +1,8 @@
+import os
+import unittest
 import numpy as np
 import tensorflow as tf
-import unittest
-import os
-from utils.img import read_image, show_image
+from common.utils.img import read_image, show_image
 from context_interp.laplacian_pyramid.laplacian_pyramid import LaplacianPyramid
 
 

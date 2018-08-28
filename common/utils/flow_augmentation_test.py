@@ -1,11 +1,10 @@
 import unittest
-
 import cv2
 import numpy as np
-
+from common.utils.img import read_image, show_image
+from common.utils.flow import read_flow_file, tf_scale_flow, tf_flip_flow
 from pwcnet.warp.warp import *
-from utils.flow import read_flow_file, tf_scale_flow, tf_flip_flow
-from utils.img import read_image, show_image
+
 
 SHOW_AUGMENTATION_DEBUG_IMAGES = False
 
@@ -18,12 +17,12 @@ class TestFlowAugmentation(unittest.TestCase):
 
         # Load from files.
         s = 0.5  # Scale.
-        self.flow_ab = cv2.resize(read_flow_file('utils/test_data/flow_ab.flo'), (0, 0), fx=s, fy=s) * s
-        self.img_a = cv2.resize(read_image('utils/test_data/image_a.png', as_float=True), (0, 0), fx=s, fy=s)
-        self.img_b = cv2.resize(read_image('utils/test_data/image_b.png', as_float=True), (0, 0), fx=s, fy=s)
-        self.flow_cd = cv2.resize(read_flow_file('utils/test_data/flow_cd.flo'), (0, 0), fx=s, fy=s) * s
-        self.img_c = cv2.resize(read_image('utils/test_data/image_c.png', as_float=True), (0, 0), fx=s, fy=s)
-        self.img_d = cv2.resize(read_image('utils/test_data/image_d.png', as_float=True), (0, 0), fx=s, fy=s)
+        self.flow_ab = cv2.resize(read_flow_file('common/utils/test_data/flow_ab.flo'), (0, 0), fx=s, fy=s) * s
+        self.img_a = cv2.resize(read_image('common/utils/test_data/image_a.png', as_float=True), (0, 0), fx=s, fy=s)
+        self.img_b = cv2.resize(read_image('common/utils/test_data/image_b.png', as_float=True), (0, 0), fx=s, fy=s)
+        self.flow_cd = cv2.resize(read_flow_file('common/utils/test_data/flow_cd.flo'), (0, 0), fx=s, fy=s) * s
+        self.img_c = cv2.resize(read_image('common/utils/test_data/image_c.png', as_float=True), (0, 0), fx=s, fy=s)
+        self.img_d = cv2.resize(read_image('common/utils/test_data/image_d.png', as_float=True), (0, 0), fx=s, fy=s)
         self.tf_true = tf.constant(True)
         self.tf_false = tf.constant(False)
 

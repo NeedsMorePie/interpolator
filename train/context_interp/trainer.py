@@ -1,11 +1,11 @@
 import os.path
 import tensorflow as tf
-from data.interp.interp_data import InterpDataSet
+from common.utils.misc import print_progress_bar
+from common.utils.tf import AdamaxOptimizer, optimistic_restore, Logger
+from common.utils.flow import get_tf_flow_visualization
 from context_interp.model import ContextInterp
+from data.interp.interp_data import InterpDataSet
 from train.trainer import Trainer
-from utils.misc import print_progress_bar
-from utils.flow import get_tf_flow_visualization
-from utils.tf import AdamaxOptimizer, optimistic_restore, Logger
 
 
 class ContextInterpTrainer(Trainer):

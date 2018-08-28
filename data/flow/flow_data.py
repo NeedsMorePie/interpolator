@@ -1,10 +1,10 @@
 import glob
 import multiprocessing
 import os.path
+from common.utils.data import *
+from common.utils.img import tf_random_crop, tf_image_augmentation
+from common.utils.flow import tf_random_flip_flow, tf_random_scale_flow
 from data.dataset import DataSet
-from utils.data import *
-from utils.flow import tf_random_flip_flow, tf_random_scale_flow
-from utils.img import tf_random_crop, tf_image_augmentation
 
 
 class FlowDataSet(DataSet):

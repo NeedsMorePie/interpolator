@@ -1,8 +1,6 @@
 import tensorflow as tf
-import optparse
 from context_interp.vgg19_features.model.model import Vgg19
 import os
-import inspect
 
 # Usage of this script:
 # Download the VGG19 NPY file from https://github.com/machrisaa/tensorflow-vgg.

@@ -1,9 +1,9 @@
 import multiprocessing
 import os.path
 import numpy as np
+from common.utils.data import *
 from data.interp.interp_data import InterpDataSet
 from joblib import Parallel, delayed
-from utils.data import *
 
 
 class InterpDataPreprocessor:

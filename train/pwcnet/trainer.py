@@ -1,12 +1,12 @@
 import os.path
 import tensorflow as tf
+from tensorflow.python.client import timeline
+from common.utils.misc import accumulate_list_into
+from common.utils.tf import average_gradients, get_available_gpus
+from common.utils.flow import get_tf_flow_visualization
 from data.flow.flow_data import FlowDataSet
 from pwcnet.model import PWCNet
-from tensorflow.python.client import timeline
 from train.trainer import Trainer
-from utils.flow import get_tf_flow_visualization
-from utils.misc import accumulate_list_into
-from utils.tf import average_gradients, get_available_gpus
 
 
 class PWCNetTrainer(Trainer):

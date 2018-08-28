@@ -1,8 +1,7 @@
 import numpy as np
 import tensorflow as tf
+from common.utils.profile import run_profiler
 from pwcnet.cost_volume.cost_volume import cost_volume
-from utils.profile import run_profiler
-
 
 if __name__ == '__main__':
     height = 128

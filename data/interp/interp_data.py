@@ -2,9 +2,9 @@ import glob
 import multiprocessing
 import os.path
 import numpy as np
+from common.utils.data import *
+from common.utils.tf import sliding_window_slice, tf_coin_flip
 from data.dataset import DataSet
-from utils.data import *
-from utils.tf import sliding_window_slice, tf_coin_flip
 
 
 class InterpDataSet(DataSet):

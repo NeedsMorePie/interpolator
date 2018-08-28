@@ -1,6 +1,7 @@
 import tensorflow as tf
-from utils.tf import print_tensor_shape, pelu, prelu
-from context_interp.gridnet.connections.connections import UpSamplingConnection, DownSamplingConnection, LateralConnection
+from common.utils.tf import prelu
+from context_interp.gridnet.connections.connections import UpSamplingConnection, DownSamplingConnection, \
+    LateralConnection
 
 
 # Packaged 'activation' functions.
