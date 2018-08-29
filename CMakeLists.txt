@@ -45,7 +45,7 @@ if(CUDA_FOUND)
     endif()
 else()
     set(CUDA_LIBRARIES "")
-    message(STATUS "Compilation of ops will be for the CPU only")
+    message(FATAL_ERROR "CUDA not found. You may need to manually specify the location by adding '-D CUDA_TOOLKIT_ROOT_DIR=/path/to/cuda' to the cmake command line.")
 endif()
 
 # Set header include directories.
