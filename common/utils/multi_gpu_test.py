@@ -203,8 +203,6 @@ class TestMultiGPUUtils(unittest.TestCase):
 
     def test_create_train_op_multiple_devices(self):
         devices = self.get_devices_for_testing()
-        if devices is None:
-            return
         variables = []
 
         def build_network_outputs(tensor_1, tensor_2, tensor_3):
@@ -240,8 +238,6 @@ class TestMultiGPUUtils(unittest.TestCase):
 
     def test_create_train_op_multiple_devices_unshared_variable_failure(self):
         devices = self.get_devices_for_testing()
-        if devices is None:
-            return
         variables = []
 
         def build_network_outputs(tensor_1, tensor_2, tensor_3):
@@ -286,10 +282,6 @@ class TestMultiGPUUtils(unittest.TestCase):
         else:
             devices = [available_gpus[0], available_gpus[1]]
         return devices
-
-
-if TestMultiGPUUtils.get_devices_for_testing() is None:
-    print('Warning: Multi-device tests will not run due to a lack of GPU.')
 
 
 class TestListAccumulation(unittest.TestCase):
