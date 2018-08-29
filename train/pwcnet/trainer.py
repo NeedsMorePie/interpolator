@@ -1,7 +1,7 @@
 import os.path
 import tensorflow as tf
 from common.utils.flow import get_tf_flow_visualization
-from common.utils.multi_gpu import average_gradients, get_available_gpus, accumulate_list_into
+from common.utils.multi_gpu import get_available_gpus, TensorIO, create_train_op
 from common.utils.profile import save_timeline
 from data.flow.flow_data import FlowDataSet
 from pwcnet.model import PWCNet
@@ -39,90 +39,32 @@ class PWCNetTrainer(Trainer):
         self.npz_save_file = os.path.join(self.config['checkpoint_directory'], 'pwcnet_weights.npz')
 
     def _create_ops(self):
-        available_gpus = get_available_gpus()
-        if len(available_gpus) == 1:
-            self._create_single_gpu_ops()
-        else:
-            self._create_multi_gpu_ops(available_gpus)
-
-    def _create_single_gpu_ops(self):
-        if self.verbose:
-            print('Initializing single-gpu training...')
-        # Get the train network.
-        self.final_flow, self.previous_flows = self.model.get_forward(self.images_a, self.images_b,
-                                                                      reuse_variables=tf.AUTO_REUSE)
-        if self.config['fine_tune']:
-            self.loss, self.layer_losses = self.model.get_fine_tuning_loss(self.previous_flows, self.flows)
-        else:
-            self.loss, self.layer_losses = self.model.get_training_loss(self.previous_flows, self.flows)
-
-        # Get the optimizer.
-        with tf.variable_scope('train'):
-            self.global_step = tf.Variable(initial_value=0, trainable=False, dtype=tf.int32, name='global_step')
-            self.train_op = tf.train.AdamOptimizer(self.config['learning_rate']).minimize(
-                self.loss, global_step=self.global_step)
-
-    def _create_multi_gpu_ops(self, available_gpus):
-        """
-        :param available_gpus: List of strings. I.e. ['/device:GPU:0', '/device:GPU:1'].
-        :return: Nothing.
-        """
-        if self.verbose:
-            print('Detected', available_gpus, 'GPUs. Initializing multi-gpu training...')
-
-        with tf.name_scope('examples_per_gpu'):
-            batch_size = tf.shape(self.images_a)[0]
-            num_gpus = len(available_gpus)
-            examples_per_gpu = tf.cast(batch_size / num_gpus, dtype=tf.int32)
-
-        # Accumulation variables.
-        final_flow_list, previous_flows_list = [], []
-        loss_list, layer_losses_list = [], []
-        tower_grads_and_vars = []
-
         optimizer = tf.train.AdamOptimizer(self.config['learning_rate'])
-        for i, gpu in enumerate(available_gpus):
-            if self.verbose:
-                print('Creating tower for', gpu)
 
-            with tf.name_scope('batch_distribution'):
-                start = tf.cast(examples_per_gpu * i, dtype=tf.int32)
-                end = tf.cast(examples_per_gpu * (i + 1), dtype=tf.int32)
-                image_a_batch = self.images_a[start:end, ...]
-                image_b_batch = self.images_b[start:end, ...]
-                ground_truth = self.flows[start:end, ...]
+        def build_network_outputs(images_a, images_b, flows):
+            # Get the train network.
+            final_flow, previous_flows = self.model.get_forward(images_a, images_b, reuse_variables=tf.AUTO_REUSE)
+            if self.config['fine_tune']:
+                loss, layer_losses = self.model.get_fine_tuning_loss(previous_flows, flows)
+            else:
+                loss, layer_losses = self.model.get_training_loss(previous_flows, flows)
 
-            # Create the loss under this tower.
-            with tf.device(gpu):
-                # Forward ops.
-                final_flow, previous_flows = self.model.get_forward(image_a_batch, image_b_batch,
-                                                                    reuse_variables=tf.AUTO_REUSE)
-                final_flow_list.append(final_flow)
-                accumulate_list_into(previous_flows, previous_flows_list)
+            return {
+                'loss': TensorIO([loss], TensorIO.AVERAGED_SCALAR),
+                'layer_losses': TensorIO(layer_losses, TensorIO.AVERAGED_SCALAR),
+                'previous_flows': TensorIO(previous_flows, TensorIO.BATCH),
+                'final_flow': TensorIO([final_flow], TensorIO.BATCH)
+            }
 
-                # Loss ops.
-                if self.config['fine_tune']:
-                    loss, layer_losses = self.model.get_fine_tuning_loss(previous_flows, ground_truth)
-                else:
-                    loss, layer_losses = self.model.get_training_loss(previous_flows, ground_truth)
-                loss_list.append(loss)
-                accumulate_list_into(layer_losses, layer_losses_list)
+        # Use a helper function to split the batch across multiple GPUs.
+        self.train_op, self.global_step, outputs = create_train_op(
+            optimizer, build_network_outputs, [self.images_a, self.images_b, self.flows], [],
+            available_devices=get_available_gpus(), verbose=True)
 
-                # Gradient ops.
-                grads_and_vars = optimizer.compute_gradients(loss)
-                tower_grads_and_vars.append(grads_and_vars)
-
-        # Sets the outputs to be the equivalent of a single-gpu output.
-        with tf.name_scope('accumulate_outputs'):
-            self.final_flow = tf.concat(final_flow_list, axis=0)
-            self.previous_flows = [tf.concat(previous_flows, axis=0) for previous_flows in previous_flows_list]
-            self.loss = tf.reduce_mean(tf.stack(loss_list))
-            self.layer_losses = [tf.reduce_mean(tf.stack(layer_losses)) for layer_losses in layer_losses_list]
-
-        with tf.variable_scope('train'):
-            self.global_step = tf.Variable(initial_value=0, trainable=False, dtype=tf.int32, name='global_step')
-            averaged_grads_and_vars = average_gradients(tower_grads_and_vars)
-            self.train_op = optimizer.apply_gradients(averaged_grads_and_vars, global_step=self.global_step)
+        self.final_flow = outputs['final_flow'].first()
+        self.previous_flows = outputs['previous_flows'].tensors
+        self.loss = outputs['loss'].first()
+        self.layer_losses = outputs['layer_losses'].tensors
 
     def restore(self):
         """
