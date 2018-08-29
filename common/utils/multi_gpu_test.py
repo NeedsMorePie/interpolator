@@ -195,8 +195,6 @@ class TestMultiGPUUtils(unittest.TestCase):
 
     def test_create_train_op_multiple_devices(self):
         devices = self.get_devices_for_testing()
-        if devices is None:
-            return
         variables = []
 
         def build_network_outputs(tensor_1, tensor_2, tensor_3):
@@ -230,8 +228,6 @@ class TestMultiGPUUtils(unittest.TestCase):
 
     def test_create_train_op_multiple_devices_unshared_variable_failure(self):
         devices = self.get_devices_for_testing()
-        if devices is None:
-            return
         variables = []
 
         def build_network_outputs(tensor_1, tensor_2, tensor_3):
@@ -262,7 +258,8 @@ class TestMultiGPUUtils(unittest.TestCase):
         self.assertAlmostEqual(0.0, variable_1, places=5)
         self.assertAlmostEqual(1.0, variable_2, places=5)
 
-    def get_devices_for_testing(self):
+    @staticmethod
+    def get_devices_for_testing():
         available_gpus = get_available_gpus()
         if len(available_gpus) == 0:
             devices = ['/cpu:0', '/cpu:1']
