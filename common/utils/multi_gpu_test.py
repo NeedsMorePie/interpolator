@@ -172,12 +172,15 @@ class TestMultiGPUUtils(unittest.TestCase):
 
     def create_train_op_one_device_helper(self, devices):
         variables = []
+        return_dict = {}
 
         def build_network_outputs(tensor_1, tensor_2, tensor_3):
             variable = tf.Variable(1.0, trainable=True, dtype=tf.float32)
             loss = tf.reduce_mean((tensor_1 + tensor_2) * tensor_3 * variable)
             variables.append(variable)
-            return {'loss': TensorIO([loss]), 'variable': TensorIO([variable])}
+            return_dict['loss'] = TensorIO([loss])
+            return_dict['variable'] = TensorIO([variable])
+            return return_dict
 
         # Note this learning rate is set up such that the loss is 0.0 after 1 iteration.
         optimizer = tf.train.GradientDescentOptimizer(1.0 / 6.0)
@@ -186,6 +189,7 @@ class TestMultiGPUUtils(unittest.TestCase):
 
         train_op, global_step, output_dict = create_train_op(
             optimizer, build_network_outputs, batched_network_args, other_network_args, available_devices=devices)
+        self.assertEqual(output_dict, return_dict)  # This ensures the accumulating is bypassed.
         self.assertEqual(1, len(variables))
         self.assertEqual(2, len(output_dict.keys()))
         self.assertTrue('loss' in output_dict)
@@ -210,8 +214,10 @@ class TestMultiGPUUtils(unittest.TestCase):
                 variable = tf.get_variable('test_variable', shape=(), dtype=tf.float32,
                                            initializer=tf.constant_initializer(1.0))
                 variables.append(variable)
-                loss = tf.reduce_mean((tensor_1 + tensor_2) * tensor_3 * variable)
-                return {'loss': TensorIO([loss]), 'variable': TensorIO([variable])}
+                loss_per_example = tf.expand_dims((tensor_1 + tensor_2) * tensor_3 * variable, axis=-1)
+                loss = tf.reduce_mean(loss_per_example)
+                return {'loss': TensorIO([loss]), 'variable': TensorIO([variable]),
+                        'loss_per_example': TensorIO([loss_per_example], TensorIO.BATCH)}
 
         # Note this learning rate is set up such that the loss is 0.0 after 1 iteration.
         optimizer = tf.train.GradientDescentOptimizer(1.0 / 6.0)
@@ -220,21 +226,25 @@ class TestMultiGPUUtils(unittest.TestCase):
 
         train_op, global_step, output_dict = create_train_op(
             optimizer, build_network_outputs, batched_network_args, other_network_args, available_devices=devices)
-        self.assertEqual(2, len(output_dict.keys()))
+        self.assertEqual(3, len(output_dict.keys()))
         self.assertTrue('loss' in output_dict)
-        self.assertEqual(2, len(variables))
-        self.assertEqual(variables[0], variables[1])
+        self.assertEqual(2, len(variables))  # This ensures 2 sub-batches are made.
+        self.assertEqual(variables[0], variables[1])  # This ensures the shared variables are the same.
         self.sess.run(tf.global_variables_initializer())
 
         loss = self.sess.run(output_dict['loss'].first())
         self.assertEqual(6.0, loss)
 
         self.sess.run(train_op)
-        step, loss, variable = self.sess.run(
-            [global_step, output_dict['loss'].first(), output_dict['variable'].first()])
+        step, loss, variable, loss_per_example = self.sess.run(
+            [global_step, output_dict['loss'].first(), output_dict['variable'].first(),
+             output_dict['loss_per_example'].first()])
         self.assertAlmostEqual(0.0, loss, places=5)
         self.assertAlmostEqual(0.0, variable, places=5)
         self.assertEqual(1, step)
+        self.assertTupleEqual((2, 1), loss_per_example.shape)
+        self.assertAlmostEqual(0.0, loss_per_example[0][0], places=5)
+        self.assertAlmostEqual(0.0, loss_per_example[1][0], places=5)
 
     def test_create_train_op_multiple_devices_unshared_variable_failure(self):
         devices = self.get_devices_for_testing()

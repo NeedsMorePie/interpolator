@@ -132,6 +132,30 @@ class AccumulatingTensorIO:
         accumulate_list_into(to_accumulate, self.tensors)
 
 
+def _create_train_op_single_device(optimizer, build_network_outputs, batched_network_args, other_network_args,
+                                   available_devices=None, verbose=False):
+    """
+    See docstring for create_train_op.
+    """
+    if available_devices is None:
+        if verbose:
+            print('Creating single device train op for the default device.')
+        outputs = build_network_outputs(*(batched_network_args + other_network_args))
+    else:
+        device_name = available_devices[0]
+        if verbose:
+            print('Creating single device train op for', device_name)
+        with tf.device(device_name):
+            outputs = build_network_outputs(*(batched_network_args + other_network_args))
+    assert isinstance(outputs, dict)
+
+    with tf.variable_scope('train'):
+        global_step = tf.Variable(initial_value=0, trainable=False, dtype=tf.int32, name='global_step')
+        train_op = optimizer.minimize(outputs['loss'].first(), global_step=global_step)
+
+    return train_op, global_step, outputs
+
+
 def create_train_op(optimizer, build_network_outputs, batched_network_args, other_network_args, available_devices=None,
                     verbose=False):
     """
@@ -163,21 +187,8 @@ def create_train_op(optimizer, build_network_outputs, batched_network_args, othe
     """
     # Do single-device version of this function and bypass all the complex accumulating.
     if available_devices is None or len(available_devices) == 1:
-        if available_devices is None:
-            if verbose:
-                print('Creating single device train op for the default device.')
-            outputs = build_network_outputs(*(batched_network_args + other_network_args))
-        else:
-            device_name = available_devices[0]
-            if verbose:
-                print('Creating single device train op for', device_name)
-            with tf.device(device_name):
-                outputs = build_network_outputs(*(batched_network_args + other_network_args))
-        assert isinstance(outputs, dict)
-        with tf.variable_scope('train'):
-            global_step = tf.Variable(initial_value=0, trainable=False, dtype=tf.int32, name='global_step')
-            train_op = optimizer.minimize(outputs['loss'].first(), global_step=global_step)
-        return train_op, global_step, outputs
+        return _create_train_op_single_device(optimizer, build_network_outputs, batched_network_args,
+                                              other_network_args, available_devices, verbose)
 
     # Get the number of examples per GPU.
     with tf.name_scope('examples_per_gpu'):
