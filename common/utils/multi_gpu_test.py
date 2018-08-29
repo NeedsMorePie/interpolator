@@ -280,7 +280,7 @@ class TestMultiGPUUtils(unittest.TestCase):
     def get_devices_for_testing():
         available_gpus = get_available_gpus()
         if len(available_gpus) == 0:
-            devices = None
+            devices = ['/cpu:0', '/cpu:0']
         elif len(available_gpus) == 1:
             devices = [available_gpus[0], '/cpu:0']
         else:
