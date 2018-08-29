@@ -13,7 +13,7 @@ class TestMultiGPUUtils(unittest.TestCase):
     def tearDown(self):
         # Reset the environment to the default number of CPUs.
         self.sess.close()
-        config = tf.ConfigProto(device_count={})
+        config = tf.ConfigProto(device_count={'CPU': 1})
         config.gpu_options.allow_growth = True
         self.sess = tf.Session(config=config)
         self.sess.close()
