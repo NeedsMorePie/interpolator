@@ -87,13 +87,8 @@ class TestContextInterp(unittest.TestCase):
         trainable_vars_after = len(tf.trainable_variables())
         self.assertGreater(trainable_vars_after, trainable_vars_before)
 
-        before = set(tf.trainable_variables())
-
         # Do it again and check that the number of trainable variables has not increased.
         model.get_forward(image_a_placeholder, image_b_placeholder, 0.5)
-        diff = set(tf.trainable_variables()) - before
-        for item in diff:
-            print(item.name)
         self.assertEqual(trainable_vars_after, len(tf.trainable_variables()))
 
 
