@@ -285,7 +285,7 @@ class TestMultiGPUUtils(unittest.TestCase):
 
 
 if TestMultiGPUUtils.get_devices_for_testing() is None:
-    print('Warning: multi-device tests will not run due to a lack of GPU.')
+    print('Warning: Multi-device tests will not run due to a lack of GPU.')
 
 
 class TestListAccumulation(unittest.TestCase):
