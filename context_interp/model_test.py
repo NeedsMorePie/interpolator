@@ -70,10 +70,7 @@ class TestContextInterp(unittest.TestCase):
 
         self.assertNotAlmostEqual(loss, 0.0)
 
-    def test_shared_weights(self):
-        # TODO: Enable this test after the issue is fixed.
-        return
-
+    def test_network_shares_weights(self):
         height = 128
         width = 64
         im_channels = 3

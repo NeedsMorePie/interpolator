@@ -4,7 +4,7 @@ from context_interp.gridnet.connections.connections import UpSamplingConnection,
     LateralConnection
 
 
-# Packaged 'activation' functions.
+# Packaged activation functions.
 def batch_norm_with_prelu(x):
     x = tf.layers.batch_normalization(x)
     return prelu(x)
@@ -114,10 +114,11 @@ class GridNet:
             self.upsample_specs.append(row_upsample_specs)
             self.downsample_specs.append(row_downsample_specs)
 
-    def get_forward(self, features, training=False, reuse_variables=False):
+    def get_forward(self, features, training=False, reuse_variables=tf.AUTO_REUSE):
         """
         :param features: A Tensor. Input feature maps of shape [batch_size, H, W, num_features]
         :param training: A Bool. Whether the graph is to be constructed for training (dropout will be applied).
+        :param reuse_variables: tf reuse option. i.e. tf.AUTO_REUSE.
         :return: final_output: A Tensor. Will take on the same shape as param features.
                  node_outputs: A 2D list of Tensors. Represents the output at each grid node.
                  lateral_inputs: A 2D list of Tensors. Represents the lateral stream input at each grid node.
@@ -130,7 +131,8 @@ class GridNet:
             vertical_inputs = [[tf.constant(0.0) for x in range(self.width)] for y in range(self.height)]
 
             # First lateral connection.
-            node_outputs[0][0] = self._process_rightwards(features, 0, 0, training=training)
+            node_outputs[0][0] = self._process_rightwards(features, 0, 0, training=training,
+                                                          reuse_variables=reuse_variables)
             lateral_inputs[0][0] = node_outputs[0][0]
 
             # Connect first half (Down-sampling streams) by iterating to the right, and downwards.
@@ -141,10 +143,12 @@ class GridNet:
 
                     top_output, left_output = 0, 0
                     if i > 0:
-                        top_output = self._process_downwards(node_outputs[i-1][j], i, j)
+                        top_output = self._process_downwards(node_outputs[i-1][j], i, j,
+                                                             reuse_variables=reuse_variables)
                         vertical_inputs[i][j] = top_output
                     if j > 0:
-                        left_output = self._process_rightwards(node_outputs[i][j-1], i, j, training=training)
+                        left_output = self._process_rightwards(node_outputs[i][j-1], i, j, training=training,
+                                                               reuse_variables=reuse_variables)
                         lateral_inputs[i][j] = left_output
 
                     node_outputs[i][j] = top_output + left_output
@@ -154,46 +158,49 @@ class GridNet:
                 for j in range(int(self.width / 2), self.width):
                     bottom_output, left_output = 0, 0
                     if i < self.height - 1:
-                        bottom_output = self._process_upwards(node_outputs[i+1][j], i, j)
+                        bottom_output = self._process_upwards(node_outputs[i+1][j], i, j,
+                                                              reuse_variables=reuse_variables)
                         vertical_inputs[i][j] = bottom_output
                     if j > 0:
-                        left_output = self._process_rightwards(node_outputs[i][j-1], i, j, training=training)
+                        left_output = self._process_rightwards(node_outputs[i][j-1], i, j, training=training,
+                                                               reuse_variables=reuse_variables)
                         lateral_inputs[i][j] = left_output
 
                     node_outputs[i][j] = bottom_output + left_output
 
             # Final lateral connection.
             previous_output = node_outputs[0][self.width-1]
-            final_output = self._process_rightwards(previous_output, 0, self.width, training=training)
+            final_output = self._process_rightwards(previous_output, 0, self.width, training=training,
+                                                    reuse_variables=reuse_variables)
             return final_output, node_outputs, lateral_inputs, vertical_inputs
 
     # Private helper functions.
-    def _process_rightwards(self, input, i, j, training=False):
+    def _process_rightwards(self, input, i, j, training=False, reuse_variables=tf.AUTO_REUSE):
 
         # The input and output lateral connections should never be dropped, as they cutoff gradients hard.
         is_output = j == self.width
         force_alive = i == 0 and (j == 0 or j == self.width)
         total_dropout_rate = 0.0 if force_alive else self.connection_dropout_rate
         return LateralConnection(
-            'right_%d%d' % (i, j),
+            'right_%d_%d' % (i, j),
             self.output_spec if is_output else self.lateral_specs[i],
             activation_fn=self.activation_fn,
             total_dropout_rate=total_dropout_rate,
             regularizer=self.regularizer
-        ).get_forward(input, training=training)
+        ).get_forward(input, training=training, reuse_variables=reuse_variables)
 
-    def _process_upwards(self, input, i, j):
+    def _process_upwards(self, input, i, j, reuse_variables=tf.AUTO_REUSE):
         return UpSamplingConnection(
-            'up_%d%d' % (i, j),
+            'up_%d_%d' % (i, j),
             self.upsample_specs[i],
             activation_fn=self.activation_fn,
             regularizer=self.regularizer
-        ).get_forward(input)
+        ).get_forward(input, reuse_variables=reuse_variables)
 
-    def _process_downwards(self, input, i, j):
+    def _process_downwards(self, input, i, j, reuse_variables=tf.AUTO_REUSE):
         return DownSamplingConnection(
-            'down_%d%d' % (i, j),
+            'down_%d_%d' % (i, j),
             self.downsample_specs[i],
             activation_fn=self.activation_fn,
             regularizer=self.regularizer
-        ).get_forward(input)
+        ).get_forward(input, reuse_variables=reuse_variables)

@@ -43,7 +43,7 @@ class ContextInterp:
 
             # Get a->b and b->a flows from PWCNet.
             # TODO: Migrate to pwcnet.get_bidirectional.
-            all_flows, _ = self.pwcnet.get_forward(from_frames, to_frames)
+            all_flows, _ = self.pwcnet.get_forward(from_frames, to_frames, reuse_variables=reuse_variables)
             flow_a_b = all_flows[:batch_size]
             flow_b_a = all_flows[batch_size:]
 
