@@ -1,9 +1,8 @@
 import os.path
 import tensorflow as tf
 from common.utils.flow import get_tf_flow_visualization
-from common.utils.misc import accumulate_list_into
+from common.utils.multi_gpu import average_gradients, get_available_gpus, accumulate_list_into
 from common.utils.profile import save_timeline
-from common.utils.tf import average_gradients, get_available_gpus
 from data.flow.flow_data import FlowDataSet
 from pwcnet.model import PWCNet
 from train.trainer import Trainer

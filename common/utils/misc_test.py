@@ -164,35 +164,5 @@ class TestCompileArgs(unittest.TestCase):
         self.assertListEqual(['--bar=3.14', '--bool=False', '--foo="I am string."'], args)
 
 
-class TestListAccumulation(unittest.TestCase):
-    def test_accumulate_once(self):
-        items_list = []
-        items = [1, 2]
-        accumulate_list_into(items, items_list)
-        self.assertListEqual([[1], [2]], items_list)
-
-    def test_accumulate_twice(self):
-        items_list = []
-        items = [1, 2]
-        accumulate_list_into(items, items_list)
-        items = [3, 4]
-        accumulate_list_into(items, items_list)
-        self.assertListEqual([[1, 3], [2, 4]], items_list)
-
-    def test_empty(self):
-        items_list = []
-        items = []
-        accumulate_list_into(items, items_list)
-        self.assertListEqual([], items_list)
-
-    def test_single(self):
-        items_list = []
-        items = [1]
-        accumulate_list_into(items, items_list)
-        items = [2]
-        accumulate_list_into(items, items_list)
-        self.assertListEqual([[1, 2]], items_list)
-
-
 if __name__ == '__main__':
     unittest.main()
