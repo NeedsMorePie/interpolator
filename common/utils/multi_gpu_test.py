@@ -5,11 +5,17 @@ from common.utils.multi_gpu import *
 
 class TestMultiGPUUtils(unittest.TestCase):
     def setUp(self):
+        # Environment must mock at least 2 CPUs just in case there are no GPUs.
         config = tf.ConfigProto(device_count={'CPU': 2})
         config.gpu_options.allow_growth = True
         self.sess = tf.Session(config=config)
 
     def tearDown(self):
+        # Reset the environment to the default number of CPUs.
+        self.sess.close()
+        config = tf.ConfigProto(device_count={})
+        config.gpu_options.allow_growth = True
+        self.sess = tf.Session(config=config)
         self.sess.close()
 
     def test_average_gradients(self):
