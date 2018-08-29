@@ -200,12 +200,12 @@ class TestPWCModel(unittest.TestCase):
         input_image_a = tf.placeholder(shape=[None, height, width, num_features], dtype=tf.float32)
         input_image_b = tf.placeholder(shape=[None, height, width, num_features], dtype=tf.float32)
         trainable_vars_before = len(tf.trainable_variables())  # Global scope used to make sure we don't miss anything.
-        _ = pwc_net_shared.get_forward(input_image_a, input_image_b)
+        pwc_net_shared.get_forward(input_image_a, input_image_b)
         trainable_vars_after = len(tf.trainable_variables())
         self.assertGreater(trainable_vars_after, trainable_vars_before)
 
         # Do it again and check that the number of trainable variables has not increased.
-        _ = pwc_net_shared.get_forward(input_image_a, input_image_b)
+        pwc_net_shared.get_forward(input_image_a, input_image_b)
         self.assertEqual(trainable_vars_after, len(tf.trainable_variables()))
 
     def test_network_shares_weights_bidirectional(self):
@@ -218,12 +218,12 @@ class TestPWCModel(unittest.TestCase):
         input_image_a = tf.placeholder(shape=[None, height, width, num_features], dtype=tf.float32)
         input_image_b = tf.placeholder(shape=[None, height, width, num_features], dtype=tf.float32)
         trainable_vars_before = len(tf.trainable_variables())  # Global scope used to make sure we don't miss anything.
-        _ = pwc_net_shared.get_bidirectional(input_image_a, input_image_b)
+        pwc_net_shared.get_bidirectional(input_image_a, input_image_b)
         trainable_vars_after = len(tf.trainable_variables())
         self.assertGreater(trainable_vars_after, trainable_vars_before)
 
         # Do it again and check that the number of trainable variables has not increased.
-        _ = pwc_net_shared.get_bidirectional(input_image_a, input_image_b)
+        pwc_net_shared.get_bidirectional(input_image_a, input_image_b)
         self.assertEqual(trainable_vars_after, len(tf.trainable_variables()))
 
 
