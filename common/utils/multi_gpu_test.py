@@ -9,6 +9,9 @@ class TestMultiGPUUtils(unittest.TestCase):
         config.gpu_options.allow_growth = True
         self.sess = tf.Session(config=config)
 
+    def tearDown(self):
+        self.sess.close()
+
     def test_average_gradients(self):
         grad_tensor_gpu0_1 = tf.placeholder(shape=(2, 2), dtype=tf.float32)
         grad_tensor_gpu0_2 = tf.placeholder(shape=(1, 3), dtype=tf.float32)
