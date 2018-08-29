@@ -208,6 +208,7 @@ class TestMultiGPUUtils(unittest.TestCase):
     def test_create_train_op_multiple_devices(self):
         devices = self.get_devices_for_testing()
         variables = []
+        losses = []
 
         def build_network_outputs(tensor_1, tensor_2, tensor_3):
             with tf.variable_scope('multi_device_test_scope', reuse=tf.AUTO_REUSE):
@@ -216,6 +217,7 @@ class TestMultiGPUUtils(unittest.TestCase):
                 variables.append(variable)
                 loss_per_example = tf.expand_dims((tensor_1 + tensor_2) * tensor_3 * variable, axis=-1)
                 loss = tf.reduce_mean(loss_per_example)
+                losses.append(loss)
                 return {'loss': TensorIO([loss]), 'variable': TensorIO([variable]),
                         'loss_per_example': TensorIO([loss_per_example], TensorIO.BATCH)}
 
@@ -230,6 +232,8 @@ class TestMultiGPUUtils(unittest.TestCase):
         self.assertTrue('loss' in output_dict)
         self.assertEqual(2, len(variables))  # This ensures 2 sub-batches are made.
         self.assertEqual(variables[0], variables[1])  # This ensures the shared variables are the same.
+        self.assertEqual(devices[0], losses[0].device)
+        self.assertEqual(devices[1], losses[1].device)
         self.sess.run(tf.global_variables_initializer())
 
         loss = self.sess.run(output_dict['loss'].first())
@@ -249,12 +253,14 @@ class TestMultiGPUUtils(unittest.TestCase):
     def test_create_train_op_multiple_devices_unshared_variable_failure(self):
         devices = self.get_devices_for_testing()
         variables = []
+        losses = []
 
         def build_network_outputs(tensor_1, tensor_2, tensor_3):
             with tf.variable_scope('multi_device_test_scope_failure', reuse=False):
                 variable = tf.Variable(1.0, trainable=True, dtype=tf.float32)
                 variables.append(variable)
                 loss = tf.reduce_mean((tensor_1 + tensor_2) * tensor_3 * variable)
+                losses.append(loss)
                 return {'loss': TensorIO([loss]), 'variable': TensorIO([variable])}
 
         # Note this learning rate is set up such that the loss is 0.0 after 1 iteration.
@@ -266,6 +272,10 @@ class TestMultiGPUUtils(unittest.TestCase):
             optimizer, build_network_outputs, batched_network_args, other_network_args, available_devices=devices)
         self.assertEqual(2, len(output_dict.keys()))
         self.assertTrue('loss' in output_dict)
+        self.assertEqual(2, len(variables))  # This ensures 2 sub-batches are made.
+        self.assertNotEqual(variables[0], variables[1])  # This ensures the shared variables are the same.
+        self.assertEqual(devices[0], losses[0].device)
+        self.assertEqual(devices[1], losses[1].device)
         self.sess.run(tf.global_variables_initializer())
 
         loss = self.sess.run(output_dict['loss'].first())
@@ -286,9 +296,9 @@ class TestMultiGPUUtils(unittest.TestCase):
     def get_devices_for_testing():
         available_gpus = get_available_gpus()
         if len(available_gpus) == 0:
-            devices = ['/cpu:0', '/cpu:0']
+            devices = ['/device:CPU:0', '/device:CPU:0']
         elif len(available_gpus) == 1:
-            devices = [available_gpus[0], '/cpu:0']
+            devices = [available_gpus[0], '/device:CPU:0']
         else:
             devices = [available_gpus[0], available_gpus[1]]
         return devices
