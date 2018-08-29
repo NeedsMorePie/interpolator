@@ -185,8 +185,11 @@ class TestMultiGPUUtils(unittest.TestCase):
         self.assertEqual(2, len(output_dict.keys()))
         self.assertTrue('loss' in output_dict)
         self.sess.run(tf.global_variables_initializer())
-        _, loss = self.sess.run([train_op, output_dict['loss'].first()])
+
+        loss = self.sess.run(output_dict['loss'].first())
         self.assertEqual(6.0, loss)
+
+        self.sess.run(train_op)
         step, loss, variable = self.sess.run(
             [global_step, output_dict['loss'].first(), output_dict['variable'].first()])
         self.assertAlmostEqual(0.0, loss, places=5)
@@ -214,17 +217,19 @@ class TestMultiGPUUtils(unittest.TestCase):
             optimizer, build_network_outputs, batched_network_args, other_network_args, available_devices=devices)
         self.assertEqual(2, len(output_dict.keys()))
         self.assertTrue('loss' in output_dict)
+        self.assertEqual(2, len(variables))
+        self.assertEqual(variables[0], variables[1])
         self.sess.run(tf.global_variables_initializer())
-        _, loss = self.sess.run([train_op, output_dict['loss'].first()])
+
+        loss = self.sess.run(output_dict['loss'].first())
         self.assertEqual(6.0, loss)
+
+        self.sess.run(train_op)
         step, loss, variable = self.sess.run(
             [global_step, output_dict['loss'].first(), output_dict['variable'].first()])
         self.assertAlmostEqual(0.0, loss, places=5)
         self.assertAlmostEqual(0.0, variable, places=5)
         self.assertEqual(1, step)
-        variable_1, variable_2 = self.sess.run(variables)
-        self.assertAlmostEqual(0.0, variable_1, places=5)
-        self.assertAlmostEqual(0.0, variable_2, places=5)
 
     def test_create_train_op_multiple_devices_unshared_variable_failure(self):
         devices = self.get_devices_for_testing()
@@ -247,13 +252,17 @@ class TestMultiGPUUtils(unittest.TestCase):
         self.assertEqual(2, len(output_dict.keys()))
         self.assertTrue('loss' in output_dict)
         self.sess.run(tf.global_variables_initializer())
-        _, loss = self.sess.run([train_op, output_dict['loss'].first()])
+
+        loss = self.sess.run(output_dict['loss'].first())
         self.assertEqual(6.0, loss)
+
+        self.sess.run(train_op)
         step, loss, variable = self.sess.run(
             [global_step, output_dict['loss'].first(), output_dict['variable'].first()])
         self.assertAlmostEqual(3.0, loss, places=5)
         self.assertAlmostEqual(0.5, variable, places=5)
         self.assertEqual(1, step)
+
         variable_1, variable_2 = self.sess.run(variables)
         self.assertAlmostEqual(0.0, variable_1, places=5)
         self.assertAlmostEqual(1.0, variable_2, places=5)
