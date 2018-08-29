@@ -171,9 +171,12 @@ class TestMultiGPUUtils(unittest.TestCase):
         self.create_train_op_one_device_helper(['/cpu:0'])
 
     def create_train_op_one_device_helper(self, devices):
+        variables = []
+
         def build_network_outputs(tensor_1, tensor_2, tensor_3):
             variable = tf.Variable(1.0, trainable=True, dtype=tf.float32)
             loss = tf.reduce_mean((tensor_1 + tensor_2) * tensor_3 * variable)
+            variables.append(variable)
             return {'loss': TensorIO([loss]), 'variable': TensorIO([variable])}
 
         # Note this learning rate is set up such that the loss is 0.0 after 1 iteration.
@@ -183,6 +186,7 @@ class TestMultiGPUUtils(unittest.TestCase):
 
         train_op, global_step, output_dict = create_train_op(
             optimizer, build_network_outputs, batched_network_args, other_network_args, available_devices=devices)
+        self.assertEqual(1, len(variables))
         self.assertEqual(2, len(output_dict.keys()))
         self.assertTrue('loss' in output_dict)
         self.sess.run(tf.global_variables_initializer())
