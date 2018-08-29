@@ -8,11 +8,17 @@ project(interpolator)
 # Get Tf include dirs, see https://www.tensorflow.org/how_tos/adding_an_op/
 execute_process(COMMAND python -c "import tensorflow; print(tensorflow.sysconfig.get_include())" OUTPUT_VARIABLE TF_INCLUDE_DIRS)
 string(REGEX REPLACE "\n$" "" TF_INCLUDE_DIRS ${TF_INCLUDE_DIRS})
+if("${TF_INCLUDE_DIRS}" STREQUAL "")
+    message(FATAL_ERROR "TF_INCLUDE_DIRS could not be found. Make sure you are running this in an environment with Tensorflow installed.")
+endif()
 message(STATUS "TF_INCLUDE_DIRS is ${TF_INCLUDE_DIRS}")
 
 # Get Tf library dirs, see https://github.com/tensorflow/tensorflow/issues/13607
 execute_process(COMMAND python -c "import tensorflow as tf; print(tf.sysconfig.get_lib())" OUTPUT_VARIABLE TF_LIB_DIR)
 string(REGEX REPLACE "\n$" "" TF_LIB_DIR ${TF_LIB_DIR})
+if("${TF_LIB_DIR}" STREQUAL "")
+    message(FATAL_ERROR "TF_LIB_DIR could not be found. Make sure you are running this in an environment with Tensorflow installed.")
+endif()
 message(STATUS "TF_LIB_DIR is ${TF_LIB_DIR}")
 
 find_package(CUDA)
@@ -39,7 +45,7 @@ if(CUDA_FOUND)
     endif()
 else()
     set(CUDA_LIBRARIES "")
-    message(STATUS "Compilation of ops will be for the CPU only")
+    message(FATAL_ERROR "CUDA not found. You may need to manually specify the location by adding '-D CUDA_TOOLKIT_ROOT_DIR=/path/to/cuda' to the cmake command line.")
 endif()
 
 # Set header include directories.
