@@ -259,8 +259,16 @@ class TestGridNet(unittest.TestCase):
         trainable_vars_before = len(tf.trainable_variables())
         gridnet.get_forward(input_features_tensor, training=True, reuse_variables=tf.AUTO_REUSE)
         trainable_vars_after = len(tf.trainable_variables())
+        vars_after = tf.trainable_variables()
         self.assertGreater(trainable_vars_after, trainable_vars_before)
 
         # Do it again and check that the number of trainable variables has not increased.
         gridnet.get_forward(input_features_tensor, training=True, reuse_variables=tf.AUTO_REUSE)
+        diff = set(tf.trainable_variables()) - set(vars_after)
+        for var in diff:
+            print(var.name)
         self.assertEqual(trainable_vars_after, len(tf.trainable_variables()))
+
+
+if __name__ == '__main__':
+    unittest.main()

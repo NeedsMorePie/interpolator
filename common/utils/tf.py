@@ -36,13 +36,19 @@ def pelu(x):
         return negative + positive
 
 
+# https://stackoverflow.com/questions/39975676/how-to-implement-prelu-activation-in-tensorflow
 def prelu(_x):
     """
     :param _x: Tensor of shape [batch_size, H, W, C].
     :return: Prelu'd tensor of shape [batch_size, H, W, C].
     """
-    layer = tf.keras.layers.PReLU(shared_axes=[1, 2])
-    return layer(_x)
+    with tf.variable_scope('activation', initializer=tf.constant_initializer(1.0)):
+        alphas = tf.get_variable('alpha', _x.get_shape()[-1],
+                                 initializer=tf.constant_initializer(0.0),
+                                 dtype=tf.float32)
+        pos = tf.nn.relu(_x)
+        neg = alphas * (_x - abs(_x)) * 0.5
+        return pos + neg
 
 
 def sliding_window_slice(x, slice_locations):
