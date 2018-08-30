@@ -192,7 +192,7 @@ class ConvNetwork(RestorableNetwork):
                                                bias_regularizer=self.regularizer,
                                                name=conv_name)
             if activation_fn is not None:
-                with tf.variable_scope(conv_name):
+                with tf.variable_scope(conv_name + '_activation'):
                     previous_output = activation_fn(previous_output)
 
             if self.dense_net:
