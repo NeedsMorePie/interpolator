@@ -181,6 +181,7 @@ class ConvNetwork(RestorableNetwork):
                 inputs = previous_output
 
             # Create the convolution layer.
+            conv_name = 'conv_' + str(i)
             previous_output = tf.layers.conv2d(inputs=inputs,
                                                filters=num_output_features,
                                                kernel_size=[kernel_size, kernel_size],
@@ -190,13 +191,14 @@ class ConvNetwork(RestorableNetwork):
                                                activation=None,
                                                kernel_regularizer=self.regularizer,
                                                bias_regularizer=self.regularizer,
-                                               name='conv_' + str(i))
+                                               name=conv_name)
+            if activation_fn is not None:
+                with tf.variable_scope(conv_name):
+                    previous_output = activation_fn(previous_output)
+
             if self.dense_net:
                 # Dense layer output consists of all previous layer outputs and the input.
                 dense_outputs.append(tf.concat([inputs, previous_output], axis=-1))
-
-            if activation_fn is not None:
-                previous_output = activation_fn(previous_output)
 
             layer_outputs.append(previous_output)
 
