@@ -123,17 +123,21 @@ class PWCNet(RestorableNetwork):
                  previous_forward_flows: all previous flow outputs of the estimator networks and the context network.
                  previous_backward_flows: all previous flow outputs of the estimator networks and the context network.
         """
-        batch_size = tf.shape(image_a)[0]
-        input_stack_a = tf.concat([image_a, image_b], axis=0)
-        input_stack_b = tf.concat([image_b, image_a], axis=0)
+        with tf.name_scope('preprocess_bidirectional'):
+            batch_size = tf.shape(image_a)[0]
+            input_stack_a = tf.concat([image_a, image_b], axis=0)
+            input_stack_b = tf.concat([image_b, image_a], axis=0)
+
         final_flow, previous_flows = self.get_forward(input_stack_a, input_stack_b, reuse_variables=reuse_variables)
-        final_forward_flow = final_flow[0:batch_size, ...]
-        final_backward_flow = final_flow[batch_size:, ...]
-        previous_forward_flows = []
-        previous_backward_flows = []
-        for previous_flow in previous_flows:
-            previous_forward_flows.append(previous_flow[0:batch_size, ...])
-            previous_backward_flows.append(previous_flow[batch_size:, ...])
+
+        with tf.name_scope('postprocess_bidirectional'):
+            final_forward_flow = final_flow[0:batch_size, ...]
+            final_backward_flow = final_flow[batch_size:, ...]
+            previous_forward_flows = []
+            previous_backward_flows = []
+            for previous_flow in previous_flows:
+                previous_forward_flows.append(previous_flow[0:batch_size, ...])
+                previous_backward_flows.append(previous_flow[batch_size:, ...])
 
         return final_forward_flow, final_backward_flow, previous_forward_flows, previous_backward_flows
 
@@ -234,5 +238,6 @@ class PWCNet(RestorableNetwork):
                  backward_occlusion_masks: List of tensors of shape [B, H, W, 1].
                  layer_losses_detailed: List of dicts. Each dict contains the individual fully weighted losses.
         """
-        return create_multi_level_unflow_loss(image_a, image_b, previous_forward_flows, previous_backward_flows,
-                                              self.flow_scaling)
+        with tf.name_scope('unflow_training_loss'):
+            return create_multi_level_unflow_loss(image_a, image_b, previous_forward_flows, previous_backward_flows,
+                                                  self.flow_scaling)
