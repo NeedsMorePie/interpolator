@@ -28,7 +28,6 @@ class PWCNet(RestorableNetwork):
 
         if flow_layer_loss_weights is None:
             self.flow_layer_loss_weights = [0.32, 0.08, 0.02, 0.01, 0.002, 0.003]
-            self.flow_layer_loss_weights = [weight / 2.0 for weight in self.flow_layer_loss_weights]
         else:
             self.flow_layer_loss_weights = flow_layer_loss_weights
 
@@ -95,7 +94,7 @@ class PWCNet(RestorableNetwork):
                 previous_flows.append(previous_flow)
                 assert estimator_outputs[-1] == previous_flow
                 # Get the previous_estimator_features differently depending on whether the estimator is dense.
-                if estimator_network.dense_net and False:  # TODO: Figure out the effect of using dense outputs.
+                if estimator_network.dense_net:
                     assert len(dense_outputs) > 1
                     previous_estimator_features = dense_outputs[-2]
                 else:

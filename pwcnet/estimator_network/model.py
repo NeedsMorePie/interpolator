@@ -8,7 +8,7 @@ from pwcnet.warp.warp import backward_warp
 class EstimatorNetwork(ConvNetwork):
     def __init__(self, name='estimator_network', layer_specs=None,
                  activation_fn=leaky_relu,
-                 regularizer=None, search_range=4, dense_net=True, cost_volume_activation=False):
+                 regularizer=None, search_range=4, dense_net=True, cost_volume_activation=True):
         """
         :param name: Str. For variable scoping.
         :param layer_specs: See parent class.
