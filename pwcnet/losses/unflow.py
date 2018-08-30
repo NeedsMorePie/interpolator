@@ -39,62 +39,72 @@ def compute_losses(im1, im2, flow_fw, flow_bw, prewarp_scaling=1.0,
     """
     losses = {}
 
-    flow_fw_corrected_magnitude = flow_fw * prewarp_scaling
-    flow_bw_corrected_magnitude = flow_bw * prewarp_scaling
+    with tf.name_scope('image_warping'):
+        flow_fw_corrected_magnitude = flow_fw * prewarp_scaling
+        flow_bw_corrected_magnitude = flow_bw * prewarp_scaling
 
-    im2_warped = backward_warp(im2, flow_fw_corrected_magnitude)
-    im1_warped = backward_warp(im1, flow_bw_corrected_magnitude)
+        im2_warped = backward_warp(im2, flow_fw_corrected_magnitude)
+        im1_warped = backward_warp(im1, flow_bw_corrected_magnitude)
 
-    im_diff_fw = im1 - im2_warped
-    im_diff_bw = im2 - im1_warped
+        im_diff_fw = im1 - im2_warped
+        im_diff_bw = im2 - im1_warped
 
-    disocc_fw = create_disocclusion_map(flow_fw_corrected_magnitude)
-    disocc_bw = create_disocclusion_map(flow_bw_corrected_magnitude)
+    with tf.name_scope('masks'):
+        disocc_fw = create_disocclusion_map(flow_fw_corrected_magnitude)
+        disocc_bw = create_disocclusion_map(flow_bw_corrected_magnitude)
 
-    if border_mask is None:
-        mask_fw = create_outgoing_mask(flow_fw_corrected_magnitude)
-        mask_bw = create_outgoing_mask(flow_bw_corrected_magnitude)
-    else:
-        mask_fw = border_mask
-        mask_bw = border_mask
+        if border_mask is None:
+            mask_fw = create_outgoing_mask(flow_fw_corrected_magnitude)
+            mask_bw = create_outgoing_mask(flow_bw_corrected_magnitude)
+        else:
+            mask_fw = border_mask
+            mask_bw = border_mask
 
-    fb_occ_fw, fb_occ_bw, flow_diff_fw, flow_diff_bw = occlusion(flow_fw, flow_bw, prewarp_scaling)
+        fb_occ_fw, fb_occ_bw, flow_diff_fw, flow_diff_bw = occlusion(flow_fw, flow_bw, prewarp_scaling)
 
-    if mask_occlusion == 'fb':
-        mask_fw *= (1 - fb_occ_fw)
-        mask_bw *= (1 - fb_occ_bw)
-    elif mask_occlusion == 'disocc':
-        mask_fw *= (1 - disocc_bw)
-        mask_bw *= (1 - disocc_fw)
+        if mask_occlusion == 'fb':
+            mask_fw *= (1 - fb_occ_fw)
+            mask_bw *= (1 - fb_occ_bw)
+        elif mask_occlusion == 'disocc':
+            mask_fw *= (1 - disocc_bw)
+            mask_bw *= (1 - disocc_fw)
 
-    occ_fw = 1 - mask_fw
-    occ_bw = 1 - mask_bw
+        occ_fw = 1 - mask_fw
+        occ_bw = 1 - mask_bw
 
-    losses['sym'] = (charbonnier_loss(occ_fw - disocc_bw) +
-                     charbonnier_loss(occ_bw - disocc_fw))
+    with tf.name_scope('sym'):
+        losses['sym'] = (charbonnier_loss(occ_fw - disocc_bw) +
+                         charbonnier_loss(occ_bw - disocc_fw))
 
-    losses['occ'] = (charbonnier_loss(occ_fw) +
-                     charbonnier_loss(occ_bw))
+    with tf.name_scope('occ'):
+        losses['occ'] = (charbonnier_loss(occ_fw) +
+                         charbonnier_loss(occ_bw))
 
-    losses['photo'] = (photometric_loss(im_diff_fw, mask_fw) +
-                       photometric_loss(im_diff_bw, mask_bw))
+    with tf.name_scope('photo'):
+        losses['photo'] = (photometric_loss(im_diff_fw, mask_fw) +
+                           photometric_loss(im_diff_bw, mask_bw))
 
-    losses['grad'] = (gradient_loss(im1, im2_warped, mask_fw) +
-                      gradient_loss(im2, im1_warped, mask_bw))
+    with tf.name_scope('grad'):
+        losses['grad'] = (gradient_loss(im1, im2_warped, mask_fw) +
+                          gradient_loss(im2, im1_warped, mask_bw))
 
-    losses['smooth_1st'] = (smoothness_loss(flow_fw) +
-                            smoothness_loss(flow_bw))
+    with tf.name_scope('smooth_1st'):
+        losses['smooth_1st'] = (smoothness_loss(flow_fw) +
+                                smoothness_loss(flow_bw))
 
-    losses['smooth_2nd'] = (second_order_loss(flow_fw) +
-                            second_order_loss(flow_bw))
+    with tf.name_scope('smooth_2nd'):
+        losses['smooth_2nd'] = (second_order_loss(flow_fw) +
+                                second_order_loss(flow_bw))
 
-    losses['fb'] = (charbonnier_loss(flow_diff_fw, mask_fw) +
-                    charbonnier_loss(flow_diff_bw, mask_bw))
+    with tf.name_scope('fb'):
+        losses['fb'] = (charbonnier_loss(flow_diff_fw, mask_fw) +
+                        charbonnier_loss(flow_diff_bw, mask_bw))
 
-    losses['ternary'] = (ternary_loss(im1, im2_warped, mask_fw,
-                                      max_distance=data_max_distance) +
-                         ternary_loss(im2, im1_warped, mask_bw,
-                                      max_distance=data_max_distance))
+    with tf.name_scope('ternary'):
+        losses['ternary'] = (ternary_loss(im1, im2_warped, mask_fw,
+                                          max_distance=data_max_distance) +
+                             ternary_loss(im2, im1_warped, mask_bw,
+                                          max_distance=data_max_distance))
 
     return losses, occ_fw, occ_bw
 

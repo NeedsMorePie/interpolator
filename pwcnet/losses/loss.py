@@ -100,39 +100,40 @@ def create_multi_level_unflow_loss(image_a, image_b, forward_flows, backward_flo
     for i, (forward_flow, backward_flow) in enumerate(zip(forward_flows, backward_flows)):
         if flow_layer_loss_weights[i] == 0.0:
             continue
-        _, flow_height, flow_width, _ = tf.unstack(tf.shape(forward_flow))
+        with tf.name_scope('layer_' + str(i) + '_loss'):
+            _, flow_height, flow_width, _ = tf.unstack(tf.shape(forward_flow))
 
-        # Resize the input images to match the corresponding flow size.
-        resize_image_a = tf.image.resize_bilinear(image_a, (flow_height, flow_width))
-        resize_image_b = tf.image.resize_bilinear(image_b, (flow_height, flow_width))
+            # Resize the input images to match the corresponding flow size.
+            resize_image_a = tf.image.resize_bilinear(image_a, (flow_height, flow_width))
+            resize_image_b = tf.image.resize_bilinear(image_b, (flow_height, flow_width))
 
-        # We must do this to interop with the rest of the network that uses a scaled flow due to the regular PWC Net
-        # loss function.
-        unscaled_forward_flow = forward_flow / flow_scaling
-        unscaled_backward_flow = backward_flow / flow_scaling
+            # We must do this to interop with the rest of the network that uses a scaled flow due to the regular PWC Net
+            # loss function.
+            unscaled_forward_flow = forward_flow / flow_scaling
+            unscaled_backward_flow = backward_flow / flow_scaling
 
-        # The res_scaling is only used directly before using a flow to warp an image.
-        # The reason we don't just apply the flow scaling here is because part of the UnFlow loss diffs the flow
-        # magnitudes, and it's best to keep the loss magnitudes the same at all levels.
-        res_scaling = tf.cast(flow_height, dtype=tf.float32) / tf.cast(image_height, dtype=tf.float32)
-        losses, occ_fw, occ_bw = compute_losses(resize_image_a, resize_image_b, unscaled_forward_flow,
-                                                unscaled_backward_flow, prewarp_scaling=res_scaling,
-                                                data_max_distance=layer_patch_distances[i])
-        forward_occlusion_masks.append(occ_fw)
-        backward_occlusion_masks.append(occ_bw)
+            # The res_scaling is only used directly before using a flow to warp an image.
+            # The reason we don't just apply the flow scaling here is because part of the UnFlow loss diffs the flow
+            # magnitudes, and it's best to keep the loss magnitudes the same at all levels.
+            res_scaling = tf.cast(flow_height, dtype=tf.float32) / tf.cast(image_height, dtype=tf.float32)
+            losses, occ_fw, occ_bw = compute_losses(resize_image_a, resize_image_b, unscaled_forward_flow,
+                                                    unscaled_backward_flow, prewarp_scaling=res_scaling,
+                                                    data_max_distance=layer_patch_distances[i])
+            forward_occlusion_masks.append(occ_fw)
+            backward_occlusion_masks.append(occ_bw)
 
-        # Get losses for this layer.
-        this_layer_losses = []
-        this_layer_losses_dict = {}
-        for key in loss_weights.keys():
-            assert key in losses
-            loss = loss_weights[key] * losses[key]
-            this_layer_losses.append(loss)
-            this_layer_losses_dict[key] = flow_layer_loss_weights[i] * loss
-        if len(this_layer_losses) > 0:
-            # Sum all losses for this layer and apply the loss weight.
-            layer_losses.append(flow_layer_loss_weights[i] * tf.add_n(this_layer_losses))
-            layer_losses_detailed.append(this_layer_losses_dict)
+            # Get losses for this layer.
+            this_layer_losses = []
+            this_layer_losses_dict = {}
+            for key in loss_weights.keys():
+                assert key in losses
+                loss = loss_weights[key] * losses[key]
+                this_layer_losses.append(loss)
+                this_layer_losses_dict[key] = flow_layer_loss_weights[i] * loss
+            if len(this_layer_losses) > 0:
+                # Sum all losses for this layer and apply the loss weight.
+                layer_losses.append(flow_layer_loss_weights[i] * tf.add_n(this_layer_losses))
+                layer_losses_detailed.append(this_layer_losses_dict)
 
     # Sum up the total loss.
     if len(layer_losses) > 0:
