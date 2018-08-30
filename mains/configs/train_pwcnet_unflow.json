@@ -13,6 +13,7 @@
         "directory": { "var_ref": "flying_chairs_data" },
         "checkpoint_directory": { "var_ref": "checkpoint_directory" },
         "config": "mains/configs/pwcnet_schedule/train_pwcnet_flyingchairs_0.json",
+        "unflow": true,
         "iterations": 100000
       }
     },
@@ -22,6 +23,7 @@
         "directory": { "var_ref": "flying_chairs_data" },
         "checkpoint_directory": { "var_ref": "checkpoint_directory" },
         "config": "mains/configs/pwcnet_schedule/train_pwcnet_flyingchairs_1.json",
+        "unflow": true,
         "iterations": 100000
       }
     },
@@ -31,6 +33,7 @@
         "directory": { "var_ref": "flying_chairs_data" },
         "checkpoint_directory": { "var_ref": "checkpoint_directory" },
         "config": "mains/configs/pwcnet_schedule/train_pwcnet_flyingchairs_2.json",
+        "unflow": true,
         "iterations": 100000
       }
     },
@@ -40,6 +43,7 @@
         "directory": { "var_ref": "flying_chairs_data" },
         "checkpoint_directory": { "var_ref": "checkpoint_directory" },
         "config": "mains/configs/pwcnet_schedule/train_pwcnet_flyingchairs_3.json",
+        "unflow": true,
         "iterations": 100000
       }
     },
@@ -49,6 +53,7 @@
         "directory": { "var_ref": "flying_chairs_data" },
         "checkpoint_directory": { "var_ref": "checkpoint_directory" },
         "config": "mains/configs/pwcnet_schedule/train_pwcnet_flyingchairs_4.json",
+        "unflow": true,
         "iterations": 100000
       }
     },
@@ -58,6 +63,7 @@
         "directory": { "var_ref": "flying_things_data" },
         "checkpoint_directory": { "var_ref": "checkpoint_directory" },
         "config": "mains/configs/pwcnet_schedule/train_pwcnet_flyingthings_5.json",
+        "unflow": true,
         "iterations": 100000
       }
     },
@@ -67,6 +73,7 @@
         "directory": { "var_ref": "flying_things_data" },
         "checkpoint_directory": { "var_ref": "checkpoint_directory" },
         "config": "mains/configs/pwcnet_schedule/train_pwcnet_flyingthings_6.json",
+        "unflow": true,
         "iterations": 100000
       }
     },
@@ -76,6 +83,7 @@
         "directory": { "var_ref": "flying_things_data" },
         "checkpoint_directory": { "var_ref": "checkpoint_directory" },
         "config": "mains/configs/pwcnet_schedule/train_pwcnet_flyingthings_7.json",
+        "unflow": true,
         "iterations": 100000
       }
     },
@@ -85,6 +93,7 @@
         "directory": { "var_ref": "flying_things_data" },
         "checkpoint_directory": { "var_ref": "checkpoint_directory" },
         "config": "mains/configs/pwcnet_schedule/train_pwcnet_flyingthings_8.json",
+        "unflow": true,
         "iterations": 100000
       }
     },
@@ -94,6 +103,7 @@
         "directory": { "var_ref": "flying_things_data" },
         "checkpoint_directory": { "var_ref": "checkpoint_directory" },
         "config": "mains/configs/pwcnet_schedule/train_pwcnet_flyingthings_9.json",
+        "unflow": true,
         "iterations": 100000
       }
     },
@@ -103,6 +113,7 @@
         "directory": { "var_ref": "sintel_data" },
         "checkpoint_directory": { "var_ref": "checkpoint_directory" },
         "config": "mains/configs/pwcnet_schedule/train_pwcnet_sintel_10.json",
+        "unflow": true,
         "iterations": 100000
       }
     },
@@ -112,6 +123,7 @@
         "directory": { "var_ref": "sintel_data" },
         "checkpoint_directory": { "var_ref": "checkpoint_directory" },
         "config": "mains/configs/pwcnet_schedule/train_pwcnet_sintel_11.json",
+        "unflow": true,
         "iterations": 100000
       }
     },
@@ -121,6 +133,7 @@
         "directory": { "var_ref": "sintel_data" },
         "checkpoint_directory": { "var_ref": "checkpoint_directory" },
         "config": "mains/configs/pwcnet_schedule/train_pwcnet_sintel_12.json",
+        "unflow": true,
         "iterations": 100000
       }
     },
@@ -130,6 +143,7 @@
         "directory": { "var_ref": "sintel_data" },
         "checkpoint_directory": { "var_ref": "checkpoint_directory" },
         "config": "mains/configs/pwcnet_schedule/train_pwcnet_sintel_13.json",
+        "unflow": true,
         "iterations": 100000
       }
     },
@@ -139,6 +153,7 @@
         "directory": { "var_ref": "sintel_data" },
         "checkpoint_directory": { "var_ref": "checkpoint_directory" },
         "config": "mains/configs/pwcnet_schedule/train_pwcnet_sintel_14.json",
+        "unflow": true,
         "iterations": 100000
       }
     }

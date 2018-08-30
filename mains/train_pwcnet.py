@@ -5,6 +5,7 @@ import tensorflow as tf
 from data.flow.flow_data import FlowDataSet
 from pwcnet.model import PWCNet
 from train.pwcnet.trainer import PWCNetTrainer
+from train.pwcnet.unflow_trainer import PWCNetUnflowTrainer
 
 
 def main():
@@ -40,7 +41,10 @@ def main():
                           augmentation_config=config)
 
     print('Initializing trainer and model ops...')
-    trainer = PWCNetTrainer(model, dataset, session, config)
+    if args.unflow:
+        trainer = PWCNetUnflowTrainer(model, dataset, session, config)
+    else:
+        trainer = PWCNetTrainer(model, dataset, session, config)
 
     print('Initializing variables...')
     session.run(tf.global_variables_initializer())
@@ -58,6 +62,8 @@ def add_args(parser):
                         help='Config json file path.')
     parser.add_argument('-i', '--iterations', type=int, default=1000000,
                         help='Number of iterations to train for.')
+    parser.add_argument('-u', '--unflow', type=bool, default=False,
+                        help='Whether to use UnFlow training loss.')
 
 
 if __name__ == "__main__":
