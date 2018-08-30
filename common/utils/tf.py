@@ -211,3 +211,14 @@ class AdamaxOptimizer(optimizer.Optimizer):
 
     def _apply_sparse(self, grad, var):
         raise NotImplementedError("Sparse gradient updates are not supported.")
+
+
+def leaky_relu(features, alpha=0.1, name=None):
+    """
+    Leaky relu wrapper function with the default alpha set to 0.1.
+    :param features: Tensor.
+    :param alpha: Slope of the activation function at x < 0.
+    :param name: A name for the operation (optional).
+    :return: Tensor. The activated value.
+    """
+    return tf.nn.leaky_relu(features, alpha=alpha, name=name)

@@ -1,36 +1,37 @@
 import tensorflow as tf
 from common.models import ConvNetwork
+from common.utils.tf import leaky_relu
 from pwcnet.cost_volume.cost_volume import cost_volume
 from pwcnet.warp.warp import backward_warp
 
 
 class EstimatorNetwork(ConvNetwork):
     def __init__(self, name='estimator_network', layer_specs=None,
-                 activation_fn=tf.nn.leaky_relu,
-                 regularizer=None, search_range=4, dense_net=True):
+                 activation_fn=leaky_relu,
+                 regularizer=None, search_range=4, dense_net=True, cost_volume_activation=True):
         """
         :param name: Str. For variable scoping.
         :param layer_specs: See parent class.
         :param activation_fn: Tensorflow activation function.
         :param regularizer: Tf regularizer such as tf.contrib.layers.l2_regularizer.
         :param dense_net: Bool. Default for PWC-Net is true.
+        :param cost_volume_activation: Bool. Whether to put an activation function on the cost volume.
         """
+        if layer_specs is None:
+            # PWC-Net default.
+            layer_specs = [[3, 128, 1, 1],
+                           [3, 128, 1, 1],
+                           [3, 96, 1, 1],
+                           [3, 64, 1, 1],
+                           [3, 32, 1, 1],
+                           [3, 2, 1, 1]]  # last_activation_fn is linear.
+
         super().__init__(name=name, layer_specs=layer_specs,
                          activation_fn=activation_fn, last_activation_fn=None,
                          regularizer=regularizer, padding='SAME', dense_net=dense_net)
 
-        if layer_specs is None:
-            # PWC-Net default.
-            self.layer_specs = [[3, 128, 1, 1],
-                                [3, 128, 1, 1],
-                                [3, 96, 1, 1],
-                                [3, 64, 1, 1],
-                                [3, 32, 1, 1],
-                                [3, 2, 1, 1]]  # last_activation_fn is linear.
-        else:
-            self.layer_specs = layer_specs
-
         self.search_range = search_range
+        self.cost_volume_activation = cost_volume_activation
 
     def get_forward(self, features1, features2, optical_flow, previous_estimator_feature,
                     pre_warp_scaling=1.0, reuse_variables=tf.AUTO_REUSE):
@@ -63,7 +64,9 @@ class EstimatorNetwork(ConvNetwork):
                 warped = backward_warp(warped, optical_flow * pre_warp_scaling)
 
             # Cost volume layer.
-            cv = self.activation_fn(cost_volume(features1, warped, search_range=self.search_range))
+            cv = cost_volume(features1, warped, search_range=self.search_range)
+            if self.cost_volume_activation:
+                cv = self.activation_fn(cv)
 
             # CNN layers.
             # Initial input has shape [batch_size, H, W, in_features + cv_size + 2]

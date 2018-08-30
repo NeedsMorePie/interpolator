@@ -1,11 +1,11 @@
 import tensorflow as tf
 from common.models import ConvNetwork
-from common.utils.tf import tf_coin_flip
+from common.utils.tf import tf_coin_flip, leaky_relu
 
 
 class LateralConnection(ConvNetwork):
     def __init__(self, name, layer_specs,
-                 activation_fn=tf.nn.leaky_relu,
+                 activation_fn=leaky_relu,
                  total_dropout_rate=0.0,
                  regularizer=None):
         """
@@ -61,7 +61,7 @@ class LateralConnection(ConvNetwork):
 
 class DownSamplingConnection(ConvNetwork):
     def __init__(self, name, layer_specs,
-                 activation_fn=tf.nn.leaky_relu,
+                 activation_fn=leaky_relu,
                  regularizer=None):
         """
         :param name: Str. For variable scoping.
@@ -98,7 +98,7 @@ class DownSamplingConnection(ConvNetwork):
 
 class UpSamplingConnection(ConvNetwork):
     def __init__(self, name, layer_specs,
-                 activation_fn=tf.nn.leaky_relu,
+                 activation_fn=leaky_relu,
                  regularizer=None):
         """
         :param name: Str. For variable scoping.
