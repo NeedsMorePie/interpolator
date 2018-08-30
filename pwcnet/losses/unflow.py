@@ -2,7 +2,7 @@
 # Commit 8bff4939963c7d0adb9435880dc506fb3f988080
 import tensorflow as tf
 import numpy as np
-from common.forward_warp.forward_warp import create_disocclusion_map
+from common.forward_warp.forward_warp import create_disocclusion_mask
 from pwcnet.warp.warp import backward_warp
 from tensorflow.contrib.distributions import Normal
 
@@ -50,8 +50,8 @@ def compute_losses(im1, im2, flow_fw, flow_bw, prewarp_scaling=1.0,
         im_diff_bw = im2 - im1_warped
 
     with tf.name_scope('masks'):
-        disocc_fw = create_disocclusion_map(flow_fw_corrected_magnitude)
-        disocc_bw = create_disocclusion_map(flow_bw_corrected_magnitude)
+        disocc_fw = create_disocclusion_mask(flow_fw_corrected_magnitude)
+        disocc_bw = create_disocclusion_mask(flow_bw_corrected_magnitude)
 
         if border_mask is None:
             mask_fw = create_outgoing_mask(flow_fw_corrected_magnitude)
@@ -156,15 +156,16 @@ def occlusion(flow_fw, flow_bw, prewarp_scaling):
              flow_diff_fw: Tensor of shape [B, H, W, 2]. Difference between backward and forward flows.
              flow_diff_bw. Tensor of shape [B, H, W, 2]. Difference between backward and forward flows.
     """
-    mag_sq = length_sq(flow_fw) + length_sq(flow_bw)
-    flow_bw_warped = backward_warp(flow_bw, flow_fw * prewarp_scaling)
-    flow_fw_warped = backward_warp(flow_fw, flow_bw * prewarp_scaling)
-    flow_diff_fw = flow_fw + flow_bw_warped
-    flow_diff_bw = flow_bw + flow_fw_warped
-    occ_thresh = 0.01 * mag_sq + 0.5
-    occ_fw = tf.cast(length_sq(flow_diff_fw) > occ_thresh, tf.float32)
-    occ_bw = tf.cast(length_sq(flow_diff_bw) > occ_thresh, tf.float32)
-    return occ_fw, occ_bw, flow_diff_fw, flow_diff_bw
+    with tf.name_scope('occlusion'):
+        mag_sq = length_sq(flow_fw) + length_sq(flow_bw)
+        flow_bw_warped = backward_warp(flow_bw, flow_fw * prewarp_scaling)
+        flow_fw_warped = backward_warp(flow_fw, flow_bw * prewarp_scaling)
+        flow_diff_fw = flow_fw + flow_bw_warped
+        flow_diff_bw = flow_bw + flow_fw_warped
+        occ_thresh = 0.01 * mag_sq + 0.5
+        occ_fw = tf.cast(length_sq(flow_diff_fw) > occ_thresh, tf.float32)
+        occ_bw = tf.cast(length_sq(flow_diff_bw) > occ_thresh, tf.float32)
+        return occ_fw, occ_bw, flow_diff_fw, flow_diff_bw
 
 
 def norm(x, sigma):
