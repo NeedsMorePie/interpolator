@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+from common.utils.tf import leaky_relu
 
 
 _default = object()
@@ -124,7 +125,7 @@ class RestorableNetwork():
 
 class ConvNetwork(RestorableNetwork):
     def __init__(self, name, layer_specs=None,
-                 activation_fn=tf.nn.leaky_relu,
+                 activation_fn=leaky_relu,
                  last_activation_fn=_default,
                  regularizer=None, padding='SAME', dense_net=False):
         """

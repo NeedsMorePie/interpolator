@@ -1,10 +1,11 @@
 import tensorflow as tf
 from common.models import ConvNetwork
+from common.utils.tf import leaky_relu
 
 
 class FeaturePyramidNetwork(ConvNetwork):
     def __init__(self, name='feature_pyramid_network', layer_specs=None,
-                 activation_fn=tf.nn.leaky_relu,
+                 activation_fn=leaky_relu,
                  regularizer=None, dense_net=False):
         """
         :param name: Str. For variable scoping.

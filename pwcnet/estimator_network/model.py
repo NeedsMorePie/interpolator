@@ -1,12 +1,13 @@
 import tensorflow as tf
 from common.models import ConvNetwork
+from common.utils.tf import leaky_relu
 from pwcnet.cost_volume.cost_volume import cost_volume
 from pwcnet.warp.warp import backward_warp
 
 
 class EstimatorNetwork(ConvNetwork):
     def __init__(self, name='estimator_network', layer_specs=None,
-                 activation_fn=tf.nn.leaky_relu,
+                 activation_fn=leaky_relu,
                  regularizer=None, search_range=4, dense_net=True, cost_volume_activation=False):
         """
         :param name: Str. For variable scoping.
