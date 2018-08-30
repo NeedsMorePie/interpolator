@@ -27,7 +27,7 @@ def tf_coin_flip(heads_rate):
 # https://github.com/tensorflow/tensorflow/issues/7712
 def pelu(x):
     """Parametric Exponential Linear Unit (https://arxiv.org/abs/1605.09332v1)."""
-    with tf.variable_scope(x.op.name + '_activation', initializer=tf.constant_initializer(1.0)):
+    with tf.variable_scope('activation', initializer=tf.constant_initializer(1.0)):
         shape = x.get_shape().as_list()[1:]
         alpha = tf.get_variable('alpha', shape)
         beta = tf.get_variable('beta', shape)
