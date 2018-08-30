@@ -157,12 +157,12 @@ class FlowDataSet(DataSet):
             if do_augmentations:
                 # Basic image augmentations.
                 image_a, image_b = tf_image_augmentation([image_a, image_b], self.config)
-                if self.config['do_scaling']:
+                if self.config['do_flipping']:
                     # Flip randomly in unison.
                     flow, images = tf_random_flip_flow(flow, [image_a, image_b], flip_hor=self.config['flip_hor'],
                                                        flip_ver=self.config['flip_ver'])
                     image_a, image_b = images
-                if self.config['do_flipping']:
+                if self.config['do_scaling']:
                     # Scale randomly in unison.
                     flow, images = tf_random_scale_flow(flow, [image_a, image_b], self.config)
                     image_a, image_b = images
