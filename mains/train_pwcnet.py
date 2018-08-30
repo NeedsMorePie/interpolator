@@ -41,7 +41,7 @@ def main():
                           augmentation_config=config)
 
     print('Initializing trainer and model ops...')
-    if args.unflow:
+    if args.loss == 'unflow':
         trainer = PWCNetUnflowTrainer(model, dataset, session, config)
     else:
         trainer = PWCNetTrainer(model, dataset, session, config)
@@ -62,8 +62,8 @@ def add_args(parser):
                         help='Config json file path.')
     parser.add_argument('-i', '--iterations', type=int, default=1000000,
                         help='Number of iterations to train for.')
-    parser.add_argument('-u', '--unflow', type=bool, default=False,
-                        help='Whether to use UnFlow training loss.')
+    parser.add_argument('-l', '--loss', type=str, default='supervised',
+                        help='Loss type. Can be "supervised" or "unflow". Defaults to "supervised".')
 
 
 if __name__ == "__main__":
