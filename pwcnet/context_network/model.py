@@ -16,21 +16,19 @@ class ContextNetwork(ConvNetwork):
         :param regularizer: Tf regularizer such as tf.contrib.layers.l2_regularizer.
         :param dense_net: Bool.
         """
+        if layer_specs is None:
+            # PWC-Net default.
+            layer_specs = [[3, 128, 1, 1],
+                           [3, 128, 2, 1],
+                           [3, 128, 4, 1],
+                           [3, 96, 8, 1],
+                           [3, 64, 16, 1],
+                           [3, 32, 1, 1],
+                           [3, 2, 1, 1]]  # last_activation_fn is linear.
+
         super().__init__(name=name, layer_specs=layer_specs,
                          activation_fn=activation_fn, last_activation_fn=None,
                          regularizer=regularizer, padding='SAME', dense_net=dense_net)
-
-        if layer_specs is None:
-            # PWC-Net default.
-            self.layer_specs = [[3, 128, 1, 1],
-                                [3, 128, 2, 1],
-                                [3, 128, 4, 1],
-                                [3, 96, 8, 1],
-                                [3, 64, 16, 1],
-                                [3, 32, 1, 1],
-                                [3, 2, 1, 1]]  # last_activation_fn is linear.
-        else:
-            self.layer_specs = layer_specs
 
     def get_forward(self, features, optical_flow, reuse_variables=tf.AUTO_REUSE):
         """

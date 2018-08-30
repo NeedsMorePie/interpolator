@@ -17,20 +17,18 @@ class EstimatorNetwork(ConvNetwork):
         :param dense_net: Bool. Default for PWC-Net is true.
         :param cost_volume_activation: Bool. Whether to put an activation function on the cost volume.
         """
+        if layer_specs is None:
+            # PWC-Net default.
+            layer_specs = [[3, 128, 1, 1],
+                           [3, 128, 1, 1],
+                           [3, 96, 1, 1],
+                           [3, 64, 1, 1],
+                           [3, 32, 1, 1],
+                           [3, 2, 1, 1]]  # last_activation_fn is linear.
+
         super().__init__(name=name, layer_specs=layer_specs,
                          activation_fn=activation_fn, last_activation_fn=None,
                          regularizer=regularizer, padding='SAME', dense_net=dense_net)
-
-        if layer_specs is None:
-            # PWC-Net default.
-            self.layer_specs = [[3, 128, 1, 1],
-                                [3, 128, 1, 1],
-                                [3, 96, 1, 1],
-                                [3, 64, 1, 1],
-                                [3, 32, 1, 1],
-                                [3, 2, 1, 1]]  # last_activation_fn is linear.
-        else:
-            self.layer_specs = layer_specs
 
         self.search_range = search_range
         self.cost_volume_activation = cost_volume_activation
