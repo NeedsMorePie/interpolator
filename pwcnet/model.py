@@ -50,7 +50,7 @@ class PWCNet(RestorableNetwork):
         """
         :param image_a: Tensor of shape [batch_size, H, W, 3].
         :param image_b: Tensor of shape [batch_size, H, W, 3].
-        :param reuse_variables: Tensorflow reuse variable parameter. Can be False, True, or tf.AUTO_REUSE.
+        :param reuse_variables: tf reuse option. i.e. tf.AUTO_REUSE.
         :return: final_flow: up-sampled final flow.
                  previous_flows: all previous flow outputs of the estimator networks and the context network.
         """

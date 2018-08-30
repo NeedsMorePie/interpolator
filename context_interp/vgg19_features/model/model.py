@@ -42,13 +42,14 @@ class Vgg19:
         self.var_dict = {}
         self.dropout = dropout
 
-    def build_up_to_conv1_2(self, rgb, trainable=True):
+    def build_up_to_conv1_2(self, rgb, trainable=True, reuse_variables=tf.AUTO_REUSE):
         """
         Build VGG19 partially, up to the conv1_2 layer.
         :param rgb: rgb image [batch, height, width, 3] values scaled [0, 1].
         :param trainable: Whether the model is trainable.
+        :param reuse_variables: tf reuse option. i.e. tf.AUTO_REUSE.
         """
-        with tf.variable_scope(self.name, reuse=tf.AUTO_REUSE):
+        with tf.variable_scope(self.name, reuse=reuse_variables):
             self.var_dict = {}
             rgb_scaled = rgb * 255.0
 
@@ -65,10 +66,10 @@ class Vgg19:
             layers.conv1_2 = self.conv_layer(layers.conv1_1, 64, 64, "conv1_2", trainable)
             return layers.conv1_2, layers
 
-    def build_up_to_conv4_4(self, rgb, trainable=True):
+    def build_up_to_conv4_4(self, rgb, trainable=True, reuse_variables=tf.AUTO_REUSE):
         conv1_2, layers = self.build_up_to_conv1_2(rgb, trainable=trainable)
 
-        with tf.variable_scope(self.name, reuse=tf.AUTO_REUSE):
+        with tf.variable_scope(self.name, reuse=reuse_variables):
             layers.pool1 = self.max_pool(layers.conv1_2, 'pool1')
 
             layers.conv2_1 = self.conv_layer(layers.pool1, 64, 128, "conv2_1", trainable)
