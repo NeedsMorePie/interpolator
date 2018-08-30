@@ -239,5 +239,11 @@ class PWCNet(RestorableNetwork):
                  layer_losses_detailed: List of dicts. Each dict contains the individual fully weighted losses.
         """
         with tf.name_scope('unflow_training_loss'):
-            return create_multi_level_unflow_loss(image_a, image_b, previous_forward_flows, previous_backward_flows,
-                                                  self.flow_scaling)
+            losses = create_multi_level_unflow_loss(image_a, image_b, previous_forward_flows, previous_backward_flows,
+                                                    self.flow_scaling)
+            total_loss, layer_losses, forward_occlusion_masks, backward_occlusion_masks, layer_losses_detailed = losses
+
+            # Add the regularization loss.
+            total_loss += tf.add_n(tf.losses.get_regularization_losses(scope=self.name))
+
+            return total_loss, layer_losses, forward_occlusion_masks, backward_occlusion_masks, layer_losses_detailed
