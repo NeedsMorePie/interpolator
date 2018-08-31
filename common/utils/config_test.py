@@ -164,5 +164,186 @@ class TestCompileArgs(unittest.TestCase):
         self.assertListEqual(['--bar=3.14', '--bool=False', '--foo="I am string."'], args)
 
 
+class TestMergeDicts(unittest.TestCase):
+    def test_value(self):
+        source = {
+            'foo': 'bar',
+            'a': 'b'
+        }
+        destination = {
+            'a': 'c'
+        }
+        merge_dicts(source, destination)
+        self.assertDictEqual({
+            'foo': 'bar',
+            'a': 'c'
+        }, destination)
+
+    def test_array(self):
+        source = {
+            'foo': 'bar',
+            'a': [1, 2, 3]
+        }
+        destination = {
+            'a': [4, 5, 6]
+        }
+        merge_dicts(source, destination)
+        self.assertDictEqual({
+            'foo': 'bar',
+            'a': [4, 5, 6]
+        }, destination)
+
+    def test_dict(self):
+        source = {
+            'foo': 'bar',
+            'a': {
+                'b': 'b'
+            }
+        }
+        destination = {
+            'foo': 'not_bar',
+        }
+        merge_dicts(source, destination)
+        self.assertDictEqual({
+            'foo': 'not_bar',
+            'a': {
+                'b': 'b'
+            }
+        }, destination)
+
+    def test_deep(self):
+        source = {
+            'foo': 'bar',
+            'a': {
+                'foo': 'not_bar',
+                'bar': 'foo',
+                'deeper': {
+                    'two': 2,
+                    'me': 0
+                }
+            },
+            'b': {
+                'one': 1
+            }
+        }
+        destination = {
+            'a': {
+                'bar': 'foo_bar',
+                'deeper': {
+                    'three': 3,
+                    'me': 1
+                }
+            }
+        }
+        merge_dicts(source, destination)
+        self.assertDictEqual({
+            'foo': 'bar',
+            'a': {
+                'foo': 'not_bar',
+                'bar': 'foo_bar',
+                'deeper': {
+                    'two': 2,
+                    'three': 3,
+                    'me': 1
+                }
+            },
+            'b': {
+                'one': 1
+            }
+        }, destination)
+
+    def test_empty(self):
+        source = {}
+        destination = {}
+        merge_dicts(source, destination)
+        self.assertDictEqual({}, destination)
+
+    def test_src_empty(self):
+        source = {}
+        destination = {
+            'foo': 'bar',
+            'a': {
+                'foo': 'not_bar',
+                'bar': 'foo_bar'
+            }
+        }
+        merge_dicts(source, destination)
+        self.assertDictEqual({
+            'foo': 'bar',
+            'a': {
+                'foo': 'not_bar',
+                'bar': 'foo_bar'
+            }
+        }, destination)
+
+    def test_dst_empty(self):
+        source = {
+            'foo': 'bar',
+            'a': {
+                'foo': 'not_bar',
+                'bar': 'foo_bar'
+            }
+        }
+        destination = {}
+        merge_dicts(source, destination)
+        self.assertDictEqual({
+            'foo': 'bar',
+            'a': {
+                'foo': 'not_bar',
+                'bar': 'foo_bar'
+            }
+        }, destination)
+
+
+class TestImportJson(unittest.TestCase):
+    def setUp(self):
+        self.base = 'common/utils/test_data/config/base.json'
+        self.base_sub = 'common/utils/test_data/config/base_sub.json'
+        self.base_sub_sub = 'common/utils/test_data/config/base_sub_sub.json'
+
+    def test_identity(self):
+        base_dict = import_json(self.base)
+        self.assertDictEqual({
+            'a': 1,
+            'b': 2,
+            'c': 3
+        }, base_dict)
+
+    def test_sub(self):
+        base_dict = import_json(self.base_sub)
+        self.assertDictEqual({
+            'parent_json': 'common/utils/test_data/config/base.json',
+            'a': 1,
+            'b': 'b',
+            'c': 'c',
+            'deep': {
+                'foo': 'bar',
+                'bar': 'foobar'
+            }
+        }, base_dict)
+
+    def test_deeper_sub(self):
+        base_sub_dict = import_json(self.base_sub_sub)
+        self.assertDictEqual({
+            'parent_json': 'common/utils/test_data/config/base_sub.json',
+            'a': 1,
+            'b': 'b',
+            'c': 'not_c',
+            'deep': {
+                'foo': 'bar',
+                'bar': 'not_foobar',
+                'deeper': {
+                    'hamid': False
+                }
+            },
+            'more': {
+                'some_array': [
+                    1, 2, 3, 4
+                ]
+            },
+            'd': 'd'
+        }, base_sub_dict)
+
+
 if __name__ == '__main__':
     unittest.main()

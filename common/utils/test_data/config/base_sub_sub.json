@@ -1,0 +1,16 @@
+{
+  "parent_json": "common/utils/test_data/config/base_sub.json",
+  "c": "not_c",
+  "deep": {
+    "bar": "not_foobar",
+    "deeper": {
+      "hamid": false
+    }
+  },
+  "more": {
+    "some_array": [
+      1, 2, 3, 4
+    ]
+  },
+  "d": "d"
+}

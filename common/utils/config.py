@@ -1,4 +1,5 @@
 import copy
+import json
 
 
 def preprocess_var_refs(root, base_vars=None, remove_vars_dict=True):
@@ -85,3 +86,51 @@ def compile_args(args_dict):
         arg = '--' + key + '=' + str_value
         args.append(arg)
     return args
+
+
+def read_raw_json(file_name):
+    """
+    :param file_name: Str.
+    :return: Dict.
+    """
+    with open(file_name) as json_data:
+        return json.load(json_data)
+
+
+def import_json(file_name):
+    """
+    Reads and imports the specified JSON and it's parent dependencies.
+    :param file_name: Str.
+    :return: Dict.
+    """
+    parent_key = 'parent_json'
+
+    json_dict = read_raw_json(file_name)
+    if parent_key not in json_dict:
+        return json_dict
+
+    # Load the parent.
+    parent_file = json_dict[parent_key]
+    assert isinstance(parent_file, str)
+    parent_json_dict = import_json(parent_file)
+
+    merge_dicts(parent_json_dict, json_dict)
+    return json_dict
+
+
+def merge_dicts(source, destination):
+    """
+    Deep merges 2 dicts. Copies values from the source to the destination if they aren't already in the destination.
+    i.e. Values in the destination take precedence.
+    :param source: Dict.
+    :param destination: Dict.
+    :return: Nothing.
+    """
+    for key, value in source.items():
+        if key not in destination:
+            # Case where the source contains something that the destination does not.
+            destination[key] = value
+        elif isinstance(destination[key], dict) and isinstance(value, dict):
+            # Case where source value and destination value are both dicts. Deep merge by recursing.
+            merge_dicts(value, destination[key])
+        # In all other cases, do nothing. The destination should override.
