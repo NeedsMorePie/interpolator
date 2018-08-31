@@ -100,6 +100,33 @@ def read_raw_json(file_name):
 def import_json(file_name):
     """
     Reads and imports the specified JSON and it's parent dependencies.
+    To specify a parent dependency, at the root level, set 'parent_json' to be the file path of the parent JSON.
+    Note that child values override parent values.
+    Example:
+    base.json =
+        {
+            "a": 1,
+            "b": {
+                "c": 0.1
+            }
+        }
+    base_sub.json =
+        {
+            "parent_json": "base.json",
+            "b": {
+                "c": True,
+                "d": 1
+            }
+        }
+    import_json('base_sub.json') =
+        {
+            "parent_json": "base.json",
+            "a": 1,
+            "b": {
+                "c": True,
+                "d": 1
+            }
+        }
     :param file_name: Str.
     :return: Dict.
     """
