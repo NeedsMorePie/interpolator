@@ -1,7 +1,7 @@
 import argparse
-import json
 import os
 import tensorflow as tf
+from common.utils.config import preprocess_var_refs, import_json
 from data.flow.flow_data import FlowDataSet
 from pwcnet.model import PWCNet
 from train.pwcnet.trainer import PWCNetTrainer
@@ -20,10 +20,10 @@ def main():
 
     # Read the JSON config.
     print('Loading configurations...')
-    with open(args.config) as json_data:
-        config = json.load(json_data)
-        print(config)
-        print('')
+    config = import_json(args.config)
+    preprocess_var_refs(config)
+    print(config)
+    print('')
     # Add extra fields to the config from argparse.
     config['checkpoint_directory'] = args.checkpoint_directory
     config['directory'] = args.directory
