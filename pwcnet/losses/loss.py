@@ -22,7 +22,7 @@ def lq_diff(a, b, q=0.4, epsilon=0.01):
     return tf.pow(tf.abs(a - b) + epsilon, q)
 
 
-def create_multi_level_loss(expected_flow, flows, flow_scaling, flow_layer_loss_weights, diff_fn=l2_diff):
+def create_multi_level_loss(expected_flow, flows, flow_scaling, flow_layer_loss_weights=None, diff_fn=l2_diff):
     """
     Creates the PWC Net multi-level loss.
     :param expected_flow: Tensor of shape [B, H, W, 2]. Ground truth.
@@ -33,6 +33,9 @@ def create_multi_level_loss(expected_flow, flows, flow_scaling, flow_layer_loss_
     :return: total_loss: Scalar tensor. Sum off all weighted level losses.
              layer_losses: List of scalar tensors. Weighted loss at each level.
     """
+    if flow_layer_loss_weights is None:
+        flow_layer_loss_weights = [0.32, 0.08, 0.02, 0.01, 0.0025, 0.005]
+
     scaled_gt = expected_flow * flow_scaling
 
     layer_losses = []
