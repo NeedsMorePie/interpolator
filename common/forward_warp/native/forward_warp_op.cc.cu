@@ -23,7 +23,7 @@ __global__ void ForwardWarpKernel(const int32 nthreads,
                                   int batch, int height, int width, int channels,
                                   float variance, float* output) {
   CUDA_1D_KERNEL_LOOP(out_idx, nthreads) {
-    // out_idx = c + channels * (src_x + width * (src_y + height * b))
+    // out_idx = c + channels * (src_x + width * (src_y + height * b)).
     int idx = out_idx;
 		const int c = idx % channels;
 		idx /= channels;
@@ -37,14 +37,11 @@ __global__ void ForwardWarpKernel(const int32 nthreads,
     const float target_x = src_x + flows[flow_index];
     const float target_y = src_y + flows[flow_index + 1];
 
-    // Compute valid neighbor range
-    //int min_n_y = y + 2 > 0 ? floorf(pos_y) : 0;
-
     const float std = sqrtf(variance);
     const float dist = std * 2.0;
     const int k = int(dist) + 2;
 
-    // center pixel closest to mapping location
+    // center pixel closest to mapping location.
 #define IMG_OFFSET(iy, ix) (c + channels * (ix + width * (iy + height * b)))
     const float image_value = images[out_idx];
     const float x_m_k = target_x - k;
@@ -82,7 +79,7 @@ __global__ void ForwardWarpGradKernel(const int32 nthreads,
                                       int batch, int height, int width, int channels, float variance,
                                       float* output_image_grad, float* output_flow_grad) {
   CUDA_1D_KERNEL_LOOP(in_idx, nthreads) {
-    // in_idx = c + channels * (src_x + width * (src_y + height * b))
+    // in_idx = c + channels * (src_x + width * (src_y + height * b)).
     int idx = in_idx;
 		const int c = idx % channels;
 		idx /= channels;
@@ -96,19 +93,10 @@ __global__ void ForwardWarpGradKernel(const int32 nthreads,
     const float target_x = src_x + flows[flow_index];
     const float target_y = src_y + flows[flow_index + 1];
 
-    // Calculate distribution variance depending on similar neighbor flows
-    // fixed variance for first tests!!
-
-    // Compute valid neighbor range
-    //int min_n_y = y + 2 > 0 ? floorf(pos_y) : 0;
-
     const float std = sqrtf(variance);
     const float dist = std * 2.0;
     const int k = int(dist) + 2;
 
-    // center pixel closest to mapping location
-    //const int closest_x = roundf(target_x);
-    //const int closest_y = roundf(target_y);
     float du = 0.0;
     float dv = 0.0;
 
