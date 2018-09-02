@@ -8,10 +8,12 @@ from pwcnet.model import PWCNet
 
 
 class ContextInterp(Interp):
-    def __init__(self, name='context_interp'):
+    def __init__(self, name='context_interp', saved_model_dir=None):
         """
         :param name: Str. For Tf variable scoping.
+        :param saved_model_dir: See parent class.
         """
+        super().__init__(saved_model_dir=saved_model_dir)
         self.name = name
         self.enclosing_scope = None
         self.gridnet = GridNet([32, 64, 96], 6, num_output_channels=3)
@@ -20,7 +22,7 @@ class ContextInterp(Interp):
         self.feature_extractor = Vgg19Features()
         self.feature_extractor.load_pretrained_weights()
 
-    def get_forward(self, image_a, image_b, t, reuse_variables=tf.AUTO_REUSE):
+    def _get_forward(self, image_a, image_b, t, reuse_variables=tf.AUTO_REUSE):
         """
         :param image_a: Tensor of shape [batch_size, H, W, 3].
         :param image_b: Tensor of shape [batch_size, H, W, 3].

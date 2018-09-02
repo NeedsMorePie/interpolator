@@ -149,6 +149,7 @@ class TestInterpDataSet(unittest.TestCase):
         self.assertListEqual(next_sequence_timing[0].tolist(), [0.0, 0.5, 1.0])
         self.assertListEqual(next_sequence_timing[1].tolist(), [0.0, 0.5, 1.0])
         self.assertTupleEqual(np.shape(next_sequence), (2, 3, 256, 256, 3))
+        self.assertLessEqual(np.max(next_sequence), 1.0)
 
         if VISUALIZE:
             print('Showing dense sequence (val set) with timings [0.0, 0.5, 1.0] ...')

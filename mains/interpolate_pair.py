@@ -2,6 +2,8 @@ import argparse
 import numpy as np
 from common.utils import img
 from pwcnet import model
+from interp.interp import Interp
+import tensorflow as tf
 from tensorflow.contrib import predictor
 
 
@@ -12,14 +14,14 @@ def main():
     # img_0 = img.read_image(args.image_0)
     # img_1 = img.read_image(args.image_1)
     img_0 = np.zeros((1, 256, 256, 3))
-    img_1 = np.ones((1, 256, 256, 3))
-
+    img_1 = np.zeros((1, 256, 256, 3))
+    interpolator = Interp(saved_model_dir=args.saved_model_dir)
     print('Loading the SavedModel from: ', args.saved_model_dir)
-    predict_fn = predictor.from_saved_model(args.saved_model_dir)
-    predictions = predict_fn({
-        'image_0': img_0,
-        'image_1': img_1
-    })
+    interpolator.load_saved_model()
+    preds = interpolator.predict(img_0, img_1)
+    print(preds)
+    print(np.mean(preds))
+    print(np.shape(preds))
 
 
 def add_args(parser):

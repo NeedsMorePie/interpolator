@@ -19,7 +19,8 @@ def main():
         os.makedirs(args.checkpoint_directory)
 
     print('Creating network...')
-    model = ContextInterp()
+    saved_model_dir = os.path.join(args.checkpoint_directory, 'saved_model')
+    model = ContextInterp(saved_model_dir=saved_model_dir)
 
     print('Creating dataset...')
     dataset = InterpDataSet(args.directory, [[1]],
