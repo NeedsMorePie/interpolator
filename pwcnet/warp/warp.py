@@ -1,20 +1,11 @@
 import tensorflow as tf
-import os.path
+from common.utils.tf import load_op_library
 from pwcnet.warp.spacial_transformer_network.transformer import spatial_transformer_network
-from sys import platform
 from tensorflow.python.framework import ops
 
 
 # Load op library.
-if platform == 'win32':
-    lib_path = os.path.join('build', 'backward_warp_op.dll')
-else:
-    lib_path = os.path.join('build', 'libbackward_warp_op.so')
-if os.path.isfile(lib_path):
-    mod = tf.load_op_library(lib_path)
-else:
-    print('Warning: No CUDA implementation of backward_warp found. Falling back to the Tensorflow version.')
-    mod = None
+mod = load_op_library('backward_warp_op', 'build')
 
 
 def backward_warp(images, optical_flows, bilinear_sample=True):

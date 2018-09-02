@@ -1,6 +1,5 @@
-import os.path
 import tensorflow as tf
-from sys import platform
+from common.utils.tf import load_op_library
 from tensorflow.python.framework import ops
 
 
@@ -8,15 +7,7 @@ DISOCC_THRESH = 0.5
 
 
 # Load op library.
-if platform == 'win32':
-    lib_path = os.path.join('build', 'forward_warp_op.dll')
-else:
-    lib_path = os.path.join('build', 'libforward_warp_op.so')
-if os.path.isfile(lib_path):
-    mod = tf.load_op_library(lib_path)
-else:
-    print('Warning: No CUDA implementation of forward_warp found. Falling back to the Tensorflow version.')
-    mod = None
+mod = load_op_library('forward_warp_op', 'build')
 
 
 def is_forward_warp_cuda():

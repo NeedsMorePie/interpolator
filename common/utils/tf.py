@@ -6,7 +6,9 @@ if platform.system() == 'Darwin':
     matplotlib.use('TkAgg')
 from matplotlib import pyplot as plt
 import io
+import os.path
 import tensorflow as tf
+from sys import platform
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import state_ops
@@ -228,3 +230,22 @@ def leaky_relu(features, alpha=0.1, name=None):
     :return: Tensor. The activated value.
     """
     return tf.nn.leaky_relu(features, alpha=alpha, name=name)
+
+
+def load_op_library(op_name, directory='build'):
+    """
+    Loads a Tensorflow native op, or returns None if not found.
+    :param op_name: Str. Name of the op.
+    :param directory: Str. Directory to search in.
+    :return: Tensorflow op module, or None if the op was not found.
+    """
+    if platform == 'win32':
+        lib_path = os.path.join(directory, op_name + '.dll')
+    else:
+        lib_path = os.path.join(directory, 'lib' + op_name + '.so')
+    if os.path.isfile(lib_path):
+        mod = tf.load_op_library(lib_path)
+    else:
+        print('Warning: No native implementation of', op_name, 'found. Falling back to the Tensorflow version.')
+        mod = None
+    return mod
