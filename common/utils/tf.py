@@ -27,7 +27,7 @@ def tf_coin_flip(heads_rate):
 # https://github.com/tensorflow/tensorflow/issues/7712
 def pelu(x):
     """Parametric Exponential Linear Unit (https://arxiv.org/abs/1605.09332v1)."""
-    with tf.variable_scope(x.op.name + '_activation', initializer=tf.constant_initializer(1.0)):
+    with tf.variable_scope('activation', initializer=tf.constant_initializer(1.0)):
         shape = x.get_shape().as_list()[1:]
         alpha = tf.get_variable('alpha', shape)
         beta = tf.get_variable('beta', shape)
@@ -38,13 +38,16 @@ def pelu(x):
 
 # https://stackoverflow.com/questions/39975676/how-to-implement-prelu-activation-in-tensorflow
 def prelu(_x):
-    with tf.variable_scope(_x.op.name + '_activation', initializer=tf.constant_initializer(1.0)):
+    """
+    :param _x: Tensor of shape [batch_size, H, W, C].
+    :return: Prelu'd tensor of shape [batch_size, H, W, C].
+    """
+    with tf.variable_scope('activation', initializer=tf.constant_initializer(1.0)):
         alphas = tf.get_variable('alpha', _x.get_shape()[-1],
-                           initializer=tf.constant_initializer(0.0),
-                            dtype=tf.float32)
+                                 initializer=tf.constant_initializer(0.0),
+                                 dtype=tf.float32)
         pos = tf.nn.relu(_x)
         neg = alphas * (_x - abs(_x)) * 0.5
-
         return pos + neg
 
 
@@ -214,3 +217,14 @@ class AdamaxOptimizer(optimizer.Optimizer):
 
     def _apply_sparse(self, grad, var):
         raise NotImplementedError("Sparse gradient updates are not supported.")
+
+
+def leaky_relu(features, alpha=0.1, name=None):
+    """
+    Leaky relu wrapper function with the default alpha set to 0.1.
+    :param features: Tensor.
+    :param alpha: Slope of the activation function at x < 0.
+    :param name: A name for the operation (optional).
+    :return: Tensor. The activated value.
+    """
+    return tf.nn.leaky_relu(features, alpha=alpha, name=name)

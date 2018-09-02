@@ -1,10 +1,11 @@
 import tensorflow as tf
 from common.models import ConvNetwork
+from common.utils.tf import leaky_relu
 
 
 class FeaturePyramidNetwork(ConvNetwork):
     def __init__(self, name='feature_pyramid_network', layer_specs=None,
-                 activation_fn=tf.nn.leaky_relu,
+                 activation_fn=leaky_relu,
                  regularizer=None, dense_net=False):
         """
         :param name: Str. For variable scoping.
@@ -13,31 +14,29 @@ class FeaturePyramidNetwork(ConvNetwork):
         :param regularizer: Tf regularizer such as tf.contrib.layers.l2_regularizer.
         :param dense_net: Bool.
         """
-        super().__init__(name=name, layer_specs=layer_specs,
-                         activation_fn=activation_fn, regularizer=regularizer, padding='SAME', dense_net=dense_net)
-
         if layer_specs is None:
             # PWC-Net default.
-            self.layer_specs = [[3, 16, 1, 2],
-                                [3, 16, 1, 1],
-                                [3, 16, 1, 1],  # C1
-                                [3, 32, 1, 2],
-                                [3, 32, 1, 1],
-                                [3, 32, 1, 1],  # C2
-                                [3, 64, 1, 2],
-                                [3, 64, 1, 1],
-                                [3, 64, 1, 1],  # C3
-                                [3, 96, 1, 2],
-                                [3, 96, 1, 1],
-                                [3, 96, 1, 1],  # C4
-                                [3, 128, 1, 2],
-                                [3, 128, 1, 1],
-                                [3, 128, 1, 1],  # C5
-                                [3, 192, 1, 2],
-                                [3, 192, 1, 1],
-                                [3, 192, 1, 1]]  # C6
-        else:
-            self.layer_specs = layer_specs
+            layer_specs = [[3, 16, 1, 2],
+                           [3, 16, 1, 1],
+                           [3, 16, 1, 1],  # C1
+                           [3, 32, 1, 2],
+                           [3, 32, 1, 1],
+                           [3, 32, 1, 1],  # C2
+                           [3, 64, 1, 2],
+                           [3, 64, 1, 1],
+                           [3, 64, 1, 1],  # C3
+                           [3, 96, 1, 2],
+                           [3, 96, 1, 1],
+                           [3, 96, 1, 1],  # C4
+                           [3, 128, 1, 2],
+                           [3, 128, 1, 1],
+                           [3, 128, 1, 1],  # C5
+                           [3, 192, 1, 2],
+                           [3, 192, 1, 1],
+                           [3, 192, 1, 1]]  # C6
+
+        super().__init__(name=name, layer_specs=layer_specs,
+                         activation_fn=activation_fn, regularizer=regularizer, padding='SAME', dense_net=dense_net)
 
     def get_forward(self, image, reuse_variables=tf.AUTO_REUSE):
         """

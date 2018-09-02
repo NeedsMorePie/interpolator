@@ -1,11 +1,9 @@
 import tensorflow as tf
-import numpy as np
+from common.forward_warp.forward_warp import forward_warp
 from context_interp.vgg19_features.vgg19_features import Vgg19Features
 from context_interp.gridnet.model import GridNet
 from context_interp.laplacian_pyramid.laplacian_pyramid import LaplacianPyramid
 from pwcnet.model import PWCNet
-from common.models import RestorableNetwork
-from common.forward_warp.forward_warp import forward_warp
 
 
 class ContextInterp:
@@ -44,7 +42,8 @@ class ContextInterp:
             # TODO: Add instance normalization. Described in 3.3 of https://arxiv.org/pdf/1803.10967.pdf.
 
             # Get a->b and b->a flows from PWCNet.
-            all_flows, _ = self.pwcnet.get_forward(from_frames, to_frames)
+            # TODO: Migrate to pwcnet.get_bidirectional.
+            all_flows, _ = self.pwcnet.get_forward(from_frames, to_frames, reuse_variables=reuse_variables)
             flow_a_b = all_flows[:batch_size]
             flow_b_a = all_flows[batch_size:]
 

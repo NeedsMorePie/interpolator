@@ -221,6 +221,27 @@ class TestConvNet(unittest.TestCase):
         self.assertTupleEqual(dummy_outputs[0].shape, (1, image_size, image_size, layer_1_features))
         self.assertTupleEqual(dummy_outputs[1].shape, (1, image_size, image_size, layer_2_features))
 
+    def test_share_variables(self):
+        input_features = 2
+        layer_1_features = 7
+        layer_2_features = 6
+        image_size = 8
+
+        layer_specs = [[3, layer_1_features, 1, 1],
+                       [3, layer_2_features, 1, 1]]
+        conv_net = ConvNetwork('conv_network_shared', layer_specs=layer_specs, dense_net=True)
+
+        # Create and initialize model.
+        input_placeholder = tf.placeholder(shape=[None, image_size, image_size, input_features], dtype=tf.float32)
+        trainable_vars_before = len(tf.trainable_variables())  # Global scope used to make sure we don't miss anything.
+        _ = conv_net.get_forward_conv(input_placeholder)
+        trainable_vars_after = len(tf.trainable_variables())
+        self.assertEqual(4, trainable_vars_after - trainable_vars_before)
+
+        # Do it again and check that the number of trainable variables has not increased.
+        _ = conv_net.get_forward_conv(input_placeholder)
+        self.assertEqual(trainable_vars_after, len(tf.trainable_variables()))
+
 
 if __name__ == '__main__':
     unittest.main()

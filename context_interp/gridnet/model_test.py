@@ -116,7 +116,7 @@ class TestGridNet(unittest.TestCase):
         # Each parametric ReLU has a trainable alpha variable.
         trainable_vars = tf.trainable_variables(scope=name)
         self.assertEqual(len(trainable_vars), num_total_convs * 3)
-        self.assertEqual(trainable_vars[1].name, name + '/right_00/conv_0/kernel:0')
+        self.assertEqual(trainable_vars[1].name, name + '/right_0_0/conv_0/kernel:0')
 
         # Check that the gradients are flowing.
         grad_op = tf.gradients(final_output,
@@ -185,15 +185,6 @@ class TestGridNet(unittest.TestCase):
         self.assertEqual(np.sum(final_output_np), 0.0)
         for i in range(grid_height):
             for j in range(grid_width):
-
-                # The outputs of lateral connections should all be 0.
-                # lateral_output_only = False
-                # if (i == 0 and j < grid_width / 2) or (i == grid_height - 1 and j >= grid_width / 2):
-                #     lateral_output_only = True
-                #
-                # if lateral_output_only:
-                #     self.assertEqual(np.sum(node_outputs_np[i][j]), 0.0)
-
                 # The first lateral connection should always have non-zero output.
                 # The first column of down-sampling of streams should also have non-zero output.
                 # All other nodes have zero output when biases are zero-initialized.
@@ -221,14 +212,14 @@ class TestGridNet(unittest.TestCase):
         # Each parametric ReLU has a trainable alpha variable.
         trainable_vars = tf.trainable_variables(scope=name)
         self.assertEqual(len(trainable_vars), num_total_convs * 3)
-        self.assertEqual(trainable_vars[1].name, name + '/right_00/conv_0/kernel:0')
+        self.assertEqual(trainable_vars[1].name, name + '/right_0_0/conv_0/kernel:0')
 
         # Check gradients.
         grad_op = tf.gradients(final_output,
                                trainable_vars + [input_features_tensor])
         gradients = self.sess.run(grad_op, feed_dict={input_features_tensor: input_features})
 
-        nonzero_grad_names = {'up_03', 'up_13', 'right_04'}
+        nonzero_grad_names = {'up_0_3', 'up_1_3', 'right_0_4'}
         nonzero_sum = 0
         for i, gradient in enumerate(gradients):
             nonzero = False
@@ -241,3 +232,43 @@ class TestGridNet(unittest.TestCase):
                 self.assertEqual(np.sum(gradient), 0)
 
         self.assertNotEqual(nonzero_sum, 0)
+
+    def test_network_shares_weights(self):
+        name = 'gridnet_shared'
+        num_input_channels = 3
+        num_channels = [num_input_channels, 4, 8]
+        grid_width = 2
+        num_lateral_convs_per_connection = 1
+        num_downsampling_convs_per_connection = 3
+        num_upsampling_convs_per_connection = 3
+        gridnet = GridNet(num_channels,
+                          grid_width,
+                          name=name,
+                          connection_dropout_rate=1.0,
+                          num_lateral_convs=num_lateral_convs_per_connection,
+                          num_downsampling_convs=num_downsampling_convs_per_connection,
+                          num_upsample_convs=num_upsampling_convs_per_connection,
+                          regularizer=l2_regularizer(1e-4))
+
+        height = 32
+        width = 60
+        num_features = num_input_channels
+
+        # Create the graph.
+        input_features_tensor = tf.placeholder(shape=[None, height, width, num_features], dtype=tf.float32)
+        trainable_vars_before = len(tf.trainable_variables())
+        gridnet.get_forward(input_features_tensor, training=True, reuse_variables=tf.AUTO_REUSE)
+        trainable_vars_after = len(tf.trainable_variables())
+        vars_after = tf.trainable_variables()
+        self.assertGreater(trainable_vars_after, trainable_vars_before)
+
+        # Do it again and check that the number of trainable variables has not increased.
+        gridnet.get_forward(input_features_tensor, training=True, reuse_variables=tf.AUTO_REUSE)
+        diff = set(tf.trainable_variables()) - set(vars_after)
+        for var in diff:
+            print(var.name)
+        self.assertEqual(trainable_vars_after, len(tf.trainable_variables()))
+
+
+if __name__ == '__main__':
+    unittest.main()

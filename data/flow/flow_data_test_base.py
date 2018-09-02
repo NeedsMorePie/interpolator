@@ -1,9 +1,9 @@
-import numpy as np
 import os
 import os.path
-import tensorflow as tf
 import unittest
-from utils.data import silently_remove_file
+import numpy as np
+import tensorflow as tf
+from common.utils.data import silently_remove_file
 
 
 class TestFlowDataSet:

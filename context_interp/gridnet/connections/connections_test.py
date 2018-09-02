@@ -63,6 +63,11 @@ class TestConnections(unittest.TestCase):
         self.assertEqual(len(trainable_vars), 2 * len(specs))
         self.assertEqual(trainable_vars[2].name, name + '/conv_1/kernel:0')
 
+        # Test that getting forward again with tf.AUTO_REUSE will not increase the number of variables.
+        num_trainable_vars = len(tf.trainable_variables())
+        connection.get_forward(input_features_tensor, reuse_variables=tf.AUTO_REUSE)
+        self.assertEqual(num_trainable_vars, len(tf.trainable_variables()))
+
     def test_downsampling(self):
         """
         Sets up the network's forward pass and ensures that all shapes are expected.
@@ -116,6 +121,11 @@ class TestConnections(unittest.TestCase):
         self.assertEqual(len(trainable_vars), 2 * len(specs))
         self.assertEqual(trainable_vars[2].name, name + '/conv_1/kernel:0')
 
+        # Test that getting forward again with tf.AUTO_REUSE will not increase the number of variables.
+        num_trainable_vars = len(tf.trainable_variables())
+        connection.get_forward(input_features_tensor, reuse_variables=tf.AUTO_REUSE)
+        self.assertEqual(num_trainable_vars, len(tf.trainable_variables()))
+
     def test_upsampling(self):
         """
         Sets up the network's forward pass and ensures that all shapes are expected.
@@ -166,6 +176,11 @@ class TestConnections(unittest.TestCase):
         trainable_vars = tf.trainable_variables(scope=name)
         self.assertEqual(len(trainable_vars), 2 * len(specs))
         self.assertEqual(trainable_vars[0].name, name + '/conv_0/kernel:0')
+
+        # Test that getting forward again with tf.AUTO_REUSE will not increase the number of variables.
+        num_trainable_vars = len(tf.trainable_variables())
+        connection.get_forward(input_features_tensor, reuse_variables=tf.AUTO_REUSE)
+        self.assertEqual(num_trainable_vars, len(tf.trainable_variables()))
 
     def test_lateral_dropout(self):
         """

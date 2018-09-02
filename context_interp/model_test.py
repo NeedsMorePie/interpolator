@@ -1,7 +1,6 @@
 import numpy as np
 import tensorflow as tf
 import unittest
-import time
 from context_interp.model import ContextInterp
 
 
@@ -70,3 +69,25 @@ class TestContextInterp(unittest.TestCase):
             self.assertNotEqual(np.sum(gradient), 0.0)
 
         self.assertNotAlmostEqual(loss, 0.0)
+
+    def test_network_shares_weights(self):
+        height = 128
+        width = 64
+        im_channels = 3
+
+        # Create the graph.
+        model = ContextInterp(name='context_interp_shared')
+        image_a_placeholder = tf.placeholder(shape=[None, height, width, im_channels], dtype=tf.float32)
+        image_b_placeholder = tf.placeholder(shape=[None, height, width, im_channels], dtype=tf.float32)
+        trainable_vars_before = len(tf.trainable_variables())  # Global scope used to make sure we don't miss anything.
+        model.get_forward(image_a_placeholder, image_b_placeholder, 0.5)
+        trainable_vars_after = len(tf.trainable_variables())
+        self.assertGreater(trainable_vars_after, trainable_vars_before)
+
+        # Do it again and check that the number of trainable variables has not increased.
+        model.get_forward(image_a_placeholder, image_b_placeholder, 0.5)
+        self.assertEqual(trainable_vars_after, len(tf.trainable_variables()))
+
+
+if __name__ == '__main__':
+    unittest.main()

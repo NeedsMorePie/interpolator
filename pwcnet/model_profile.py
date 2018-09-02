@@ -1,8 +1,7 @@
 import numpy as np
 import tensorflow as tf
+from common.utils.profile import run_tensorboard_profiler
 from pwcnet.model import PWCNet
-from utils.profile import run_tensorboard_profiler
-
 
 if __name__ == '__main__':
     height = 384

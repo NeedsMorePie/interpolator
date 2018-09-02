@@ -1,12 +1,12 @@
 import multiprocessing
-import numpy as np
 import os.path
 import random
-from data.flow.flow_data import FlowDataSet
+import numpy as np
 from joblib import Parallel, delayed
-from utils.data import *
-from utils.flow import read_flow_file
-from utils.img import read_image
+from common.utils.data import *
+from common.utils.img import read_image
+from common.utils.flow import read_flow_file
+from data.flow.flow_data import FlowDataSet
 
 
 class FlowDataPreprocessor:

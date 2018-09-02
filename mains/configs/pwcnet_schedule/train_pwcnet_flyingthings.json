@@ -1,0 +1,8 @@
+{
+  "parent_json": "mains/configs/pwcnet_schedule/train_pwcnet_base.json",
+
+  "batch_size": 4,
+  "crop_width": 768,
+  "crop_height": 384,
+  "fine_tune": false
+}

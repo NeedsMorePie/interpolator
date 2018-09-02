@@ -1,4 +1,3 @@
-import tensorflow as tf
 from context_interp.vgg19_features.model.model import Vgg19
 
 

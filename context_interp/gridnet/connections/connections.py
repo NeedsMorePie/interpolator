@@ -1,11 +1,11 @@
 import tensorflow as tf
 from common.models import ConvNetwork
-from utils.tf import tf_coin_flip, print_tensor_shape
+from common.utils.tf import tf_coin_flip, leaky_relu
 
 
 class LateralConnection(ConvNetwork):
     def __init__(self, name, layer_specs,
-                 activation_fn=tf.nn.leaky_relu,
+                 activation_fn=leaky_relu,
                  total_dropout_rate=0.0,
                  regularizer=None):
         """
@@ -27,10 +27,10 @@ class LateralConnection(ConvNetwork):
 
         self.total_dropout_rate = total_dropout_rate
 
-    def get_forward(self, features, reuse_variables=False, training=False):
+    def get_forward(self, features, reuse_variables=tf.AUTO_REUSE, training=False):
         """
         :param features: Tensor. Feature map of shape [batch_size, H, W, num_features].
-        :param reuse_variables: Bool. Whether to reuse the variables.
+        :param reuse_variables: tf reuse option. i.e. tf.AUTO_REUSE.
         :param training: Bool. Whether the graph is to be constructed for training.
         :return: Tensor. Feature map of shape [batch_size, H, W, num_features].
         """
@@ -61,7 +61,7 @@ class LateralConnection(ConvNetwork):
 
 class DownSamplingConnection(ConvNetwork):
     def __init__(self, name, layer_specs,
-                 activation_fn=tf.nn.leaky_relu,
+                 activation_fn=leaky_relu,
                  regularizer=None):
         """
         :param name: Str. For variable scoping.
@@ -81,10 +81,10 @@ class DownSamplingConnection(ConvNetwork):
                          activation_fn=activation_fn, last_activation_fn=None,
                          regularizer=regularizer, padding='SAME')
 
-    def get_forward(self, features, reuse_variables=False):
+    def get_forward(self, features, reuse_variables=tf.AUTO_REUSE):
         """
         :param features: Tensor. Feature map of shape [batch_size, H, W, num_features].
-        :param reuse_variables: Bool. Whether to reuse the variables.
+        :param reuse_variables: tf reuse option. i.e. tf.AUTO_REUSE.
         :return: Tensor. Feature map of shape [batch_size, H, W, num_features].
         """
         with tf.variable_scope(self.name, reuse=reuse_variables):
@@ -98,7 +98,7 @@ class DownSamplingConnection(ConvNetwork):
 
 class UpSamplingConnection(ConvNetwork):
     def __init__(self, name, layer_specs,
-                 activation_fn=tf.nn.leaky_relu,
+                 activation_fn=leaky_relu,
                  regularizer=None):
         """
         :param name: Str. For variable scoping.
@@ -116,10 +116,10 @@ class UpSamplingConnection(ConvNetwork):
                          activation_fn=activation_fn, last_activation_fn=None,
                          regularizer=regularizer, padding='SAME')
 
-    def get_forward(self, features, reuse_variables=False):
+    def get_forward(self, features, reuse_variables=tf.AUTO_REUSE):
         """
         :param features: Tensor. Feature map of shape [batch_size, H, W, num_features].
-        :param reuse_variables: Bool. Whether to reuse the variables.
+        :param reuse_variables: tf reuse option. i.e. tf.AUTO_REUSE.
         :return: Tensor. Feature map of shape [batch_size, H, W, num_features].
         """
         with tf.variable_scope(self.name, reuse=reuse_variables):

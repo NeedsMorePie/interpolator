@@ -1,7 +1,6 @@
 import glob
 import os.path
 from data.flow.flow_data_preprocessor import FlowDataPreprocessor
-from utils.data import *
 
 
 class FlyingThingsFlowDataPreprocessor(FlowDataPreprocessor):

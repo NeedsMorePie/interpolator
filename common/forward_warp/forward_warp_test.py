@@ -1,11 +1,10 @@
-import numpy as np
 import os
-import tensorflow as tf
 import unittest
-from utils.flow import read_flow_file
-from utils.img import read_image, show_image
-from common.forward_warp.forward_warp import forward_warp, create_disocclusion_map
-
+import numpy as np
+import tensorflow as tf
+from common.utils.img import read_image, show_image
+from common.forward_warp.forward_warp import forward_warp, create_disocclusion_mask
+from common.utils.flow import read_flow_file
 
 VISUALIZE = False
 WRITE_TO_VIDEO = False
@@ -236,7 +235,7 @@ class TestForwardWarp(unittest.TestCase):
         width = 3
 
         flow_tensor = tf.placeholder(shape=(None, height, width, 2), dtype=tf.float32)
-        mask_tensor = create_disocclusion_map(flow_tensor)
+        mask_tensor = create_disocclusion_mask(flow_tensor)
 
         flow = np.asarray([
             [
@@ -262,7 +261,7 @@ class TestForwardWarp(unittest.TestCase):
         width = 3
 
         flow_tensor = tf.placeholder(shape=(None, height, width, 2), dtype=tf.float32)
-        mask_tensor = create_disocclusion_map(flow_tensor)
+        mask_tensor = create_disocclusion_mask(flow_tensor)
 
         flow = np.asarray([
             [
@@ -299,7 +298,7 @@ class TestForwardWarp(unittest.TestCase):
         batch_size = 2
 
         flow_tensor = tf.placeholder(shape=(batch_size, height, width, 2), dtype=tf.float32)
-        mask_tensor = create_disocclusion_map(flow_tensor)
+        mask_tensor = create_disocclusion_mask(flow_tensor)
         grad = tf.gradients(mask_tensor, flow_tensor)[0]
         self.assertEqual(None, grad)
 

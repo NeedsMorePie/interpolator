@@ -1,5 +1,5 @@
 import unittest
-from utils.data import *
+from common.utils.data import *
 
 
 class TestDataUtils(unittest.TestCase):

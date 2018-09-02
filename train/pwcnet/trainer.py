@@ -1,9 +1,11 @@
 import os.path
 import tensorflow as tf
+from common.utils.flow import get_tf_flow_visualization
+from common.utils.multi_gpu import get_available_gpus, TensorIO, create_train_op
+from common.utils.profile import save_timeline
 from data.flow.flow_data import FlowDataSet
 from pwcnet.model import PWCNet
 from train.trainer import Trainer
-from utils.flow import get_tf_flow_visualization
 
 
 class PWCNetTrainer(Trainer):
@@ -15,19 +17,14 @@ class PWCNetTrainer(Trainer):
         self.dataset.load(self.session)
         self.images_a, self.images_b, self.flows = self.dataset.get_next_batch()
 
-        # Get the train network.
-        self.final_flow, self.previous_flows = self.model.get_forward(self.images_a, self.images_b,
-                                                                      reuse_variables=tf.AUTO_REUSE)
-        if self.config['fine_tune']:
-            self.loss, self.layer_losses = self.model.get_fine_tuning_loss(self.previous_flows, self.flows)
-        else:
-            self.loss, self.layer_losses = self.model.get_training_loss(self.previous_flows, self.flows)
-
-        # Get the optimizer.
-        with tf.variable_scope('train'):
-            self.global_step = tf.Variable(initial_value=0, trainable=False, dtype=tf.int32, name='global_step')
-            self.train_op = tf.train.AdamOptimizer(config['learning_rate']).minimize(
-                self.loss, global_step=self.global_step)
+        # Create the network's forward and train ops.
+        self.final_flow = None
+        self.previous_flows = None
+        self.loss = None
+        self.layer_losses = None
+        self.global_step = None
+        self.train_op = None
+        self._create_ops()
 
         # Summary variables.
         self.merged_summ = None
@@ -40,6 +37,34 @@ class PWCNetTrainer(Trainer):
         # Checkpoint saving.
         self.saver = tf.train.Saver()
         self.npz_save_file = os.path.join(self.config['checkpoint_directory'], 'pwcnet_weights.npz')
+
+    def _create_ops(self):
+        optimizer = tf.train.AdamOptimizer(self.config['learning_rate'])
+
+        def build_network_outputs(images_a, images_b, flows):
+            # Get the train network.
+            final_flow, previous_flows = self.model.get_forward(images_a, images_b, reuse_variables=tf.AUTO_REUSE)
+            if self.config['fine_tune']:
+                loss, layer_losses = self.model.get_fine_tuning_loss(previous_flows, flows)
+            else:
+                loss, layer_losses = self.model.get_training_loss(previous_flows, flows)
+
+            return {
+                'loss': TensorIO([loss], TensorIO.AVERAGED_SCALAR),
+                'layer_losses': TensorIO(layer_losses, TensorIO.AVERAGED_SCALAR),
+                'previous_flows': TensorIO(previous_flows, TensorIO.BATCH),
+                'final_flow': TensorIO([final_flow], TensorIO.BATCH)
+            }
+
+        # Use a helper function to split the batch across multiple GPUs.
+        self.train_op, self.global_step, outputs = create_train_op(
+            optimizer, build_network_outputs, [self.images_a, self.images_b, self.flows], [],
+            available_devices=get_available_gpus(), verbose=True)
+
+        self.final_flow = outputs['final_flow'].first()
+        self.previous_flows = outputs['previous_flows'].tensors
+        self.loss = outputs['loss'].first()
+        self.layer_losses = outputs['layer_losses'].tensors
 
     def restore(self):
         """
@@ -68,7 +93,9 @@ class PWCNetTrainer(Trainer):
                 global_step = self._eval_global_step()
                 self.train_writer.add_run_metadata(run_metadata, 'step%d' % global_step, global_step=global_step)
                 self.train_writer.add_summary(summ, global_step=global_step)
+                self.train_writer.flush()
                 self.model.save_to(self.npz_save_file, self.session)
+                save_timeline(run_metadata, self.train_log_dir, detailed=False)
             else:
                 loss, _ = self.session.run([self.loss, self.train_op], feed_dict=self.dataset.get_train_feed_dict())
 
@@ -89,6 +116,7 @@ class PWCNetTrainer(Trainer):
             except tf.errors.OutOfRangeError:
                 # End of validation epoch.
                 break
+        self.valid_writer.flush()
 
     def _eval_global_step(self):
         return self.session.run(self.global_step)

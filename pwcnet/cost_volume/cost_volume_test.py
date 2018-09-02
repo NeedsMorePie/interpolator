@@ -1,7 +1,6 @@
 import numpy as np
 import tensorflow as tf
 import unittest
-import time
 from pwcnet.cost_volume.cost_volume import cost_volume
 from tensorflow.python.ops import gradient_checker
 

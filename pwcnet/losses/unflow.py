@@ -2,86 +2,129 @@
 # Commit 8bff4939963c7d0adb9435880dc506fb3f988080
 import tensorflow as tf
 import numpy as np
-from common.forward_warp.forward_warp import create_disocclusion_map
+from common.forward_warp.forward_warp import create_disocclusion_mask
 from pwcnet.warp.warp import backward_warp
 from tensorflow.contrib.distributions import Normal
 
 
+# List of all possible loss terms.
+LOSSES = ['occ', 'sym', 'fb', 'grad', 'ternary', 'photo', 'smooth_1st', 'smooth_2nd']
+
+
 def length_sq(x):
+    """
+    :param x: Tensor.
+    :return: Scalar tensor.
+    """
     return tf.reduce_sum(tf.square(x), 3, keepdims=True)
 
 
-def compute_losses(im1, im2, flow_fw, flow_bw,
+def compute_losses(im1, im2, flow_fw, flow_bw, prewarp_scaling=1.0,
                    border_mask=None,
-                   mask_occlusion='',
+                   mask_occlusion='fb',
                    data_max_distance=1):
+    """
+    Creates unsupervised UnFlow losses as seen in the UnFlow paper: https://arxiv.org/pdf/1711.07837.pdf.
+    :param im1: Tensor of shape [B, H, W, 3].
+    :param im2: Tensor of shape [B, H, W, 3].
+    :param flow_fw: Tensor of shape [B, H, W, 2].
+    :param flow_bw: Tensor of shape [B, H, W, 2].
+    :param prewarp_scaling: Float. Scales the flow right before using it to warp an image.
+    :param border_mask: Tensor of shape [B, H, W, 1].
+    :param mask_occlusion: Str. Either 'fb', 'disocc', or ''.
+    :param data_max_distance: Int.
+    :return: losses: Dict. Contains loss terms.
+             occ_fw: Tensor of shape [B, H, W, 1]. Forward warp occlusion mask.
+             occ_bw: Tensor of shape [B, H, W, 1]. Backward warp occlusion mask.
+    """
     losses = {}
 
-    im2_warped = backward_warp(im2, flow_fw)
-    im1_warped = backward_warp(im1, flow_bw)
+    with tf.name_scope('image_warping'):
+        flow_fw_corrected_magnitude = flow_fw * prewarp_scaling
+        flow_bw_corrected_magnitude = flow_bw * prewarp_scaling
 
-    im_diff_fw = im1 - im2_warped
-    im_diff_bw = im2 - im1_warped
+        im2_warped = backward_warp(im2, flow_fw_corrected_magnitude)
+        im1_warped = backward_warp(im1, flow_bw_corrected_magnitude)
 
-    disocc_fw = create_disocclusion_map(flow_fw)
-    disocc_bw = create_disocclusion_map(flow_bw)
+        im_diff_fw = im1 - im2_warped
+        im_diff_bw = im2 - im1_warped
 
-    if border_mask is None:
-        mask_fw = create_outgoing_mask(flow_fw)
-        mask_bw = create_outgoing_mask(flow_bw)
-    else:
-        mask_fw = border_mask
-        mask_bw = border_mask
+    with tf.name_scope('masks'):
+        disocc_fw = create_disocclusion_mask(flow_fw_corrected_magnitude)
+        disocc_bw = create_disocclusion_mask(flow_bw_corrected_magnitude)
 
-    fb_occ_fw, fb_occ_bw, flow_diff_fw, flow_diff_bw = occlusion(flow_fw, flow_bw)
+        if border_mask is None:
+            mask_fw = create_outgoing_mask(flow_fw_corrected_magnitude)
+            mask_bw = create_outgoing_mask(flow_bw_corrected_magnitude)
+        else:
+            mask_fw = border_mask
+            mask_bw = border_mask
 
-    if mask_occlusion == 'fb':
-        mask_fw *= (1 - fb_occ_fw)
-        mask_bw *= (1 - fb_occ_bw)
-    elif mask_occlusion == 'disocc':
-        mask_fw *= (1 - disocc_bw)
-        mask_bw *= (1 - disocc_fw)
+        fb_occ_fw, fb_occ_bw, flow_diff_fw, flow_diff_bw = occlusion(flow_fw, flow_bw, prewarp_scaling)
 
-    occ_fw = 1 - mask_fw
-    occ_bw = 1 - mask_bw
+        if mask_occlusion == 'fb':
+            mask_fw *= (1 - fb_occ_fw)
+            mask_bw *= (1 - fb_occ_bw)
+        elif mask_occlusion == 'disocc':
+            mask_fw *= (1 - disocc_bw)
+            mask_bw *= (1 - disocc_fw)
 
-    losses['sym'] = (charbonnier_loss(occ_fw - disocc_bw) +
-                     charbonnier_loss(occ_bw - disocc_fw))
+        occ_fw = 1 - mask_fw
+        occ_bw = 1 - mask_bw
 
-    losses['occ'] = (charbonnier_loss(occ_fw) +
-                     charbonnier_loss(occ_bw))
+    with tf.name_scope('sym'):
+        losses['sym'] = (charbonnier_loss(occ_fw - disocc_bw) +
+                         charbonnier_loss(occ_bw - disocc_fw))
 
-    losses['photo'] = (photometric_loss(im_diff_fw, mask_fw) +
-                       photometric_loss(im_diff_bw, mask_bw))
+    with tf.name_scope('occ'):
+        losses['occ'] = (charbonnier_loss(occ_fw) +
+                         charbonnier_loss(occ_bw))
 
-    losses['grad'] = (gradient_loss(im1, im2_warped, mask_fw) +
-                      gradient_loss(im2, im1_warped, mask_bw))
+    with tf.name_scope('photo'):
+        losses['photo'] = (photometric_loss(im_diff_fw, mask_fw) +
+                           photometric_loss(im_diff_bw, mask_bw))
 
-    losses['smooth_1st'] = (smoothness_loss(flow_fw) +
-                            smoothness_loss(flow_bw))
+    with tf.name_scope('grad'):
+        losses['grad'] = (gradient_loss(im1, im2_warped, mask_fw) +
+                          gradient_loss(im2, im1_warped, mask_bw))
 
-    losses['smooth_2nd'] = (second_order_loss(flow_fw) +
-                            second_order_loss(flow_bw))
+    with tf.name_scope('smooth_1st'):
+        losses['smooth_1st'] = (smoothness_loss(flow_fw) +
+                                smoothness_loss(flow_bw))
 
-    losses['fb'] = (charbonnier_loss(flow_diff_fw, mask_fw) +
-                    charbonnier_loss(flow_diff_bw, mask_bw))
+    with tf.name_scope('smooth_2nd'):
+        losses['smooth_2nd'] = (second_order_loss(flow_fw) +
+                                second_order_loss(flow_bw))
 
-    losses['ternary'] = (ternary_loss(im1, im2_warped, mask_fw,
-                                      max_distance=data_max_distance) +
-                         ternary_loss(im2, im1_warped, mask_bw,
-                                      max_distance=data_max_distance))
+    with tf.name_scope('fb'):
+        losses['fb'] = (charbonnier_loss(flow_diff_fw, mask_fw) +
+                        charbonnier_loss(flow_diff_bw, mask_bw))
 
-    return losses
+    with tf.name_scope('ternary'):
+        losses['ternary'] = (ternary_loss(im1, im2_warped, mask_fw,
+                                          max_distance=data_max_distance) +
+                             ternary_loss(im2, im1_warped, mask_bw,
+                                          max_distance=data_max_distance))
+
+    return losses, occ_fw, occ_bw
 
 
 def ternary_loss(im1, im2_warped, mask, max_distance=1):
+    """
+    As mentioned in the paper, performs a ternary census transform on the images then diffs them using hamming distance.
+    :param im1: Tensor of shape [B, H, W, 3].
+    :param im2_warped: Tensor of shape [B, H, W, 3].
+    :param mask: Tensor of shape [B, H, W, 1].
+    :param max_distance: Int.
+    :return: Scalar tensor.
+    """
     patch_size = 2 * max_distance + 1
     with tf.variable_scope('ternary_loss'):
         def _ternary_transform(image):
             intensities = tf.image.rgb_to_grayscale(image) * 255
             out_channels = patch_size * patch_size
             w = np.eye(out_channels).reshape((patch_size, patch_size, 1, out_channels))
-            weights =  tf.constant(w, dtype=tf.float32)
+            weights = tf.constant(w, dtype=tf.float32)
             patches = tf.nn.conv2d(intensities, weights, strides=[1, 1, 1, 1], padding='SAME')
 
             transf = patches - intensities
@@ -103,46 +146,48 @@ def ternary_loss(im1, im2_warped, mask, max_distance=1):
         return charbonnier_loss(dist, mask * transform_mask)
 
 
-def occlusion(flow_fw, flow_bw):
-    mag_sq = length_sq(flow_fw) + length_sq(flow_bw)
-    flow_bw_warped = backward_warp(flow_bw, flow_fw)
-    flow_fw_warped = backward_warp(flow_fw, flow_bw)
-    flow_diff_fw = flow_fw + flow_bw_warped
-    flow_diff_bw = flow_bw + flow_fw_warped
-    occ_thresh = 0.01 * mag_sq + 0.5
-    occ_fw = tf.cast(length_sq(flow_diff_fw) > occ_thresh, tf.float32)
-    occ_bw = tf.cast(length_sq(flow_diff_bw) > occ_thresh, tf.float32)
-    return occ_fw, occ_bw, flow_diff_fw, flow_diff_bw
-
-
-def divergence(flow):
-    with tf.variable_scope('divergence'):
-        filter_x = [[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]] # sobel filter
-        filter_y = np.transpose(filter_x)
-        weight_array_x = np.zeros([3, 3, 1, 1])
-        weight_array_x[:, :, 0, 0] = filter_x
-        weights_x = tf.constant(weight_array_x, dtype=tf.float32)
-        weight_array_y = np.zeros([3, 3, 1, 1])
-        weight_array_y[:, :, 0, 0] = filter_y
-        weights_y = tf.constant(weight_array_y, dtype=tf.float32)
-        flow_u, flow_v = tf.split(axis=3, num_or_size_splits=2, value=flow)
-        grad_x = conv2d(flow_u, weights_x)
-        grad_y = conv2d(flow_v, weights_y)
-        div = tf.reduce_sum(tf.concat(axis=3, values=[grad_x, grad_y]), 3, keepdims=True)
-        return div
+def occlusion(flow_fw, flow_bw, prewarp_scaling):
+    """
+    :param flow_fw: Tensor of shape [B, H, W, 2].
+    :param flow_bw: Tensor of shape [B, H, W, 2].
+    :param prewarp_scaling: Float. Scales the flow right before using it in a backward warp.
+    :return: occ_fw: Tensor of shape [B, H, W, 1].
+             occ_bw: Tensor of shape [B, H, W, 1].
+             flow_diff_fw: Tensor of shape [B, H, W, 2]. Difference between backward and forward flows.
+             flow_diff_bw. Tensor of shape [B, H, W, 2]. Difference between backward and forward flows.
+    """
+    with tf.name_scope('occlusion'):
+        mag_sq = length_sq(flow_fw) + length_sq(flow_bw)
+        flow_bw_warped = backward_warp(flow_bw, flow_fw * prewarp_scaling)
+        flow_fw_warped = backward_warp(flow_fw, flow_bw * prewarp_scaling)
+        flow_diff_fw = flow_fw + flow_bw_warped
+        flow_diff_bw = flow_bw + flow_fw_warped
+        occ_thresh = 0.01 * mag_sq + 0.5
+        occ_fw = tf.cast(length_sq(flow_diff_fw) > occ_thresh, tf.float32)
+        occ_bw = tf.cast(length_sq(flow_diff_bw) > occ_thresh, tf.float32)
+        return occ_fw, occ_bw, flow_diff_fw, flow_diff_bw
 
 
 def norm(x, sigma):
-    """Gaussian decay.
+    """
+    Gaussian decay.
     Result is 1.0 for x = 0 and decays towards 0 for |x > sigma.
+    :param x: Tensor.
+    :param sigma: Tensor.
+    :return: Tensor.
     """
     dist = Normal(0.0, sigma)
     return dist.pdf(x) / dist.pdf(0.0)
 
 
 def diffusion_loss(flow, im, occ):
-    """Forces diffusion weighted by motion, intensity and occlusion label similarity.
+    """
+    Forces diffusion weighted by motion, intensity and occlusion label similarity.
     Inspired by Bilateral Flow Filtering.
+    :param flow: Tensor of shape [B, H, W, 2].
+    :param im: Tensor of shape [B, H, W, 3].
+    :param occ: Tensor of shape [B, H, W, 1].
+    :return: Scalar tensor.
     """
     def neighbor_diff(x, num_in=1):
         weights = np.zeros([3, 3, num_in, 8 * num_in])
@@ -166,14 +211,30 @@ def diffusion_loss(flow, im, occ):
 
 
 def photometric_loss(im_diff, mask):
+    """
+    :param im_diff: Tensor of shape [B, H, W, 3].
+    :param mask: Tensor of shape [B, H, W, 1].
+    :return: Scalar tensor.
+    """
     return charbonnier_loss(im_diff, mask, beta=255)
 
 
 def conv2d(x, weights):
+    """
+    :param x: Tensor of shape [B, H, W, C_input].
+    :param weights: Tensor of shape [filter_height, filter_width, C_input, C_output]
+    :return: Tensor of shape [B, H, W, C_output].
+    """
     return tf.nn.conv2d(x, weights, strides=[1, 1, 1, 1], padding='SAME')
 
 
 def _smoothness_deltas(flow):
+    """
+    :param flow: Tensor of shape [B, H, W, 2].
+    :return: delta_u: Tensor of shape [B, H, W, 2].
+             delta_v: Tensor of shape [B, H, W, 2].
+             mask: Tensor.
+    """
     with tf.variable_scope('smoothness_delta'):
         mask_x = create_mask(flow, [[0, 0], [0, 1]])
         mask_y = create_mask(flow, [[0, 1], [0, 0]])
@@ -193,8 +254,13 @@ def _smoothness_deltas(flow):
 
 
 def _gradient_delta(im1, im2_warped):
+    """
+    :param im1: Tensor of shape [B, H, W, 3].
+    :param im2_warped: Tensor of shape [B, H, W, 3].
+    :return: Tensor of shape [B, H, W, 6].
+    """
     with tf.variable_scope('gradient_delta'):
-        filter_x = [[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]] # sobel filter
+        filter_x = [[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]]  # sobel filter
         filter_y = np.transpose(filter_x)
         weight_array = np.zeros([3, 3, 3, 6])
         for c in range(3):
@@ -209,6 +275,12 @@ def _gradient_delta(im1, im2_warped):
 
 
 def gradient_loss(im1, im2_warped, mask):
+    """
+    :param im1: Tensor of shape [B, H, W, 3].
+    :param im2_warped: Tensor of shape [B, H, W, 3].
+    :param mask: Tensor.
+    :return: Scalar tensor.
+    """
     with tf.variable_scope('gradient_loss'):
         mask_x = create_mask(im1, [[0, 0], [1, 1]])
         mask_y = create_mask(im1, [[1, 1], [0, 0]])
@@ -218,6 +290,10 @@ def gradient_loss(im1, im2_warped, mask):
 
 
 def smoothness_loss(flow):
+    """
+    :param flow: Tensor of shape [B, H, W, 2].
+    :return: Scalar tensor.
+    """
     with tf.variable_scope('smoothness_loss'):
         delta_u, delta_v, mask = _smoothness_deltas(flow)
         loss_u = charbonnier_loss(delta_u, mask)
@@ -226,6 +302,12 @@ def smoothness_loss(flow):
 
 
 def _second_order_deltas(flow):
+    """
+    :param flow: Tensor of shape [B, H, W, 2].
+    :return: delta_u: Tensor of shape [B, H, W, 4].
+             delta_v: Tensor of shape [B, H, W, 4].
+             mask: Tensor of shape [B, H, W, 4].
+    """
     with tf.variable_scope('_second_order_deltas'):
         mask_x = create_mask(flow, [[0, 0], [1, 1]])
         mask_y = create_mask(flow, [[1, 1], [0, 0]])
@@ -258,6 +340,10 @@ def _second_order_deltas(flow):
 
 
 def second_order_loss(flow):
+    """
+    :param flow: Tensor of shape [B, H, W, 2].
+    :return: Scalar tensor.
+    """
     with tf.variable_scope('second_order_loss'):
         delta_u, delta_v, mask = _second_order_deltas(flow)
         loss_u = charbonnier_loss(delta_u, mask)
@@ -266,16 +352,16 @@ def second_order_loss(flow):
 
 
 def charbonnier_loss(x, mask=None, truncate=None, alpha=0.45, beta=1.0, epsilon=0.001):
-    """Compute the generalized charbonnier loss of the difference tensor x.
+    """
+    Compute the generalized charbonnier loss of the difference tensor x.
     All positions where mask == 0 are not taken into account.
-
-    Args:
-        x: a tensor of shape [num_batch, height, width, channels].
-        mask: a mask of shape [num_batch, height, width, mask_channels],
-            where mask channels must be either 1 or the same number as
-            the number of channels of x. Entries should be 0 or 1.
-    Returns:
-        loss as tf.float32
+    :param x: Tensor of shape [B, H, W, C].
+    :param mask: Tensor of shape [B, H, W, C].
+    :param truncate: Scalar tensor or None.
+    :param alpha: Scalar tensor.
+    :param beta: Scalar tensor.
+    :param epsilon: Scalar tensor.
+    :return: Scalar tensor.
     """
     with tf.variable_scope('charbonnier_loss'):
         batch, height, width, channels = tf.unstack(tf.shape(x))
@@ -293,6 +379,11 @@ def charbonnier_loss(x, mask=None, truncate=None, alpha=0.45, beta=1.0, epsilon=
 
 
 def create_mask(tensor, paddings):
+    """
+    :param tensor: Tensor.
+    :param paddings: 2D array of floats.
+    :return: Tensor.
+    """
     with tf.variable_scope('create_mask'):
         shape = tf.shape(tensor)
         inner_width = shape[1] - (paddings[0][0] + paddings[0][1])
@@ -306,6 +397,11 @@ def create_mask(tensor, paddings):
 
 
 def create_border_mask(tensor, border_ratio=0.1):
+    """
+    :param tensor: Tensor of shape [B, H, W, C].
+    :param border_ratio: Float or scalar tensor.
+    :return: Tensor.
+    """
     with tf.variable_scope('create_border_mask'):
         num_batch, height, width, _ = tf.unstack(tf.shape(tensor))
         min_dim = tf.cast(tf.minimum(height, width), 'float32')
@@ -315,8 +411,11 @@ def create_border_mask(tensor, border_ratio=0.1):
 
 
 def create_outgoing_mask(flow):
-    """Computes a mask that is zero at all positions where the flow
-    would carry a pixel over the image boundary."""
+    """
+    Computes a mask that is zero at all positions where the flow would carry a pixel over the image boundary.
+    :param flow: Tensor of shape [B, H, W, 2].
+    :return: Tensor.
+    """
     with tf.variable_scope('create_outgoing_mask'):
         num_batch, height, width, _ = tf.unstack(tf.shape(flow))
 
@@ -329,8 +428,8 @@ def create_outgoing_mask(flow):
         pos_x = tf.cast(grid_x, dtype=tf.float32) + flow_u
         pos_y = tf.cast(grid_y, dtype=tf.float32) + flow_v
         inside_x = tf.logical_and(pos_x <= tf.cast(width - 1, tf.float32),
-                                  pos_x >=  0.0)
+                                  pos_x >= 0.0)
         inside_y = tf.logical_and(pos_y <= tf.cast(height - 1, tf.float32),
-                                  pos_y >=  0.0)
+                                  pos_y >= 0.0)
         inside = tf.logical_and(inside_x, inside_y)
         return tf.expand_dims(tf.cast(inside, tf.float32), 3)

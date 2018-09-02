@@ -1,0 +1,9 @@
+{
+  "parent_json": "common/utils/test_data/config/base.json",
+  "b": "b",
+  "c": "c",
+  "deep": {
+    "foo": "bar",
+    "bar": "foobar"
+  }
+}

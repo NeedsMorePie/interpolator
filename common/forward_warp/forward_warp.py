@@ -88,7 +88,7 @@ def _get_translated_pixels(features, translations):
         return all_indices, all_vals
 
 
-def create_disocclusion_map(flow):
+def create_disocclusion_mask(flow):
     """
     Creates a disocclusion mask representing areas that were previously occluded and will become visible.
     This is done by forward warping some ones and thresholding them for visibility.
@@ -99,7 +99,8 @@ def create_disocclusion_map(flow):
     :param flow: Tensor of shape [B, H, W, 2].
     :return: Tensor of shape [B, H, W, 1].
     """
-    batch, height, width, _ = tf.unstack(tf.shape(flow))
-    prewarp_mask = tf.ones([batch, height, width, 1], dtype=tf.float32)
-    forward_warped_mask = forward_warp(prewarp_mask, flow)
-    return tf.cast(forward_warped_mask < DISOCC_THRESH, dtype=tf.float32)
+    with tf.name_scope('disocclusion_mask'):
+        batch, height, width, _ = tf.unstack(tf.shape(flow))
+        prewarp_mask = tf.ones([batch, height, width, 1], dtype=tf.float32)
+        forward_warped_mask = forward_warp(prewarp_mask, flow)
+        return tf.cast(forward_warped_mask < DISOCC_THRESH, dtype=tf.float32)

@@ -3,7 +3,7 @@ from common.models import RestorableNetwork
 from pwcnet.estimator_network.model import EstimatorNetwork
 from pwcnet.context_network.model import ContextNetwork
 from pwcnet.feature_pyramid_network.model import FeaturePyramidNetwork
-from pwcnet.losses.loss import create_multi_level_loss, l2_diff, lq_diff
+from pwcnet.losses.loss import create_multi_level_loss, l2_diff, lq_diff, create_multi_level_unflow_loss
 from tensorflow.contrib.layers import l2_regularizer
 
 
@@ -11,8 +11,7 @@ VERBOSE = False
 
 
 class PWCNet(RestorableNetwork):
-    def __init__(self, name='pwc_net', regularizer=l2_regularizer(4e-4),
-                 flow_layer_loss_weights=None, flow_scaling=0.05, search_range=4):
+    def __init__(self, name='pwc_net', regularizer=l2_regularizer(4e-4), flow_scaling=0.05, search_range=4):
         """
         :param name: Str.
         :param regularizer: Tf regularizer.
@@ -25,11 +24,6 @@ class PWCNet(RestorableNetwork):
 
         self.regularizer = regularizer
         self.flow_scaling = flow_scaling
-
-        if flow_layer_loss_weights is None:
-            self.flow_layer_loss_weights = [0.32, 0.08, 0.02, 0.01, 0.0025, 0.005]
-        else:
-            self.flow_layer_loss_weights = flow_layer_loss_weights
 
         # Number of times the flow is estimated and refined.
         # If this number changes, then the feature_pyramid needs to be reconfigured.
@@ -50,6 +44,7 @@ class PWCNet(RestorableNetwork):
         """
         :param image_a: Tensor of shape [batch_size, H, W, 3].
         :param image_b: Tensor of shape [batch_size, H, W, 3].
+        :param reuse_variables: tf reuse option. i.e. tf.AUTO_REUSE.
         :return: final_flow: up-sampled final flow.
                  previous_flows: all previous flow outputs of the estimator networks and the context network.
         """
@@ -113,6 +108,35 @@ class PWCNet(RestorableNetwork):
             final_flow = tf.divide(final_flow, self.flow_scaling, name='final_flow')
             return final_flow, previous_flows
 
+    def get_bidirectional(self, image_a, image_b, reuse_variables=tf.AUTO_REUSE):
+        """
+        Gets the bidirectional flow using a siamese PWC Net.
+        :param image_a: Tensor of shape [batch_size, H, W, 3].
+        :param image_b: Tensor of shape [batch_size, H, W, 3].
+        :param reuse_variables: Tensorflow reuse variable parameter. Can be False, True, or tf.AUTO_REUSE.
+        :return: final_forward_flow: up-sampled final forward flow.
+                 final_backward_flow: up-sampled final backward flow.
+                 previous_forward_flows: all previous flow outputs of the estimator networks and the context network.
+                 previous_backward_flows: all previous flow outputs of the estimator networks and the context network.
+        """
+        with tf.name_scope('preprocess_bidirectional'):
+            batch_size = tf.shape(image_a)[0]
+            input_stack_a = tf.concat([image_a, image_b], axis=0)
+            input_stack_b = tf.concat([image_b, image_a], axis=0)
+
+        final_flow, previous_flows = self.get_forward(input_stack_a, input_stack_b, reuse_variables=reuse_variables)
+
+        with tf.name_scope('postprocess_bidirectional'):
+            final_forward_flow = final_flow[0:batch_size, ...]
+            final_backward_flow = final_flow[batch_size:, ...]
+            previous_forward_flows = []
+            previous_backward_flows = []
+            for previous_flow in previous_flows:
+                previous_forward_flows.append(previous_flow[0:batch_size, ...])
+                previous_backward_flows.append(previous_flow[batch_size:, ...])
+
+        return final_forward_flow, final_backward_flow, previous_forward_flows, previous_backward_flows
+
     def _get_image_features_for_level(self, feature_levels, level, batch_size):
         """
         Extracts the features for image_a and image_b from the feature pyramid.
@@ -172,8 +196,7 @@ class PWCNet(RestorableNetwork):
         """
 
         total_loss, layer_losses = create_multi_level_loss(
-            expected_flow=expected_flow, flows=previous_flows, flow_scaling=self.flow_scaling,
-            flow_layer_loss_weights=self.flow_layer_loss_weights, diff_fn=diff_fn)
+            expected_flow=expected_flow, flows=previous_flows, flow_scaling=self.flow_scaling, diff_fn=diff_fn)
 
         # Add the regularization loss.
         total_loss += tf.add_n(tf.losses.get_regularization_losses(scope=self.name))
@@ -197,3 +220,25 @@ class PWCNet(RestorableNetwork):
             def lq_diff_with_args(a, b):
                 return lq_diff(a, b, q=q, epsilon=epsilon)
             return self._get_loss(previous_flows, expected_flow, lq_diff_with_args)
+
+    def get_unflow_training_loss(self, image_a, image_b, previous_forward_flows, previous_backward_flows):
+        """
+        :param image_a: Tensor of shape [B, H, W, 3].
+        :param image_b: Tensor of shape [B, H, W, 3].
+        :param previous_forward_flows: List of flow tensors at different resolution levels.
+        :param previous_backward_flows: List of flow tensors at different resolution levels.
+        :return: total_loss: Scalar tensor. Sum off all weighted level losses.
+                 layer_losses: List of scalar tensors. Weighted loss at each level.
+                 forward_occlusion_masks: List of tensors of shape [B, H, W, 1].
+                 backward_occlusion_masks: List of tensors of shape [B, H, W, 1].
+                 layer_losses_detailed: List of dicts. Each dict contains the individual fully weighted losses.
+        """
+        with tf.name_scope('unflow_training_loss'):
+            losses = create_multi_level_unflow_loss(image_a, image_b, previous_forward_flows, previous_backward_flows,
+                                                    self.flow_scaling)
+            total_loss, layer_losses, forward_occlusion_masks, backward_occlusion_masks, layer_losses_detailed = losses
+
+            # Add the regularization loss.
+            total_loss += tf.add_n(tf.losses.get_regularization_losses(scope=self.name))
+
+            return total_loss, layer_losses, forward_occlusion_masks, backward_occlusion_masks, layer_losses_detailed

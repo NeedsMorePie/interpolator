@@ -2,7 +2,7 @@ import argparse
 import json
 import os
 import subprocess
-from utils.misc import compile_args, preprocess_var_refs
+from common.utils.config import compile_args, preprocess_var_refs, import_json
 
 
 def main():
@@ -15,11 +15,10 @@ def main():
 
     # Read the JSON schedule.
     print('Loading schedule...')
-    with open(args.schedule) as json_data:
-        schedule = json.load(json_data)
-        preprocess_var_refs(schedule)
-        print(json.dumps(schedule, sort_keys=True, indent=4))
-        print('')
+    schedule = import_json(args.schedule)
+    preprocess_var_refs(schedule)
+    print(json.dumps(schedule, sort_keys=True, indent=4))
+    print('')
 
     runs = schedule['runs']
     assert args.start_from < len(runs)

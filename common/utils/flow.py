@@ -4,13 +4,11 @@ import platform
 if platform.system() == 'Darwin':
     import matplotlib
     matplotlib.use('TkAgg')
-
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
-
-from utils.pfm import load_pfm
+from common.utils.pfm import load_pfm
 
 
 FLOW_CHANNELS = 2
