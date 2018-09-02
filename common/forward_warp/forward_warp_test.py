@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 import tensorflow as tf
 from common.utils.img import read_image, show_image
-from common.forward_warp.forward_warp import forward_warp, create_disocclusion_mask, is_forward_warp_cuda
+from common.forward_warp.forward_warp import forward_warp, create_disocclusion_mask, is_forward_warp_cuda, forward_warp_tf
 from common.utils.flow import read_flow_file
 from tensorflow.python.ops import gradient_checker
 
@@ -12,185 +12,184 @@ VISUALIZE = False
 WRITE_TO_VIDEO = False
 
 
-if not is_forward_warp_cuda():
-    class TestForwardWarp(unittest.TestCase):
-        def setUp(self):
-            config = tf.ConfigProto()
-            config.gpu_options.allow_growth = True
-            self.sess = tf.Session(config=config)
+class TestForwardWarpTF(unittest.TestCase):
+    def setUp(self):
+        config = tf.ConfigProto()
+        config.gpu_options.allow_growth = True
+        self.sess = tf.Session(config=config)
 
-        def test_forward_warp_whole_1(self):
-            height = 2
-            width = 2
+    def test_forward_warp_whole_1(self):
+        height = 2
+        width = 2
 
-            # Flow is in (x, y) order.
-            # Splats the top-left pixel right in the center.
-            flow = [[
-                [[1, 1], [0, 0]],
-                [[0, 0], [0, 0]]
-            ]]
-            features = [[
-                [[4, 0], [0, 0]],
-                [[1, 1], [0, 0]]
-            ]]
-            expected_warp = [[
-                [[0, 0], [0, 0]],
-                [[1, 1], [4, 0]]
-            ]]
+        # Flow is in (x, y) order.
+        # Splats the top-left pixel right in the center.
+        flow = [[
+            [[1, 1], [0, 0]],
+            [[0, 0], [0, 0]]
+        ]]
+        features = [[
+            [[4, 0], [0, 0]],
+            [[1, 1], [0, 0]]
+        ]]
+        expected_warp = [[
+            [[0, 0], [0, 0]],
+            [[1, 1], [4, 0]]
+        ]]
 
-            flow_tensor = tf.placeholder(tf.float32, (1, height, width, 2))
-            features_tensor = tf.placeholder(tf.float32, (1, height, width, 2))
-            warp_tensor = forward_warp(features_tensor, flow_tensor)
-            warp = self.sess.run(warp_tensor, feed_dict={flow_tensor: flow, features_tensor: features})
-            self.assertEqual(warp.tolist(), expected_warp)
+        flow_tensor = tf.placeholder(tf.float32, (1, height, width, 2))
+        features_tensor = tf.placeholder(tf.float32, (1, height, width, 2))
+        warp_tensor = forward_warp_tf(features_tensor, flow_tensor)
+        warp = self.sess.run(warp_tensor, feed_dict={flow_tensor: flow, features_tensor: features})
+        self.assertEqual(warp.tolist(), expected_warp)
 
-        def test_forward_warp_partial_1(self):
-            height = 2
-            width = 2
+    def test_forward_warp_partial_1(self):
+        height = 2
+        width = 2
 
-            # Flow is in (x, y) order.
-            # Splats the top-left pixel right in the center.
-            flow = [[
+        # Flow is in (x, y) order.
+        # Splats the top-left pixel right in the center.
+        flow = [[
+            [[0.5, 0.5], [0, 0]],
+            [[0, 0], [0, 0]]
+        ]]
+        features = [[
+            [[4, 0], [0, 0]],
+            [[1, 1], [0, 0]]
+        ]]
+        expected_warp = [[
+            [[1, 0], [1, 0]],
+            [[2, 1], [1, 0]]
+        ]]
+
+        flow_tensor = tf.placeholder(tf.float32, (1, height, width, 2))
+        features_tensor = tf.placeholder(tf.float32, (1, height, width, 2))
+        warp_tensor = forward_warp_tf(features_tensor, flow_tensor)
+        warp = self.sess.run(warp_tensor, feed_dict={flow_tensor: flow, features_tensor: features})
+        self.assertEqual(warp.tolist(), expected_warp)
+
+    def test_forward_warp_partial_2(self):
+        height = 3
+        width = 2
+
+        # Flow is in (x, y) order.
+        # Splats the top-left pixel right in the center.
+        flow = [[
+            [[0.5, 0.5], [0, 0]],
+            [[0, 0], [0, 0]],
+            [[0, 0], [-0.5, -0.5]]
+        ]]
+        features = [[
+            [[4, 0], [0, 0]],
+            [[1, 1], [0, 0]],
+            [[0, 0], [-4, -4]]
+        ]]
+        expected_warp = [[
+            [[1, 0], [1, 0]],
+            [[1, 0], [0, -1]],
+            [[-1, -1], [-1, -1]]
+        ]]
+
+        flow_tensor = tf.placeholder(tf.float32, (1, height, width, 2))
+        features_tensor = tf.placeholder(tf.float32, (1, height, width, 2))
+        warp_tensor = forward_warp_tf(features_tensor, flow_tensor)
+        warp = self.sess.run(warp_tensor, feed_dict={flow_tensor: flow, features_tensor: features})
+        self.assertEqual(warp.tolist(), expected_warp)
+
+        # Check for gradients.
+        grads_tensor = tf.gradients(warp_tensor[0][0][0], [flow_tensor, features_tensor])
+        for grad_tensor in grads_tensor:
+            self.assertNotEqual(grad_tensor, None)
+
+        grads = self.sess.run(grads_tensor, feed_dict={flow_tensor: flow, features_tensor: features})
+        flow_grads, feature_grads = grads[0][0], grads[1][0]
+        self.assertNotEqual(np.sum(flow_grads), 0.0)
+        self.assertNotEqual(np.sum(feature_grads), 0.0)
+
+    def test_forward_warp_oob(self):
+        """
+        Note that oob == out of bounds.
+        """
+        height = 3
+        width = 2
+
+        # Flow is in (x, y) order.
+        # Splats the top-left pixel right in the center.
+        flow = [[
+            [[1.5, 0], [0, 0]],
+            [[0, 0], [0, 0]],
+            [[0, 0], [-10, -10]]
+        ]]
+        features = [[
+            [[4, 0], [0, 0]],
+            [[1, 1], [0, 0]],
+            [[0, 0], [-4, -4]]
+        ]]
+        expected_warp = [[
+            [[0, 0], [2, 0]],
+            [[1, 1], [0, 0]],
+            [[0, 0], [0, 0]]
+        ]]
+
+        flow_tensor = tf.placeholder(tf.float32, (1, height, width, 2))
+        features_tensor = tf.placeholder(tf.float32, (1, height, width, 2))
+        warp_tensor = forward_warp_tf(features_tensor, flow_tensor)
+        warp = self.sess.run(warp_tensor, feed_dict={flow_tensor: flow, features_tensor: features})
+        self.assertEqual(warp.tolist(), expected_warp)
+
+    def test_forward_warp_batch(self):
+        height = 2
+        width = 2
+
+        # Flow is in (x, y) order.
+        # Splats the top-left pixel right in the center.
+        flow = [
+            [
                 [[0.5, 0.5], [0, 0]],
                 [[0, 0], [0, 0]]
-            ]]
-            features = [[
+            ],
+            [
+                [[1, 1], [0, 0]],
+                [[0, 0], [0, 0]]
+            ]
+        ]
+        features = [
+            [
                 [[4, 0], [0, 0]],
                 [[1, 1], [0, 0]]
-            ]]
-            expected_warp = [[
+            ],
+            [
+                [[100, 0], [0, 0]],
+                [[1, 1], [0, 0]]
+            ]
+        ]
+        expected_warp = [
+            [
                 [[1, 0], [1, 0]],
                 [[2, 1], [1, 0]]
-            ]]
-
-            flow_tensor = tf.placeholder(tf.float32, (1, height, width, 2))
-            features_tensor = tf.placeholder(tf.float32, (1, height, width, 2))
-            warp_tensor = forward_warp(features_tensor, flow_tensor)
-            warp = self.sess.run(warp_tensor, feed_dict={flow_tensor: flow, features_tensor: features})
-            self.assertEqual(warp.tolist(), expected_warp)
-
-        def test_forward_warp_partial_2(self):
-            height = 3
-            width = 2
-
-            # Flow is in (x, y) order.
-            # Splats the top-left pixel right in the center.
-            flow = [[
-                [[0.5, 0.5], [0, 0]],
+            ],
+            [
                 [[0, 0], [0, 0]],
-                [[0, 0], [-0.5, -0.5]]
-            ]]
-            features = [[
-                [[4, 0], [0, 0]],
-                [[1, 1], [0, 0]],
-                [[0, 0], [-4, -4]]
-            ]]
-            expected_warp = [[
-                [[1, 0], [1, 0]],
-                [[1, 0], [0, -1]],
-                [[-1, -1], [-1, -1]]
-            ]]
-
-            flow_tensor = tf.placeholder(tf.float32, (1, height, width, 2))
-            features_tensor = tf.placeholder(tf.float32, (1, height, width, 2))
-            warp_tensor = forward_warp(features_tensor, flow_tensor)
-            warp = self.sess.run(warp_tensor, feed_dict={flow_tensor: flow, features_tensor: features})
-            self.assertEqual(warp.tolist(), expected_warp)
-
-            # Check for gradients.
-            grads_tensor = tf.gradients(warp_tensor[0][0][0], [flow_tensor, features_tensor])
-            for grad_tensor in grads_tensor:
-                self.assertNotEqual(grad_tensor, None)
-
-            grads = self.sess.run(grads_tensor, feed_dict={flow_tensor: flow, features_tensor: features})
-            flow_grads, feature_grads = grads[0][0], grads[1][0]
-            self.assertNotEqual(np.sum(flow_grads), 0.0)
-            self.assertNotEqual(np.sum(feature_grads), 0.0)
-
-        def test_forward_warp_oob(self):
-            """
-            Note that oob == out of bounds.
-            """
-            height = 3
-            width = 2
-
-            # Flow is in (x, y) order.
-            # Splats the top-left pixel right in the center.
-            flow = [[
-                [[1.5, 0], [0, 0]],
-                [[0, 0], [0, 0]],
-                [[0, 0], [-10, -10]]
-            ]]
-            features = [[
-                [[4, 0], [0, 0]],
-                [[1, 1], [0, 0]],
-                [[0, 0], [-4, -4]]
-            ]]
-            expected_warp = [[
-                [[0, 0], [2, 0]],
-                [[1, 1], [0, 0]],
-                [[0, 0], [0, 0]]
-            ]]
-
-            flow_tensor = tf.placeholder(tf.float32, (1, height, width, 2))
-            features_tensor = tf.placeholder(tf.float32, (1, height, width, 2))
-            warp_tensor = forward_warp(features_tensor, flow_tensor)
-            warp = self.sess.run(warp_tensor, feed_dict={flow_tensor: flow, features_tensor: features})
-            self.assertEqual(warp.tolist(), expected_warp)
-
-        def test_forward_warp_batch(self):
-            height = 2
-            width = 2
-
-            # Flow is in (x, y) order.
-            # Splats the top-left pixel right in the center.
-            flow = [
-                [
-                    [[0.5, 0.5], [0, 0]],
-                    [[0, 0], [0, 0]]
-                ],
-                [
-                    [[1, 1], [0, 0]],
-                    [[0, 0], [0, 0]]
-                ]
+                [[1, 1], [100, 0]]
             ]
-            features = [
-                [
-                    [[4, 0], [0, 0]],
-                    [[1, 1], [0, 0]]
-                ],
-                [
-                    [[100, 0], [0, 0]],
-                    [[1, 1], [0, 0]]
-                ]
-            ]
-            expected_warp = [
-                [
-                    [[1, 0], [1, 0]],
-                    [[2, 1], [1, 0]]
-                ],
-                [
-                    [[0, 0], [0, 0]],
-                    [[1, 1], [100, 0]]
-                ]
-            ]
+        ]
 
-            flow_tensor = tf.placeholder(tf.float32, (2, height, width, 2))
-            features_tensor = tf.placeholder(tf.float32, (2, height, width, 2))
-            warp_tensor = forward_warp(features_tensor, flow_tensor)
-            warp = self.sess.run(warp_tensor, feed_dict={flow_tensor: flow, features_tensor: features})
-            self.assertEqual(warp[0].tolist(), expected_warp[0])
-            self.assertEqual(warp[1].tolist(), expected_warp[1])
+        flow_tensor = tf.placeholder(tf.float32, (2, height, width, 2))
+        features_tensor = tf.placeholder(tf.float32, (2, height, width, 2))
+        warp_tensor = forward_warp_tf(features_tensor, flow_tensor)
+        warp = self.sess.run(warp_tensor, feed_dict={flow_tensor: flow, features_tensor: features})
+        self.assertEqual(warp[0].tolist(), expected_warp[0])
+        self.assertEqual(warp[1].tolist(), expected_warp[1])
 
-            # Check for gradients.
-            grads_tensor = tf.gradients(warp_tensor[0][0][0], [flow_tensor, features_tensor])
-            for grad_tensor in grads_tensor:
-                self.assertNotEqual(grad_tensor, None)
+        # Check for gradients.
+        grads_tensor = tf.gradients(warp_tensor[0][0][0], [flow_tensor, features_tensor])
+        for grad_tensor in grads_tensor:
+            self.assertNotEqual(grad_tensor, None)
 
-            grads = self.sess.run(grads_tensor, feed_dict={flow_tensor: flow, features_tensor: features})
-            flow_grads, feature_grads = grads[0][0], grads[1][0]
-            self.assertNotEqual(np.sum(flow_grads), 0.0)
-            self.assertNotEqual(np.sum(feature_grads), 0.0)
+        grads = self.sess.run(grads_tensor, feed_dict={flow_tensor: flow, features_tensor: features})
+        flow_grads, feature_grads = grads[0][0], grads[1][0]
+        self.assertNotEqual(np.sum(flow_grads), 0.0)
+        self.assertNotEqual(np.sum(feature_grads), 0.0)
 
 
 class TestForwardWarpCommon(unittest.TestCase):
