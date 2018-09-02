@@ -66,12 +66,14 @@ def create_multi_level_unflow_loss(image_a, image_b, forward_flows, backward_flo
     :param image_b: Tensor of shape [B, H, W, 3].
     :param forward_flows: List of tensors of shape [B, H_i, W_i, 2]. Flows at different resolutions (i.e. different
                           H_i, W_i for different resolutions). By default the resolutions should be increasing.
+                          These should be in in the same order as flow_layer_loss_weights.
     :param backward_flows: List of tensors of shape [B, H_i, W_i, 2]. Flows at different resolutions (i.e. different
                            H_i, W_i for different resolutions). By default the resolutions should be increasing.
+                           These should be in in the same order as flow_layer_loss_weights.
     :param flow_scaling: Float. Magnitude scale of the forward/backward flows with respect to the final flow. The
                          forward/backward flows will be divided by this before they are used in this function.
     :param flow_layer_loss_weights: List of floats. Loss weights that correspond to the flows list.
-    :param layer_patch_distances: List of ints.
+    :param layer_patch_distances: List of ints. These should be in the same order as flow_layer_loss_weights.
     :param loss_weights: Dict. Key is the loss name and the value is the weight.
     :return: total_loss: Scalar tensor. Sum off all weighted level losses.
              layer_losses: List of scalar tensors. Weighted loss at each level.
