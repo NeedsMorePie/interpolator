@@ -20,6 +20,9 @@ else:
 
 
 def is_forward_warp_cuda():
+    """
+    :return: Bool. Whether the forward_warp is using a custom CUDA op.
+    """
     return mod is not None
 
 

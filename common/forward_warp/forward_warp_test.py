@@ -348,7 +348,7 @@ class TestForwardWarpCommon(unittest.TestCase):
     def gradient_errors_helper(self, splat_variance):
         with self.sess:
             # This test is flaky, so retry if fail.
-            num_tries = 2
+            num_tries = 2 if is_forward_warp_cuda() else 4
             error1 = 0
             error2 = 0
             for i in range(num_tries):
@@ -369,6 +369,25 @@ class TestForwardWarpCommon(unittest.TestCase):
                 if error1 <= self.max_allowable_grad_err and error2 <= self.max_allowable_grad_err:
                     return
             self.assertLessEqual(max(error1, error2), self.max_allowable_grad_err,
+                                 'Exceeded the error threshold. Note that this test may be flaky.')
+
+    def test_gradient_errors_simultaneous(self):
+        with self.sess:
+            # This test is flaky, so retry if fail.
+            num_tries = 2 if is_forward_warp_cuda() else 4
+            error = 0
+            for i in range(num_tries):
+                img_shape = (16, 3, 4, 4)
+                flow_shape = (16, 3, 4, 2)
+                input = tf.ones(shape=img_shape, dtype=tf.float32)
+                flow_tensor = tf.ones(shape=flow_shape, dtype=tf.float32)
+                warped_tensor = forward_warp(input, flow_tensor, splat_variance=0.2)
+
+                error = gradient_checker.compute_gradient_error([input, flow_tensor], [img_shape, flow_shape],
+                                                                warped_tensor, img_shape)
+                if error <= self.max_allowable_grad_err:
+                    return
+            self.assertLessEqual(error, self.max_allowable_grad_err,
                                  'Exceeded the error threshold. Note that this test may be flaky.')
 
 
