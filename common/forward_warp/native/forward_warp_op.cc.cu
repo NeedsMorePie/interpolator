@@ -59,7 +59,7 @@ __global__ void ForwardWarpKernel(const int32 nthreads,
       const int max_n_x = x_p_k < width? floor_x_p_k : width - 1;
       const int max_n_y = y_p_k < height? floor_y_p_k : height - 1;
 
-      const float gauss_divisor = 2 * std * std;
+      const float gauss_divisor = 2.0f * variance;
       const float gauss_normalizer = gauss_divisor * float(M_PI);
       for (int n_x = min_n_x; n_x <= max_n_x; ++n_x) {
         for (int n_y = min_n_y; n_y <= max_n_y; ++n_y) {
@@ -118,7 +118,7 @@ __global__ void ForwardWarpGradKernel(const int32 nthreads,
       const int max_n_x = x_p_k < width? floor_x_p_k : width - 1;
       const int max_n_y = y_p_k < height? floor_y_p_k : height - 1;
 
-      const float gauss_divisor = 2 * std * std;
+      const float gauss_divisor = 2.0f * variance;
       const float gauss_normalizer = gauss_divisor * float(M_PI);
       for (int n_x = min_n_x; n_x <= max_n_x; ++n_x) {
         for (int n_y = min_n_y; n_y <= max_n_y; ++n_y) {
