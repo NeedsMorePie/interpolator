@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 import tensorflow as tf
 from common.utils.img import read_image, show_image
-from context_interp.laplacian_pyramid.laplacian_pyramid import LaplacianPyramid
+from interp.context_interp.laplacian_pyramid import LaplacianPyramid
 
 
 VISUALIZE = False

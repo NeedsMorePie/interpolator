@@ -3,7 +3,7 @@ import time
 import numpy as np
 import tensorflow as tf
 from common.utils.tf import AdamaxOptimizer
-from context_interp.model import ContextInterp
+from interp.context_interp.model import ContextInterp
 
 if __name__ == '__main__':
     config = tf.ConfigProto()

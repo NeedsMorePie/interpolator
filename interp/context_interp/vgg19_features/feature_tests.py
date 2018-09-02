@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 import tensorflow as tf
 from common.utils.img import read_image, show_image
-from context_interp.vgg19_features.vgg19_features import Vgg19Features
+from interp.context_interp.vgg19_features.vgg19_features import Vgg19Features
 
 
 VISUALIZE = False

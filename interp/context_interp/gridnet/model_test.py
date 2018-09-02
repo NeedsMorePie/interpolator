@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import unittest
-from context_interp.gridnet.model import GridNet
+from interp.context_interp.gridnet.model import GridNet
 from tensorflow.contrib.layers import l2_regularizer
 
 

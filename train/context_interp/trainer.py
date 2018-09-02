@@ -1,9 +1,10 @@
 import os.path
 import tensorflow as tf
+import shutil
 from common.utils.misc import print_progress_bar
 from common.utils.tf import AdamaxOptimizer, optimistic_restore, Logger
 from common.utils.flow import get_tf_flow_visualization
-from context_interp.model import ContextInterp
+from interp.context_interp.model import ContextInterp
 from data.interp.interp_data import InterpDataSet
 from train.trainer import Trainer
 
@@ -77,10 +78,26 @@ class ContextInterpTrainer(Trainer):
                 loss, _ = self.session.run([self.loss, self.train_op], feed_dict=self.dataset.get_train_feed_dict())
             print_progress_bar(i + 1, iterations, prefix='Train Steps', suffix='Complete', use_percentage=False)
 
+        # Save model checkpoint.
         print('Saving model checkpoint...')
-        save_path = self.saver.save(self.session, os.path.join(self.config['checkpoint_directory'], 'model.ckpt'),
+        ckpt_save_path = self.saver.save(self.session, os.path.join(self.config['checkpoint_directory'], 'model.ckpt'),
                                     global_step=self._eval_global_step())
-        print('Model saved in path:', save_path)
+        print('Model checkpoint saved in path:', ckpt_save_path)
+
+        # Save model for simple inference.
+        images_a = tf.placeholder(tf.float32, shape=[None, None, None, 3])
+        images_b = tf.placeholder(tf.float32, shape=[None, None, None, 3])
+        outputs = self.model.get_forward(images_a, images_b, 0.5, reuse_variables=tf.AUTO_REUSE)
+        self.session.run(tf.global_variables_initializer())
+        interpolated = outputs[0]
+        saved_model_dir = os.path.join(self.config['checkpoint_directory'], 'saved_model')
+        inputs = {'image_0': images_a, 'image_1': images_b}
+        outputs = {'output': interpolated}
+        if os.path.exists(saved_model_dir):
+            print('Removing previous saved model...')
+            shutil.rmtree(saved_model_dir)
+        tf.saved_model.simple_save(self.session, saved_model_dir, inputs, outputs)
+        print('Saved model saved in path: ', saved_model_dir)
 
     def validate(self):
         """

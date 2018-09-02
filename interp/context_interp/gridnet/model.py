@@ -1,6 +1,6 @@
 import tensorflow as tf
 from common.utils.tf import prelu
-from context_interp.gridnet.connections.connections import UpSamplingConnection, DownSamplingConnection, \
+from interp.context_interp.gridnet.connections.connections import UpSamplingConnection, DownSamplingConnection, \
     LateralConnection
 
 

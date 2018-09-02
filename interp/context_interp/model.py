@@ -1,12 +1,13 @@
 import tensorflow as tf
 from common.forward_warp.forward_warp import forward_warp
-from context_interp.vgg19_features.vgg19_features import Vgg19Features
-from context_interp.gridnet.model import GridNet
-from context_interp.laplacian_pyramid.laplacian_pyramid import LaplacianPyramid
+from interp.interp import Interp
+from interp.context_interp.vgg19_features.vgg19_features import Vgg19Features
+from interp.context_interp.gridnet.model import GridNet
+from interp.context_interp.laplacian_pyramid.laplacian_pyramid import LaplacianPyramid
 from pwcnet.model import PWCNet
 
 
-class ContextInterp:
+class ContextInterp(Interp):
     def __init__(self, name='context_interp'):
         """
         :param name: Str. For Tf variable scoping.

@@ -2,7 +2,7 @@ import argparse
 import os
 import tensorflow as tf
 from data.interp.interp_data import InterpDataSet
-from context_interp.model import ContextInterp
+from interp.context_interp.model import ContextInterp
 from train.context_interp.trainer import ContextInterpTrainer
 
 

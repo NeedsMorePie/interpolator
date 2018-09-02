@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import unittest
-from context_interp.model import ContextInterp
+from interp.context_interp.model import ContextInterp
 
 
 class TestContextInterp(unittest.TestCase):

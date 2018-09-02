@@ -1,4 +1,4 @@
-from context_interp.vgg19_features.model.model import Vgg19
+from interp.context_interp.vgg19_features.model.model import Vgg19
 
 
 class Vgg19Features:
