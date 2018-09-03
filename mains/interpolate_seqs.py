@@ -2,7 +2,6 @@ import argparse
 import numpy as np
 import os
 import glob
-import re
 from common.utils import img
 from common.utils import data
 from pwcnet import model # Needed for defining ops (e.g Correlation).
@@ -45,6 +44,8 @@ def main():
     img_1 = np.zeros((1, 256, 256, 3))
     interpolator = Interp(saved_model_dir=args.saved_model_dir)
     print('Loading the SavedModel from: ', args.saved_model_dir)
+
+    # TODO: Iterate through groups in batches for interpolation and image saving.
 
     # Interpolate and save the image.
     interpolated = interpolator.interpolate_from_saved_model(img_0, img_1)

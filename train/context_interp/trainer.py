@@ -23,11 +23,6 @@ class ContextInterpTrainer(Trainer):
         self.images_b = self.next_sequence_tensor[:, 1]
         self.images_c = self.next_sequence_tensor[:, 2]
 
-        # Testing.
-        self.images_a_1 = tf.placeholder(tf.float32, shape=[None, None, None, 3])
-        self.images_b_1 = tf.placeholder(tf.float32, shape=[None, None, None, 3])
-        self.images_c_1 = tf.placeholder(tf.float32, shape=[None, None, None, 3])
-
         # Get the train network.
         model_outputs = self.model.get_forward(self.images_a, self.images_c, 0.5, reuse_variables=tf.AUTO_REUSE)
 
