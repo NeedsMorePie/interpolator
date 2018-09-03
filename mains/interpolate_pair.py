@@ -1,5 +1,6 @@
 import argparse
 import numpy as np
+import os
 from common.utils import img
 from pwcnet import model
 from interp.interp import Interp
@@ -17,8 +18,7 @@ def main():
     img_1 = np.zeros((1, 256, 256, 3))
     interpolator = Interp(saved_model_dir=args.saved_model_dir)
     print('Loading the SavedModel from: ', args.saved_model_dir)
-    interpolator.load_saved_model()
-    preds = interpolator.predict(img_0, img_1)
+    preds = interpolator.interpolate_from_saved_model(img_0, img_1)
     print(preds)
     print(np.mean(preds))
     print(np.shape(preds))

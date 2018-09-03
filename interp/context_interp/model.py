@@ -13,8 +13,7 @@ class ContextInterp(Interp):
         :param name: Str. For Tf variable scoping.
         :param saved_model_dir: See parent class.
         """
-        super().__init__(saved_model_dir=saved_model_dir)
-        self.name = name
+        super().__init__(name, saved_model_dir=saved_model_dir)
         self.enclosing_scope = None
         self.gridnet = GridNet([32, 64, 96], 6, num_output_channels=3)
         self.laplacian_pyramid = LaplacianPyramid(5)
@@ -22,48 +21,48 @@ class ContextInterp(Interp):
         self.feature_extractor = Vgg19Features()
         self.feature_extractor.load_pretrained_weights()
 
-    def _get_forward(self, image_a, image_b, t, reuse_variables=tf.AUTO_REUSE):
+    def _get_forward(self, images_0, images_1, t, reuse_variables=tf.AUTO_REUSE):
         """
-        :param image_a: Tensor of shape [batch_size, H, W, 3].
-        :param image_b: Tensor of shape [batch_size, H, W, 3].
-        :param t: Float. Specifies the interpolation point (i.e 0 for image_a, 1 for image_b).
+        :param images_0: Tensor of shape [batch_size, H, W, 3].
+        :param images_1: Tensor of shape [batch_size, H, W, 3].
+        :param t: Float. Specifies the interpolation point (i.e 0 for images_0, 1 for images_1).
         :return: interpolated: The interpolated image. Tensor of shape [batch_size, H, W, 3].
-                 warped_a_b: Image and features from a forward-flowed towards b, before synthesis.
+                 warped_0_1: Image and features from image_0 forward-flowed towards image_b, before synthesis.
                              The first 3 channels are the image.
-                 warped_b_a: Image and features from b forward-flowed towards a, before synthesis.
+                 warped_1_0: Image and features from image_b forward-flowed towards image_a, before synthesis.
                              The first 3 channels are the image.
-                 flow_a_b: Flow from a to b (centered at a).
-                 flow_b_a: Flow from b to a (centered at b).
+                 flow_0_1: Flow from images 0 to 1 (centered at images 0).
+                 flow_1_0: Flow from images 1 to 0 (centered at images 1).
         """
         self.enclosing_scope = tf.get_variable_scope()
         with tf.variable_scope(self.name, reuse=reuse_variables):
-            batch_size = tf.shape(image_a)[0]
-            from_frames = tf.concat([image_a, image_b], axis=0)
-            to_frames = tf.concat([image_b, image_a], axis=0)
+            batch_size = tf.shape(images_0)[0]
+            from_frames = tf.concat([images_0, images_1], axis=0)
+            to_frames = tf.concat([images_1, images_0], axis=0)
             all_contexts = self.feature_extractor.get_context_features(from_frames)
 
             # TODO: Add instance normalization. Described in 3.3 of https://arxiv.org/pdf/1803.10967.pdf.
 
-            # Get a->b and b->a flows from PWCNet.
+            # Get images 0->1 and images 1->0 flows from PWCNet.
             # TODO: Migrate to pwcnet.get_bidirectional.
             all_flows, _ = self.pwcnet.get_forward(from_frames, to_frames, reuse_variables=reuse_variables)
-            flow_a_b = all_flows[:batch_size]
-            flow_b_a = all_flows[batch_size:]
+            flow_0_1 = all_flows[:batch_size]
+            flow_1_0 = all_flows[batch_size:]
 
-            features_a = tf.concat([image_a, all_contexts[:batch_size]], axis=-1)
-            features_b = tf.concat([image_b, all_contexts[batch_size:]], axis=-1)
+            features_a = tf.concat([images_0, all_contexts[:batch_size]], axis=-1)
+            features_b = tf.concat([images_1, all_contexts[batch_size:]], axis=-1)
             all_features = tf.concat([features_a, features_b], axis=0)
-            all_warp_flows = tf.concat([t * flow_a_b, (1.0 - t) * flow_b_a], axis=0)
+            all_warp_flows = tf.concat([t * flow_0_1, (1.0 - t) * flow_1_0], axis=0)
 
-            # Warp images and their contexts from a->b and from b->a.
+            # Warp images and their contexts from images 0->1 and from images 1->0.
             all_warped = forward_warp(all_features, all_warp_flows)
-            warped_a_b = tf.stop_gradient(all_warped[:batch_size])
-            warped_b_a = tf.stop_gradient(all_warped[batch_size:])
+            warped_0_1 = tf.stop_gradient(all_warped[:batch_size])
+            warped_1_0 = tf.stop_gradient(all_warped[batch_size:])
 
             # Feed into GridNet for final synthesis.
-            warped_combined = tf.concat([warped_a_b, warped_b_a], axis=-1)
+            warped_combined = tf.concat([warped_0_1, warped_1_0], axis=-1)
             synthesized, _, _, _ = self.gridnet.get_forward(warped_combined, training=True)
-            return synthesized, warped_a_b, warped_b_a, flow_a_b, flow_b_a
+            return synthesized, warped_0_1, warped_1_0, flow_0_1, flow_1_0
 
     def load_pwcnet_weights(self, pwcnet_weights_path, sess):
         """
