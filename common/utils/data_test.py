@@ -55,6 +55,17 @@ class TestDataUtils(unittest.TestCase):
         shard_ranges = create_shard_ranges(test_range, shard_size=2)
         self.assertListEqual(shard_ranges, [[2, 3], [4, 5], [6, 7], [8]])
 
+    def test_get_group_and_idx(self):
+        path = 'ha/foo_100.jpg'
+        group, idx = get_group_and_idx(path)
+        self.assertEqual('foo', group)
+        self.assertEqual(100, idx)
+
+    def test_get_group_and_idx_fail(self):
+        path = 'ha/foo.jpg'
+        group, idx = get_group_and_idx(path)
+        self.assertEqual(None, group)
+        self.assertEqual(None, idx)
 
 if __name__ == '__main__':
     unittest.main()

@@ -6,7 +6,6 @@ import shutil
 from interp.interp import Interp
 from data.interp.interp_data import InterpDataSet
 from data.interp.davis.davis_preprocessor import DavisDataSetPreprocessor
-from common.utils.tf import print_tensor_shape
 
 
 # Mock class for testing purposes.
