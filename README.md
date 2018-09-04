@@ -1,3 +1,8 @@
+# **DEPRECATED**
+
+Due to hitting LFS bandwidth limits with GitHub's free tier, this repository has been migrated to GitLab:
+https://gitlab.com/frame-interpolator/interpolator
+
 # Interpolator
 
 Check out the [wiki](https://github.com/NeedsMorePie/interpolator/wiki) to get started.
