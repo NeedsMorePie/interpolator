@@ -102,7 +102,7 @@
       "args": {
         "directory": { "var_ref": "sintel_data" },
         "checkpoint_directory": { "var_ref": "checkpoint_directory" },
-        "config": "mains/configs/pwcnet_schedule/train_pwcnet_sintel_10.json",
+        "config": "mains/configs/pwcnet_schedule/train_pwcnet_sintel6_10.json",
         "iterations": 200000
       }
     },

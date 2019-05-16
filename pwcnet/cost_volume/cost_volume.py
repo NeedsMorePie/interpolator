@@ -1,21 +1,12 @@
 # Mostly copied from https://github.com/nameless-Chatoyant/PWC-Net_pytorch/blob/master/modules.py.
 # Master branch commit 2225ad2082371126cc9c8e57a8b962a88933a8c0.
 import tensorflow as tf
-import os.path
-from sys import platform
+from common.utils.tf import load_op_library
 from tensorflow.python.framework import ops
 
 
 # Load op library.
-if platform == 'win32':
-    lib_path = os.path.join('build', 'correlation_op.dll')
-else:
-    lib_path = os.path.join('build', 'libcorrelation_op.so')
-if os.path.isfile(lib_path):
-    mod = tf.load_op_library(lib_path)
-else:
-    print('Warning: No CUDA implementation of cost_volume found. Falling back to the Tensorflow version.')
-    mod = None
+mod = load_op_library('correlation_op', 'build')
 
 
 def cost_volume(c1, c2, search_range=4):

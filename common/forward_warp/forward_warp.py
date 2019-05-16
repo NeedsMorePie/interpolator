@@ -1,10 +1,46 @@
 import tensorflow as tf
+from common.utils.tf import load_op_library
+from tensorflow.python.framework import ops
 
 
-DISOCC_THRESH = 0.8
+DISOCC_THRESH = 0.5
 
 
-def forward_warp(features, flow):
+# Load op library.
+mod = load_op_library('forward_warp_op', 'build')
+
+
+def is_forward_warp_cuda():
+    """
+    :return: Bool. Whether the forward_warp is using a custom CUDA op.
+    """
+    return mod is not None
+
+
+def forward_warp(features, flow, splat_variance=0.5):
+    """
+    For an algorithm that gives the same end result, see section 3 in https://arxiv.org/pdf/1711.05890.pdf.
+    Note that the actual implementation here is not n^2, and should be linear in GPU memory.
+    :param features: A Tensor. Features to be warped, of shape [batch_size, H, W, C].
+    :param flow: A Tensor. Un-normalized flow in image pixel units, of shape [batch_size, H, W, 2].
+                 Flow vectors should have (x, y) ordering.
+    :param splat_variance: Float. Variance of the splat. Only used for the CUDA op.
+    """
+    if is_forward_warp_cuda():
+        return mod.forward_warp(features, flow, variance=splat_variance)
+    else:
+        return forward_warp_tf(features, flow)
+
+
+if is_forward_warp_cuda():
+    @ops.RegisterGradient('ForwardWarp')
+    def _ForwardWarpGrad(op, grad):
+        image_grad, flow_grad = mod.forward_warp_grad(
+            grad, op.inputs[0], op.inputs[1], variance=op.get_attr('variance'))
+        return [image_grad, flow_grad]
+
+
+def forward_warp_tf(features, flow):
     """
     For an algorithm that gives the same end result, see section 3 in https://arxiv.org/pdf/1711.05890.pdf.
     Note that the actual implementation here is not n^2, and should be linear in GPU memory.
@@ -88,7 +124,7 @@ def _get_translated_pixels(features, translations):
         return all_indices, all_vals
 
 
-def create_disocclusion_mask(flow):
+def create_disocclusion_mask(flow, splat_variance=1.0):
     """
     Creates a disocclusion mask representing areas that were previously occluded and will become visible.
     This is done by forward warping some ones and thresholding them for visibility.
@@ -97,10 +133,11 @@ def create_disocclusion_mask(flow):
     https://github.com/simonmeister/UnFlow/blob/8bff4939963c7d0adb9435880dc506fb3f988080/src/e2eflow/core/losses.py#L28
     This isn't mentioned in the paper anywhere, but clearly enough, it is in the code.
     :param flow: Tensor of shape [B, H, W, 2].
+    :param splat_variance: Float. Variance of the splat. Only used for the CUDA op.
     :return: Tensor of shape [B, H, W, 1].
     """
     with tf.name_scope('disocclusion_mask'):
         batch, height, width, _ = tf.unstack(tf.shape(flow))
         prewarp_mask = tf.ones([batch, height, width, 1], dtype=tf.float32)
-        forward_warped_mask = forward_warp(prewarp_mask, flow)
+        forward_warped_mask = forward_warp(prewarp_mask, flow, splat_variance=splat_variance)
         return tf.cast(forward_warped_mask < DISOCC_THRESH, dtype=tf.float32)

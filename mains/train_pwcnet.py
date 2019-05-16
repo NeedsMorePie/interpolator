@@ -15,7 +15,6 @@ def main():
 
     config_proto = tf.ConfigProto()
     config_proto.gpu_options.allow_growth = True
-    config_proto.allow_soft_placement = True
     session = tf.Session(config=config_proto)
 
     # Read the JSON config.
